@@ -122,6 +122,9 @@ export default function DesignWorkspace() {
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const [bulkExportOpen, setBulkExportOpen] = useState(false)
+  const [bulkCanExport, setBulkCanExport] = useState(false)
+  const bulkExportFnRef = useRef<() => void>(() => {})
   const canvasRef    = useRef<HTMLDivElement>(null)
   const altCanvasRef = useRef<HTMLDivElement>(null)
   const wrapperRef   = useRef<HTMLDivElement>(null)
@@ -377,6 +380,41 @@ export default function DesignWorkspace() {
           ))}
         </div>
 
+        {/* Bulk mode — Export ZIP button in header */}
+        {appMode === 'bulk' && (
+          <div className="ml-auto relative">
+            <button
+              onClick={() => setBulkExportOpen(o => !o)}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 transition-colors"
+            >
+              Export
+              <svg className={`w-3 h-3 transition-transform duration-150 ${bulkExportOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {bulkExportOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setBulkExportOpen(false)} />
+                <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 z-50">
+                  <p className="text-[10px] text-gray-400 tabular-nums mb-3 px-1">
+                    {bulkCanExport ? 'Generation complete' : 'Run bulk generation first'}
+                  </p>
+                  <button
+                    onClick={() => { bulkExportFnRef.current(); setBulkExportOpen(false) }}
+                    disabled={!bulkCanExport}
+                    className="w-full h-9 flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                    Download ZIP
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {appMode === 'design' && (
           <>
             <span className="text-gray-200 select-none shrink-0">|</span>
@@ -492,7 +530,7 @@ export default function DesignWorkspace() {
 
       {/* ── Body ── */}
       {appMode === 'bulk' ? (
-        <BulkMode designState={design} />
+        <BulkMode designState={design} exportFnRef={bulkExportFnRef} onCanExportChange={setBulkCanExport} />
       ) : (<>
       <div className="flex flex-1 min-h-0">
 

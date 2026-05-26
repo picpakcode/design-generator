@@ -59,7 +59,13 @@ const TEMPLATE_LABELS: Record<SlotTemplate, string> = {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function BulkMode({ designState }: { designState: DesignState }) {
+interface BulkModeProps {
+  designState: DesignState
+  exportFnRef: React.MutableRefObject<() => void>
+  onCanExportChange: (can: boolean) => void
+}
+
+export default function BulkMode({ designState, exportFnRef, onCanExportChange }: BulkModeProps) {
   // CSV
   const [parseResult, setParseResult] = useState<ParseResult | null>(null)
   const [csvFilename, setCsvFilename] = useState('')
@@ -69,6 +75,12 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
   // Canto
   const [cantoStatus, setCantoStatus] = useState<ConnectionStatus>('connecting')
   const [cantoError, setCantoError]   = useState('')
+
+  // Branding overrides (local uploads that override designState assets)
+  const [localLogo,    setLocalLogo]    = useState<UploadedAsset | undefined>()
+  const [localTexture, setLocalTexture] = useState<UploadedAsset | undefined>()
+  const logoInputRef    = useRef<HTMLInputElement>(null)
+  const textureInputRef = useRef<HTMLInputElement>(null)
 
   // Settings
   const [aplusSlots, setAplusSlots]         = useState(5)
@@ -101,7 +113,6 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
 
   useEffect(() => {
     setPresets(loadPresets())
-    // Canto auto-connect
     fetch('/api/canto/status')
       .then(r => r.json())
       .then(d => {
@@ -143,6 +154,20 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
     setParseResult(null); setCsvFilename(''); setJobs([])
     setDoneJobs(0); setTotalJobs(0)
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  // ── Branding uploads ──────────────────────────────────────────────────────────
+
+  const handleBrandingFile = (file: File, slot: 'logo' | 'texture') => {
+    const url = URL.createObjectURL(file)
+    const asset: UploadedAsset = { id: `local-${slot}-${Date.now()}`, name: file.name, url, type: 'image' }
+    if (slot === 'logo')    setLocalLogo(asset)
+    if (slot === 'texture') setLocalTexture(asset)
+  }
+
+  const clearBranding = (slot: 'logo' | 'texture') => {
+    if (slot === 'logo')    { setLocalLogo(undefined);    if (logoInputRef.current)    logoInputRef.current.value = '' }
+    if (slot === 'texture') { setLocalTexture(undefined); if (textureInputRef.current) textureInputRef.current.value = '' }
   }
 
   // ── Presets ───────────────────────────────────────────────────────────────────
@@ -196,6 +221,25 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
     }
   }
 
+  // ── Download ZIP ──────────────────────────────────────────────────────────────
+
+  const handleDownloadZip = useCallback(async () => {
+    if (capturedRef.current.size === 0) return
+    const JSZip = (await import('jszip')).default
+    const zip = new JSZip()
+    const ext = outputFormat === 'jpeg' ? 'jpg' : 'png'
+    capturedRef.current.forEach((dataUrl, key) => {
+      const [sku, label] = key.split('/')
+      zip.folder(sku)!.file(`${label}.${ext}`, dataUrl.split(',')[1], { base64: true })
+    })
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url; a.download = 'bulk-export.zip'
+    document.body.appendChild(a); a.click()
+    document.body.removeChild(a); URL.revokeObjectURL(url)
+  }, [outputFormat])
+
   // ── Run ───────────────────────────────────────────────────────────────────────
 
   const handleRun = async () => {
@@ -230,7 +274,6 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
         const width     = isGallery ? 1500 : 1464
         const height    = isGallery ? 1500 : 600
 
-        // Pick a different photo per slot index
         const photoName = job.photos[slotIdx % Math.max(job.photos.length, 1)]
         const photoUrl  = photoName ? await fetchPhoto(photoName) : null
 
@@ -238,18 +281,21 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
           idx === i ? { ...r, renderingSlot: label, doneCount: j } : r
         ))
 
-        // Build a slot-specific DesignState inheriting from designState
         const photoAsset: UploadedAsset | undefined = photoUrl
           ? { id: `photo-${job.sku}-${j}`, name: photoName ?? '', url: photoUrl, type: 'image' }
           : undefined
 
+        // Resolve branding: local upload > inherited from Design tab
+        const logoAsset    = localLogo    ?? designState.assets[2]
+        const textureAsset = localTexture ?? designState.assets[1]
+
         const slotDesign: DesignState = {
           ...designState,
           assets: [
-            photoAsset ?? designState.assets[0],  // product photo
-            designState.assets[1],                 // texture (from Design tab)
-            designState.assets[2],                 // logo (from Design tab)
-            designState.assets[3],                 // icons 1-4
+            photoAsset ?? designState.assets[0],
+            textureAsset,
+            logoAsset,
+            designState.assets[3],
             designState.assets[4],
             designState.assets[5],
             designState.assets[6],
@@ -298,22 +344,16 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
     setDoneJobs(0); setTotalJobs(0)
   }
 
-  const handleDownloadZip = async () => {
-    if (capturedRef.current.size === 0) return
-    const JSZip = (await import('jszip')).default
-    const zip = new JSZip()
-    const ext = outputFormat === 'jpeg' ? 'jpg' : 'png'
-    capturedRef.current.forEach((dataUrl, key) => {
-      const [sku, label] = key.split('/')
-      zip.folder(sku)!.file(`${label}.${ext}`, dataUrl.split(',')[1], { base64: true })
-    })
-    const blob = await zip.generateAsync({ type: 'blob' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
-    a.href = url; a.download = 'bulk-export.zip'
-    document.body.appendChild(a); a.click()
-    document.body.removeChild(a); URL.revokeObjectURL(url)
-  }
+  // ── Expose download fn + state to parent header ───────────────────────────────
+
+  useEffect(() => {
+    exportFnRef.current = handleDownloadZip
+  })
+
+  useEffect(() => {
+    onCanExportChange(allDone)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs])
 
   // ── Derived ───────────────────────────────────────────────────────────────────
 
@@ -352,7 +392,7 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
         <div className="flex-1 min-h-0 overflow-y-auto">
 
           {/* DATA SOURCE */}
-          <Section label="Data Source">
+          <Section label="Data Source" icon={<CsvSectionIcon />} defaultOpen>
             {!hasProducts ? (
               <div className="space-y-2">
                 <div
@@ -383,26 +423,24 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
                 </button>
               </div>
             ) : (
-              <div className="space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                      <p className="text-[11px] font-semibold text-gray-700 truncate">{csvFilename}</p>
-                    </div>
-                    <p className="text-[10px] text-gray-500 pl-3">
-                      {products.length} products
-                      {productWarnings > 0 && <span className="ml-1.5 text-amber-600">· {productWarnings} warnings</span>}
-                    </p>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                    <p className="text-[11px] font-semibold text-gray-700 truncate">{csvFilename}</p>
                   </div>
-                  <button onClick={handleClear} className="shrink-0 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">Remove</button>
+                  <p className="text-[10px] text-gray-500 pl-3">
+                    {products.length} products
+                    {productWarnings > 0 && <span className="ml-1.5 text-amber-600">· {productWarnings} warnings</span>}
+                  </p>
                 </div>
+                <button onClick={handleClear} className="shrink-0 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">Remove</button>
               </div>
             )}
           </Section>
 
           {/* CANTO */}
-          <Section label="Canto (Assets)">
+          <Section label="Image Library" icon={<CantoSectionIcon />}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 {cantoStatus === 'connecting' && <SpinnerIcon className="text-gray-400" />}
@@ -420,14 +458,83 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
                   if (d.connected) setCantoStatus('connected')
                   else { setCantoStatus('error'); setCantoError(d.error ?? '') }
                 })
-              }} className="text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">
+              }} className="text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2 mt-1 block">
                 Retry
               </button>
             )}
           </Section>
 
+          {/* BRANDING */}
+          <Section label="Branding" icon={<BrandingIcon />}>
+            <div className="space-y-3">
+              {/* Logo */}
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Logo</p>
+                {localLogo ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-14 h-10 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden shrink-0 flex items-center justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={localLogo.url} alt="logo" className="max-w-full max-h-full object-contain" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-gray-600 truncate font-medium">{localLogo.name}</p>
+                      <p className="text-[9px] text-gray-400">Bulk override</p>
+                    </div>
+                    <button onClick={() => clearBranding('logo')} className="text-[10px] text-gray-400 hover:text-red-500 transition-colors shrink-0">×</button>
+                  </div>
+                ) : (
+                  <div>
+                    <button
+                      onClick={() => logoInputRef.current?.click()}
+                      className="w-full h-8 rounded-lg border border-dashed border-gray-200 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <UploadIcon /> Upload logo
+                    </button>
+                    {designState.assets[2] && (
+                      <p className="text-[9px] text-gray-400 mt-1 text-center">Using logo from Design tab</p>
+                    )}
+                  </div>
+                )}
+                <input ref={logoInputRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleBrandingFile(f, 'logo') }} />
+              </div>
+
+              {/* Texture */}
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Background Texture</p>
+                {localTexture ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-14 h-10 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={localTexture.url} alt="texture" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] text-gray-600 truncate font-medium">{localTexture.name}</p>
+                      <p className="text-[9px] text-gray-400">Bulk override</p>
+                    </div>
+                    <button onClick={() => clearBranding('texture')} className="text-[10px] text-gray-400 hover:text-red-500 transition-colors shrink-0">×</button>
+                  </div>
+                ) : (
+                  <div>
+                    <button
+                      onClick={() => textureInputRef.current?.click()}
+                      className="w-full h-8 rounded-lg border border-dashed border-gray-200 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <UploadIcon /> Upload texture
+                    </button>
+                    {designState.assets[1] && (
+                      <p className="text-[9px] text-gray-400 mt-1 text-center">Using texture from Design tab</p>
+                    )}
+                  </div>
+                )}
+                <input ref={textureInputRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleBrandingFile(f, 'texture') }} />
+              </div>
+            </div>
+          </Section>
+
           {/* SLOT TEMPLATES */}
-          <Section label="Slot Templates">
+          <Section label="Slot Templates" icon={<LayoutIcon />}>
             <div className="space-y-1.5">
               {slotConfigs.map((cfg, i) => (
                 <div key={i} className="flex items-center gap-2">
@@ -455,7 +562,7 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
           </Section>
 
           {/* GENERATION SETTINGS */}
-          <Section label="Generation Settings">
+          <Section label="Generation" icon={<SettingsIcon />}>
             <SettingRow label="A+ Slots">
               <div className="flex items-center gap-1.5">
                 <button onClick={() => setAplusSlots(n => Math.max(2, n - 1))}
@@ -487,7 +594,7 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
             </SettingRow>
 
             {hasProducts && (
-              <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+              <div className="mt-1 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
                 <p className="text-[10px] text-gray-500">
                   <span className="font-semibold text-gray-700">{jobs.length} products</span>
                   {' × '}
@@ -500,7 +607,7 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
           </Section>
 
           {/* PRESETS */}
-          <Section label="Presets">
+          <Section label="Presets" icon={<PresetsIcon />}>
             <div className="flex gap-1.5">
               <input
                 type="text"
@@ -549,7 +656,7 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
           {(isRunning || doneJobs > 0) && (
             <div className="space-y-1">
               <div className="flex justify-between text-[10px] text-gray-500 tabular-nums">
-                <span>{isRunning ? 'Rendering…' : allDone ? 'Complete' : 'Stopped'}</span>
+                <span>{isRunning ? 'Rendering…' : allDone ? 'Complete — export from top right' : 'Stopped'}</span>
                 <span>{doneJobs} / {totalJobs}</span>
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -566,16 +673,10 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
                 Cancel
               </button>
             ) : allDone ? (
-              <>
-                <button onClick={handleReset}
-                  className="h-9 px-3 rounded-lg border border-gray-200 text-gray-500 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 transition-colors">
-                  Reset
-                </button>
-                <button onClick={handleDownloadZip}
-                  className="flex-1 h-9 rounded-lg bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5">
-                  <DownloadIcon className="w-3.5 h-3.5" /> Download ZIP
-                </button>
-              </>
+              <button onClick={handleReset}
+                className="flex-1 h-9 rounded-lg border border-gray-200 text-gray-500 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 transition-colors">
+                Reset & Run Again
+              </button>
             ) : (
               <button onClick={handleRun} disabled={!canRun}
                 className="flex-1 h-9 rounded-lg bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5">
@@ -661,11 +762,20 @@ export default function BulkMode({ designState }: { designState: DesignState }) 
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({ label, icon, defaultOpen = false, children }: { label: string; icon?: React.ReactNode; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="border-b border-gray-100 px-4 pt-3 pb-3">
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">{label}</p>
-      <div className="space-y-2.5">{children}</div>
+    <div className="border-b border-gray-100 last:border-b-0">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left group">
+        <div className="flex items-center gap-2">
+          {icon && <span className="text-gray-400 group-hover:text-gray-500 transition-colors">{icon}</span>}
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 group-hover:text-gray-700 transition-colors">{label}</span>
+        </div>
+        <svg className={`w-3 h-3 text-gray-300 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && <div className="px-4 pb-4 pt-1 space-y-2.5">{children}</div>}
     </div>
   )
 }
@@ -838,6 +948,8 @@ function EmptyState({ onDownloadTemplate }: { onDownloadTemplate: () => void }) 
   )
 }
 
+// ─── Icons ────────────────────────────────────────────────────────────────────
+
 function PlayIcon() {
   return <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
 }
@@ -852,8 +964,45 @@ function SpinnerIcon({ className = '' }: { className?: string }) {
     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
   </svg>
 }
+function UploadIcon() {
+  return <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+  </svg>
+}
 function CsvIcon() {
   return <svg className="w-7 h-7 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+}
+
+// Section header icons
+function CsvSectionIcon() {
+  return <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+}
+function CantoSectionIcon() {
+  return <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+}
+function BrandingIcon() {
+  return <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+  </svg>
+}
+function LayoutIcon() {
+  return <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+  </svg>
+}
+function SettingsIcon() {
+  return <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+  </svg>
+}
+function PresetsIcon() {
+  return <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
   </svg>
 }
