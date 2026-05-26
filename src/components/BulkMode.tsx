@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { BulkProduct, ParseResult, downloadTemplate, parseCSV } from '@/lib/csv'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -27,9 +27,9 @@ export default function BulkMode() {
   const [isDragging, setIsDragging]     = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Canto
-  const [cantoKey, setCantoKey]         = useState('')
-  const [cantoStatus, setCantoStatus]   = useState<ConnectionStatus>('idle')
+  // Canto — auto-connects on mount via server-side credentials
+  const [cantoStatus, setCantoStatus] = useState<ConnectionStatus>('connecting')
+  const [cantoError, setCantoError]   = useState('')
 
   // Settings
   const [aplusSlots, setAplusSlots]         = useState(5)
@@ -79,14 +79,17 @@ export default function BulkMode() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // ── Canto ────────────────────────────────────────────────────────────────────
+  // ── Canto auto-connect ────────────────────────────────────────────────────────
 
-  const handleConnectCanto = async () => {
-    if (!cantoKey.trim()) return
-    setCantoStatus('connecting')
-    await new Promise(r => setTimeout(r, 900))
-    setCantoStatus('connected')
-  }
+  useEffect(() => {
+    fetch('/api/canto/status')
+      .then(r => r.json())
+      .then(d => {
+        if (d.connected) setCantoStatus('connected')
+        else { setCantoStatus('error'); setCantoError(d.error ?? 'Connection failed') }
+      })
+      .catch(() => { setCantoStatus('error'); setCantoError('Could not reach server') })
+  }, [])
 
   // ── Run ──────────────────────────────────────────────────────────────────────
 
@@ -254,41 +257,25 @@ export default function BulkMode() {
 
           {/* CANTO */}
           <Section label="Canto (Assets)">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-gray-500 font-medium">Asset Library</span>
-                <StatusBadge status={cantoStatus} />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                {cantoStatus === 'connecting' && <SpinnerIcon className="text-gray-400" />}
+                <span className="text-[11px] text-gray-600 font-medium truncate">
+                  {cantoStatus === 'connected' ? 'docsdiesel.canto.com' :
+                   cantoStatus === 'connecting' ? 'Connecting…' :
+                   cantoError || 'Connection failed'}
+                </span>
               </div>
-
-              {cantoStatus !== 'connected' ? (
-                <div className="flex gap-1.5">
-                  <input
-                    type="password"
-                    placeholder="API key…"
-                    value={cantoKey}
-                    onChange={e => setCantoKey(e.target.value)}
-                    className="flex-1 h-8 px-2.5 rounded-lg border border-gray-200 text-[11px] text-gray-700 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                  />
-                  <button
-                    onClick={handleConnectCanto}
-                    disabled={!cantoKey.trim() || cantoStatus === 'connecting'}
-                    className="h-8 px-3 rounded-lg bg-gray-900 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-                  >
-                    {cantoStatus === 'connecting' ? '…' : 'Connect'}
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-gray-500">Icon library ready</span>
-                  <button
-                    onClick={() => { setCantoStatus('idle'); setCantoKey('') }}
-                    className="text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2"
-                  >
-                    Disconnect
-                  </button>
-                </div>
-              )}
+              <StatusBadge status={cantoStatus} />
             </div>
+            {cantoStatus === 'error' && (
+              <button
+                onClick={() => { setCantoStatus('connecting'); setCantoError(''); fetch('/api/canto/status').then(r => r.json()).then(d => { if (d.connected) setCantoStatus('connected'); else { setCantoStatus('error'); setCantoError(d.error ?? '') } }) }}
+                className="text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2"
+              >
+                Retry
+              </button>
+            )}
           </Section>
 
           {/* GENERATION SETTINGS */}
@@ -420,10 +407,12 @@ export default function BulkMode() {
 
           {!canRun && !isRunning && !allDone && (
             <p className="text-[9px] text-gray-400 text-center">
-              {!hasProducts
+              {cantoStatus === 'error'
+                ? 'Canto connection failed — check server'
+                : cantoStatus === 'connecting'
+                ? 'Connecting to Canto…'
+                : !hasProducts
                 ? 'Upload a CSV to continue'
-                : cantoStatus !== 'connected'
-                ? 'Connect Canto to access assets'
                 : 'Ready'}
             </p>
           )}
