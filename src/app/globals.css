@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .label-xs {
+    @apply text-[10px] font-semibold uppercase tracking-wider text-gray-400;
+  }
+}
+
+.design-canvas {
+  overflow: hidden;
+}
+
+/* ── Rich text editor (sidebar) ─────────────────────────── */
+.rte-prosemirror {
+  min-height: 88px;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #374151;
+  outline: none;
+}
+.rte-prosemirror p { margin: 0 0 0.35em; }
+.rte-prosemirror p:last-child { margin-bottom: 0; }
+.rte-prosemirror ul,
+.rte-prosemirror ol { padding-left: 1.3em; margin: 0.25em 0; }
+.rte-prosemirror li { margin-bottom: 0.15em; }
+.rte-prosemirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #9ca3af;
+  pointer-events: none;
+  height: 0;
+}
+
+/* ── Canvas title rich text rendering ───────────────────── */
+.rich-title p { margin: 0; }
+
+/* ── Canvas subtitle rich text rendering ────────────────── */
+.rich-subtitle p { margin: 0 0 0.45em; }
+.rich-subtitle p:last-child { margin-bottom: 0; }
+.rich-subtitle strong { font-weight: 700; }
+.rich-subtitle em { font-style: italic; }
+.rich-subtitle ul,
+.rich-subtitle ol { padding-left: 1.2em; margin: 0.3em 0; }
+.rich-subtitle li { margin-bottom: 0.2em; }
