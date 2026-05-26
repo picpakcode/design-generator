@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { toPng, toJpeg } from 'html-to-image'
 import { BulkProduct, ParseResult, downloadTemplate, parseCSV } from '@/lib/csv'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -41,7 +42,15 @@ export default function BulkMode() {
   const [isRunning, setIsRunning] = useState(false)
   const [doneJobs, setDoneJobs]   = useState(0)
   const [totalJobs, setTotalJobs] = useState(0)
-  const cancelRef = useRef(false)
+  const cancelRef    = useRef(false)
+  const capturedRef  = useRef<Map<string, string>>(new Map())   // key: "sku/label"
+  const captureRef   = useRef<HTMLDivElement>(null)             // hidden render target
+  const jobsSnapshot = useRef<JobProduct[]>([])                 // non-stale copy for run loop
+
+  // Hidden capture frame state
+  const [captureFrame, setCaptureFrame] = useState<{
+    sku: string; label: string; title: string; desc: string; width: number; height: number
+  } | null>(null)
 
   // ── CSV handling ─────────────────────────────────────────────────────────────
 
@@ -96,17 +105,21 @@ export default function BulkMode() {
   const handleRun = async () => {
     if (!canRun) return
     cancelRef.current = false
+    capturedRef.current.clear()
 
+    const snapshot = jobsSnapshot.current
     const imagesPerProduct = aplusSlots + (includeGallery ? aplusSlots : 0)
-    const total = jobs.length * imagesPerProduct
+    const total = snapshot.length * imagesPerProduct
     setTotalJobs(total)
     setDoneJobs(0)
     setIsRunning(true)
     setJobs(p => p.map(r => ({ ...r, status: 'pending', doneCount: 0, renderingSlot: undefined })))
 
     let done = 0
-    for (let i = 0; i < jobs.length; i++) {
+
+    for (let i = 0; i < snapshot.length; i++) {
       if (cancelRef.current) break
+      const job = snapshot[i]
 
       setJobs(p => p.map((r, idx) =>
         idx === i ? { ...r, status: 'rendering', renderingSlot: slotName(0) } : r
@@ -114,11 +127,33 @@ export default function BulkMode() {
 
       for (let j = 0; j < imagesPerProduct; j++) {
         if (cancelRef.current) break
-        const label = j < aplusSlots ? slotName(j) : `gallery-${j - aplusSlots + 1}`
+
+        const isGallery = j >= aplusSlots
+        const slotIdx   = isGallery ? j - aplusSlots : j
+        const label     = isGallery ? `gallery-${slotIdx + 1}` : slotName(j)
+        const slot      = job.slots[slotIdx]
+        const width     = isGallery ? 1500 : 1464
+        const height    = isGallery ? 1500 : 600
+
         setJobs(p => p.map((r, idx) =>
           idx === i ? { ...r, renderingSlot: label, doneCount: j } : r
         ))
-        await new Promise(r => setTimeout(r, 280))
+
+        // Render content into hidden div then capture
+        setCaptureFrame({ sku: job.sku, label, title: slot?.title ?? '', desc: slot?.desc ?? '', width, height })
+        await new Promise(r => setTimeout(r, 120)) // wait for paint
+
+        if (captureRef.current) {
+          try {
+            const dataUrl = outputFormat === 'jpeg'
+              ? await toJpeg(captureRef.current, { quality: 0.95, backgroundColor: '#ffffff' })
+              : await toPng(captureRef.current)
+            capturedRef.current.set(`${job.sku}/${label}`, dataUrl)
+          } catch {
+            // capture failed — continue without storing
+          }
+        }
+
         done++
         setDoneJobs(done)
       }
@@ -128,18 +163,43 @@ export default function BulkMode() {
       ))
     }
 
+    setCaptureFrame(null)
     setIsRunning(false)
   }
 
   const handleCancel = () => { cancelRef.current = true }
 
   const handleReset = () => {
+    capturedRef.current.clear()
     setJobs(p => p.map(r => ({ ...r, status: 'pending', doneCount: 0, renderingSlot: undefined })))
     setDoneJobs(0)
     setTotalJobs(0)
   }
 
+  const handleDownloadZip = async () => {
+    if (capturedRef.current.size === 0) return
+    const JSZip = (await import('jszip')).default
+    const zip = new JSZip()
+    const ext = outputFormat === 'jpeg' ? 'jpg' : 'png'
+    capturedRef.current.forEach((dataUrl, key) => {
+      const [sku, label] = key.split('/')
+      zip.folder(sku)!.file(`${label}.${ext}`, dataUrl.split(',')[1], { base64: true })
+    })
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href = url
+    a.download = 'bulk-export.zip'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   // ── Derived ──────────────────────────────────────────────────────────────────
+
+  // Keep non-stale snapshot for run loop
+  jobsSnapshot.current = jobs
 
   const products       = parseResult?.products ?? []
   const hasProducts    = jobs.length > 0
@@ -388,7 +448,10 @@ export default function BulkMode() {
                 >
                   Reset
                 </button>
-                <button className="flex-1 h-9 rounded-lg bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5">
+                <button
+                  onClick={handleDownloadZip}
+                  className="flex-1 h-9 rounded-lg bg-emerald-600 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-700 transition-colors flex items-center justify-center gap-1.5"
+                >
                   <DownloadIcon className="w-3.5 h-3.5" />
                   Download ZIP
                 </button>
@@ -418,6 +481,41 @@ export default function BulkMode() {
           )}
         </div>
       </aside>
+
+      {/* ── Hidden capture target ── */}
+      <div style={{ position: 'fixed', top: -99999, left: -99999, pointerEvents: 'none' }}>
+        <div
+          ref={captureRef}
+          style={{
+            width:  captureFrame?.width  ?? 1464,
+            height: captureFrame?.height ?? 600,
+            backgroundColor: '#ffffff',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 60,
+            fontFamily: 'sans-serif',
+            boxSizing: 'border-box',
+          }}
+        >
+          {captureFrame && (
+            <>
+              <p style={{ fontSize: 14, color: '#999', marginBottom: 16, letterSpacing: 2, textTransform: 'uppercase' }}>
+                {captureFrame.sku} · {captureFrame.label}
+              </p>
+              <p style={{ fontSize: captureFrame.width === 1500 ? 72 : 48, fontWeight: 700, color: '#111', textAlign: 'center', lineHeight: 1.1, margin: 0 }}>
+                {captureFrame.title}
+              </p>
+              {captureFrame.desc && (
+                <p style={{ fontSize: captureFrame.width === 1500 ? 28 : 20, color: '#555', textAlign: 'center', marginTop: 20, maxWidth: '80%', lineHeight: 1.5 }}>
+                  {captureFrame.desc}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
 
       {/* ══ Main content ══ */}
       <main className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
