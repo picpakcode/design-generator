@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Category, DesignState, Format, FormatSettings, GalleryTemplateId, TemplateId, TextTransform, UploadedAsset } from '@/types'
 import { getGalleryTemplate, getTemplate } from '@/lib/templates'
 import AssetUploader from './AssetUploader'
 import ExportButton from './ExportButton'
+import { storeBlob, getBlob, deleteBlob } from '@/lib/idb'
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
 
@@ -90,15 +91,48 @@ const DEFAULT_STATE: DesignState = {
   gallery: GALLERY_DEFAULTS,
 }
 
+// ─── Preset types & helpers ───────────────────────────────────────────────────
+
+interface Preset {
+  id: string
+  name: string
+  state: DesignState
+  createdAt: number
+}
+
+function migrateLoadedState(raw: unknown): DesignState {
+  const s = raw as Partial<DesignState>
+  const labels = [...(s.iconLabels ?? DEFAULT_STATE.iconLabels)]
+  while (labels.length < 4) labels.push(`Feature ${labels.length + 1}`)
+  return {
+    ...DEFAULT_STATE,
+    ...s,
+    assets: [],  // blob URLs don't survive page reload
+    iconLabels: labels.slice(0, 4) as [string, string, string, string],
+  }
+}
+
 // ─── Main workspace ───────────────────────────────────────────────────────────
 
 export default function DesignWorkspace() {
   const [design, setDesign] = useState<DesignState>(DEFAULT_STATE)
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
-  const canvasRef = useRef<HTMLDivElement>(null)
-  const wrapperRef = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(1)
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const canvasRef    = useRef<HTMLDivElement>(null)
+  const altCanvasRef = useRef<HTMLDivElement>(null)
+  const wrapperRef   = useRef<HTMLDivElement>(null)
+  const [scale, setScale]           = useState(1)
+  const [canvasBg, setCanvasBg]     = useState('#F0F0F0')
+  const [draggingIcon, setDraggingIcon] = useState<number | null>(null)
+
+  const histRef     = useRef<DesignState[]>([DEFAULT_STATE])
+  const histIdxRef  = useRef(0)
+  const skipHistRef = useRef(false)
+  const [histMark, setHistMark] = useState(0) // bumped to force re-render of button states
+
+  const [presets, setPresets]       = useState<Preset[]>([])
+  const [presetName, setPresetName] = useState('')
 
   const isGallery = design.activeCategory === 'gallery'
   const fmt = design.activeFormat
@@ -116,6 +150,132 @@ export default function DesignWorkspace() {
   const patchDesign = (p: Partial<Pick<DesignState, 'title' | 'subtitleHtml' | 'primaryColor' | 'accentColor' | 'bodyColor' | 'iconCount' | 'iconLabels'>>) =>
     setDesign(d => ({ ...d, ...p }))
 
+  // Push to history — debounced, skipped during undo/redo
+  useEffect(() => {
+    if (skipHistRef.current) { skipHistRef.current = false; return }
+    const t = setTimeout(() => {
+      const trimmed = histRef.current.slice(0, histIdxRef.current + 1)
+      trimmed.push(design)
+      if (trimmed.length > 51) trimmed.shift()
+      histRef.current = trimmed
+      histIdxRef.current = trimmed.length - 1
+      setHistMark(n => n + 1)
+    }, 500)
+    return () => clearTimeout(t)
+  }, [design])
+
+  const undo = useCallback(() => {
+    if (histIdxRef.current <= 0) return
+    skipHistRef.current = true
+    histIdxRef.current -= 1
+    setDesign(histRef.current[histIdxRef.current])
+    setHistMark(n => n + 1)
+  }, [])
+
+  const redo = useCallback(() => {
+    if (histIdxRef.current >= histRef.current.length - 1) return
+    skipHistRef.current = true
+    histIdxRef.current += 1
+    setDesign(histRef.current[histIdxRef.current])
+    setHistMark(n => n + 1)
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      if (e.key === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo() }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [undo, redo])
+
+  const canUndo = histIdxRef.current > 0
+  const canRedo = histIdxRef.current < histRef.current.length - 1
+
+  // Auto-restore last session on mount — blobs fetched from IDB
+  useEffect(() => {
+    const restore = async () => {
+      try {
+        const raw = localStorage.getItem('dg:last')
+        if (raw) {
+          const saved = JSON.parse(raw)
+          const state = migrateLoadedState(saved)
+          // Restore assets: fetch each blob from IDB and recreate blob URL
+          const restoredAssets = await Promise.all(
+            ((saved.assets ?? []) as (UploadedAsset | undefined)[]).map(async a => {
+              if (!a?.id) return undefined
+              const blob = await getBlob(a.id).catch(() => undefined)
+              if (!blob) return undefined
+              return { ...a, url: URL.createObjectURL(blob) }
+            })
+          )
+          state.assets = restoredAssets as UploadedAsset[]
+          setDesign(state)
+          histRef.current = [state]
+          histIdxRef.current = 0
+          skipHistRef.current = true
+        }
+      } catch {}
+      try {
+        const raw = localStorage.getItem('dg:presets')
+        if (raw) setPresets(JSON.parse(raw))
+      } catch {}
+    }
+    restore()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save last session (debounced) — asset metadata saved, blobs live in IDB
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const stripped = { ...design, assets: design.assets.map(a => a ? { ...a, url: '' } : a) }
+        localStorage.setItem('dg:last', JSON.stringify(stripped))
+      } catch {}
+    }, 1000)
+    return () => clearTimeout(t)
+  }, [design])
+
+  const savePreset = () => {
+    const name = presetName.trim() || `Preset ${presets.length + 1}`
+    // Clear ephemeral blob URLs; asset IDs act as IDB keys
+    const assetsForSave = design.assets.map(a => a ? { ...a, url: '' } : a)
+    const next = [...presets, {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name,
+      state: { ...design, assets: assetsForSave },
+      createdAt: Date.now(),
+    }]
+    setPresets(next)
+    setPresetName('')
+    try { localStorage.setItem('dg:presets', JSON.stringify(next)) } catch {}
+  }
+
+  const loadPreset = async (p: Preset) => {
+    const base = migrateLoadedState(p.state)
+    const restoredAssets = await Promise.all(
+      ((p.state.assets ?? []) as (UploadedAsset | undefined)[]).map(async a => {
+        if (!a?.id) return undefined
+        const blob = await getBlob(a.id).catch(() => undefined)
+        if (!blob) return undefined
+        return { ...a, url: URL.createObjectURL(blob) }
+      })
+    )
+    setDesign({ ...base, assets: restoredAssets as UploadedAsset[] })
+  }
+
+  const deletePreset = (id: string) => {
+    const next = presets.filter(p => p.id !== id)
+    setPresets(next)
+    try { localStorage.setItem('dg:presets', JSON.stringify(next)) } catch {}
+  }
+
+  const copyFormatSettings = () => {
+    setDesign(d => d.activeFormat === 'desktop'
+      ? { ...d, mobile: { ...d.desktop } }
+      : { ...d, desktop: { ...d.mobile } }
+    )
+  }
+
   useEffect(() => {
     const compute = () => {
       if (!wrapperRef.current) return
@@ -131,6 +291,8 @@ export default function DesignWorkspace() {
 
 
   const handleAddAsset = (asset: UploadedAsset, slotIndex?: number) => {
+    // Persist blob to IDB so it survives page reloads (fire-and-forget)
+    fetch(asset.url).then(r => r.blob()).then(blob => storeBlob(asset.id, blob)).catch(console.error)
     setDesign(d => {
       if (slotIndex === undefined) return { ...d, assets: [...d.assets, asset] }
       const next = [...d.assets] as (UploadedAsset | undefined)[]
@@ -141,6 +303,7 @@ export default function DesignWorkspace() {
   }
 
   const handleRemoveAsset = (id: string) => {
+    deleteBlob(id).catch(console.error)
     setDesign(d => {
       const idx = d.assets.findIndex(a => a?.id === id)
       if (idx === -1) return d
@@ -157,6 +320,11 @@ export default function DesignWorkspace() {
     : design.activeTemplate === 'aplus-5050' ? 'A+ 50/50 Split' : 'A+ Title + Icons'
 
   const categoryLabel = isGallery ? 'Amazon Gallery Images' : 'Amazon A+ Content'
+
+  // Live browser tab title
+  useEffect(() => {
+    document.title = `${templateLabel} · Design Generator`
+  }, [templateLabel])
 
   const iconSlots = Array.from({ length: design.iconCount }, (_, i) => `Icon ${i + 1}`)
   const assetSlotLabels = isGallery
@@ -233,6 +401,69 @@ export default function DesignWorkspace() {
             </>
           )}
         </div>
+
+        {/* Right controls */}
+        <div className="ml-auto flex items-center gap-1">
+
+          {/* Undo / Redo */}
+          <button onClick={undo} disabled={!canUndo} title="Undo (⌘Z)"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+            <UndoIcon />
+          </button>
+          <button onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+            <RedoIcon />
+          </button>
+
+          <div className="w-px h-5 bg-gray-200 mx-1.5" />
+
+          {/* Canvas background color */}
+          <label title="Preview background" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors cursor-pointer relative">
+            <div className="w-4 h-4 rounded-sm ring-1 ring-black/10 shadow-sm" style={{ backgroundColor: canvasBg }} />
+            <input
+              type="color"
+              value={canvasBg}
+              onChange={e => setCanvasBg(e.target.value)}
+              style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }}
+            />
+          </label>
+
+          <div className="w-px h-5 bg-gray-200 mx-1.5" />
+
+          {/* Export dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setExportMenuOpen(o => !o)}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 transition-colors"
+            >
+              Export
+              <svg className={`w-3 h-3 transition-transform duration-150 ${exportMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {exportMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setExportMenuOpen(false)} />
+                <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 z-50">
+                  <p className="text-[10px] text-gray-400 tabular-nums mb-3 px-1">
+                    {template.width} × {template.height} px
+                    <span className="mx-1 text-gray-300">·</span>
+                    {templateLabel}
+                    {!isGallery && <span className="text-gray-300"> · {fmt === 'desktop' ? 'Desktop' : 'Mobile'}</span>}
+                  </p>
+                  <ExportButton
+                    canvasRef={canvasRef}
+                    filename={`amazon-${isGallery ? 'gallery' : 'aplus'}-${isGallery ? design.activeGalleryTemplate : design.activeTemplate}${!isGallery ? `-${fmt}` : ''}`}
+                    altCanvasRef={isGallery ? undefined : altCanvasRef}
+                    altFilename={isGallery ? undefined : `amazon-aplus-${design.activeTemplate}-${fmt === 'desktop' ? 'mobile' : 'desktop'}`}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+        </div>
       </header>
 
       {/* ── Body ── */}
@@ -257,34 +488,93 @@ export default function DesignWorkspace() {
 
           {/* Format tabs — hidden for gallery (no desktop/mobile split) */}
           {!isGallery && (
-            <div className="shrink-0 grid grid-cols-2 bg-gray-50 border-b border-gray-100">
-              {(['desktop', 'mobile'] as Format[]).map(f => (
+            <>
+              <div className="shrink-0 grid grid-cols-2 bg-gray-50 border-b border-gray-100">
+                {(['desktop', 'mobile'] as Format[]).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setDesign(d => ({ ...d, activeFormat: f }))}
+                    className={`py-3 flex flex-col items-center gap-1 transition-all ${
+                      fmt === f
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {f === 'desktop'
+                      ? <DesktopIcon className={`w-4 h-4 ${fmt === f ? 'text-gray-700' : 'text-gray-400'}`} />
+                      : <MobileIcon  className={`w-4 h-4 ${fmt === f ? 'text-gray-700' : 'text-gray-400'}`} />
+                    }
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${fmt === f ? 'text-gray-900' : 'text-gray-400'}`}>
+                      {f}
+                    </span>
+                    <span className="text-[9px] font-mono text-gray-400">
+                      {f === 'desktop' ? '1464×600' : '600×450'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="shrink-0 border-b border-gray-100 px-4 py-2 flex justify-end">
                 <button
-                  key={f}
-                  onClick={() => setDesign(d => ({ ...d, activeFormat: f }))}
-                  className={`py-3 flex flex-col items-center gap-1 transition-all ${
-                    fmt === f
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-                  }`}
+                  onClick={copyFormatSettings}
+                  title={`Copy all settings from ${fmt === 'desktop' ? 'Desktop to Mobile' : 'Mobile to Desktop'}`}
+                  className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 hover:text-gray-700 transition-colors"
                 >
-                  {f === 'desktop'
-                    ? <DesktopIcon className={`w-4 h-4 ${fmt === f ? 'text-gray-700' : 'text-gray-400'}`} />
-                    : <MobileIcon  className={`w-4 h-4 ${fmt === f ? 'text-gray-700' : 'text-gray-400'}`} />
-                  }
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${fmt === f ? 'text-gray-900' : 'text-gray-400'}`}>
-                    {f}
-                  </span>
-                  <span className="text-[9px] font-mono text-gray-400">
-                    {f === 'desktop' ? '1464×600' : '600×450'}
-                  </span>
+                  <CopyFormatIcon />
+                  {fmt === 'desktop' ? 'Copy to Mobile' : 'Copy to Desktop'}
                 </button>
-              ))}
-            </div>
+              </div>
+            </>
           )}
 
           {/* Scrollable settings sections */}
           <div className="flex-1 min-h-0 overflow-y-auto">
+
+            {/* Presets */}
+            <Section title="Presets" icon={<PresetsIcon />}>
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={presetName}
+                    onChange={e => setPresetName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') savePreset() }}
+                    placeholder="Name this preset…"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 transition-all min-w-0"
+                  />
+                  <button
+                    onClick={savePreset}
+                    className="shrink-0 px-3 h-[38px] text-[11px] font-bold uppercase tracking-widest rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+                  >
+                    Save
+                  </button>
+                </div>
+                {presets.length === 0 ? (
+                  <p className="text-[11px] text-gray-300 text-center py-1">No saved presets yet</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {[...presets].reverse().map(p => (
+                      <div key={p.id} className="flex items-center gap-1.5 group">
+                        <button
+                          onClick={() => loadPreset(p)}
+                          className="flex-1 text-left px-3 py-2 text-xs text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors truncate font-medium"
+                        >
+                          {p.name}
+                        </button>
+                        <button
+                          onClick={() => deletePreset(p.id)}
+                          title="Delete preset"
+                          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </Section>
 
             {/* Images */}
             <Section title="Images" icon={<ImagesIcon />} defaultOpen>
@@ -448,20 +738,44 @@ export default function DesignWorkspace() {
                   <div className="space-y-2">
                     <label className="label-xs block">Icon Labels</label>
                     {Array.from({ length: design.iconCount }, (_, i) => (
-                      <input
+                      <div
                         key={i}
-                        type="text"
-                        value={design.iconLabels[i]}
-                        onChange={e => {
+                        draggable
+                        onDragStart={() => setDraggingIcon(i)}
+                        onDragOver={e => e.preventDefault()}
+                        onDrop={e => {
+                          e.preventDefault()
+                          if (draggingIcon === null || draggingIcon === i) return
+                          const from = draggingIcon
                           const next = [...design.iconLabels] as [string, string, string, string]
-                          next[i] = e.target.value
-                          patchDesign({ iconLabels: next })
+                          ;[next[from], next[i]] = [next[i], next[from]]
+                          setDesign(d => {
+                            const nextAssets = [...d.assets]
+                            ;[nextAssets[3 + from], nextAssets[3 + i]] = [nextAssets[3 + i], nextAssets[3 + from]]
+                            return { ...d, iconLabels: next, assets: nextAssets }
+                          })
+                          setDraggingIcon(null)
                         }}
-                        placeholder={`Icon ${i + 1} label…`}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white
-                                   focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400
-                                   placeholder:text-gray-300 transition-all"
-                      />
+                        onDragEnd={() => setDraggingIcon(null)}
+                        className={`flex items-center gap-2 transition-opacity ${draggingIcon === i ? 'opacity-40' : ''}`}
+                      >
+                        <div className="cursor-grab shrink-0 text-gray-300 hover:text-gray-500 transition-colors">
+                          <DragHandleIcon />
+                        </div>
+                        <input
+                          type="text"
+                          value={design.iconLabels[i]}
+                          onChange={e => {
+                            const next = [...design.iconLabels] as [string, string, string, string]
+                            next[i] = e.target.value
+                            patchDesign({ iconLabels: next })
+                          }}
+                          placeholder={`Icon ${i + 1} label…`}
+                          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white
+                                     focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400
+                                     placeholder:text-gray-300 transition-all"
+                        />
+                      </div>
                     ))}
                   </div>
                 )}
@@ -491,28 +805,10 @@ export default function DesignWorkspace() {
 
           </div>
 
-          {/* Export — pinned to sidebar bottom */}
-          <div className="shrink-0 border-t border-gray-100 bg-white p-4">
-            <p className="text-[10px] text-gray-400 tabular-nums mb-3">
-              {template.width} × {template.height} px
-              <span className="mx-1.5 text-gray-300">·</span>
-              {templateLabel}
-              {!isGallery && (
-                <>
-                  <span className="mx-1.5 text-gray-300">·</span>
-                  {fmt === 'desktop' ? 'Desktop' : 'Mobile'}
-                </>
-              )}
-            </p>
-            <ExportButton
-              canvasRef={canvasRef}
-              filename={`amazon-${isGallery ? 'gallery' : 'aplus'}-${isGallery ? design.activeGalleryTemplate : design.activeTemplate}${!isGallery ? `-${fmt}` : ''}`}
-            />
-          </div>
         </aside>
 
         {/* ══ Canvas area ══ */}
-        <main ref={wrapperRef} className="flex-1 min-h-0 overflow-hidden bg-[#f0f0f0] flex flex-col items-center justify-center p-8">
+        <main ref={wrapperRef} className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center p-8" style={{ backgroundColor: canvasBg }}>
 
           {/* Canvas preview */}
           <div
@@ -555,6 +851,27 @@ export default function DesignWorkspace() {
 
         </main>
       </div>
+
+      {/* Hidden off-screen canvas for Export All (opposite format) */}
+      {!isGallery && (() => {
+        const altFmt = fmt === 'desktop' ? 'mobile' : 'desktop'
+        const altTpl = getTemplate(design.activeTemplate, altFmt)
+        const altSettings = design[altFmt]
+        return (
+          <div style={{ position: 'fixed', top: -99999, left: -99999, pointerEvents: 'none' }}>
+            <div
+              ref={altCanvasRef}
+              className="design-canvas"
+              style={{ width: altTpl.width, height: altTpl.height, position: 'relative' }}
+            >
+              {design.activeTemplate === 'aplus-icons'
+                ? <CanvasContentIcons design={{ ...design, activeFormat: altFmt }} settings={altSettings} />
+                : <CanvasContent design={{ ...design, activeFormat: altFmt }} settings={altSettings} />
+              }
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
@@ -1207,6 +1524,16 @@ function TypoIcon() {
   )
 }
 
+function DragHandleIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+      <circle cx="5.5" cy="4" r="1.2" /><circle cx="10.5" cy="4" r="1.2" />
+      <circle cx="5.5" cy="8" r="1.2" /><circle cx="10.5" cy="8" r="1.2" />
+      <circle cx="5.5" cy="12" r="1.2" /><circle cx="10.5" cy="12" r="1.2" />
+    </svg>
+  )
+}
+
 function SpacingIcon() {
   return (
     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1227,6 +1554,38 @@ function ColorIcon() {
   return (
     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+    </svg>
+  )
+}
+
+function UndoIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+    </svg>
+  )
+}
+
+function RedoIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+    </svg>
+  )
+}
+
+function PresetsIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+    </svg>
+  )
+}
+
+function CopyFormatIcon() {
+  return (
+    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
     </svg>
   )
 }
