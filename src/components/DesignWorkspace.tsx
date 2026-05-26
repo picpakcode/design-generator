@@ -6,6 +6,7 @@ import { Category, DesignState, Format, FormatSettings, GalleryTemplateId, Templ
 import { getGalleryTemplate, getTemplate } from '@/lib/templates'
 import AssetUploader from './AssetUploader'
 import ExportButton from './ExportButton'
+import BulkMode from './BulkMode'
 import { storeBlob, getBlob, deleteBlob } from '@/lib/idb'
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
@@ -115,6 +116,7 @@ function migrateLoadedState(raw: unknown): DesignState {
 // ─── Main workspace ───────────────────────────────────────────────────────────
 
 export default function DesignWorkspace() {
+  const [appMode, setAppMode] = useState<'design' | 'bulk'>('design')
   const [design, setDesign] = useState<DesignState>(DEFAULT_STATE)
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
@@ -356,9 +358,28 @@ export default function DesignWorkspace() {
           </svg>
         </div>
         <span className="font-bold text-gray-900 text-base tracking-tight shrink-0">Design Generator</span>
-        <span className="text-gray-200 select-none shrink-0">|</span>
 
-        {/* Category dropdown */}
+        {/* Mode tabs */}
+        <div className="flex items-center bg-gray-100 rounded-lg p-0.5 shrink-0">
+          {(['design', 'bulk'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setAppMode(mode)}
+              className={`h-6 px-3 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
+                appMode === mode
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {mode === 'design' ? 'Design' : 'Bulk'}
+            </button>
+          ))}
+        </div>
+
+        {appMode === 'design' && (
+          <>
+            <span className="text-gray-200 select-none shrink-0">|</span>
+            {/* Category dropdown */}
         <div className="relative">
           <button
             onClick={() => setCategoryDropdownOpen(o => !o)}
@@ -403,70 +424,75 @@ export default function DesignWorkspace() {
         </div>
 
         {/* Right controls */}
-        <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1">
 
-          {/* Undo / Redo */}
-          <button onClick={undo} disabled={!canUndo} title="Undo (⌘Z)"
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-            <UndoIcon />
-          </button>
-          <button onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)"
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-            <RedoIcon />
-          </button>
-
-          <div className="w-px h-5 bg-gray-200 mx-1.5" />
-
-          {/* Canvas background color */}
-          <label title="Preview background" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors cursor-pointer relative">
-            <div className="w-4 h-4 rounded-sm ring-1 ring-black/10 shadow-sm" style={{ backgroundColor: canvasBg }} />
-            <input
-              type="color"
-              value={canvasBg}
-              onChange={e => setCanvasBg(e.target.value)}
-              style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }}
-            />
-          </label>
-
-          <div className="w-px h-5 bg-gray-200 mx-1.5" />
-
-          {/* Export dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setExportMenuOpen(o => !o)}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 transition-colors"
-            >
-              Export
-              <svg className={`w-3 h-3 transition-transform duration-150 ${exportMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+            {/* Undo / Redo */}
+            <button onClick={undo} disabled={!canUndo} title="Undo (⌘Z)"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              <UndoIcon />
+            </button>
+            <button onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              <RedoIcon />
             </button>
 
-            {exportMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setExportMenuOpen(false)} />
-                <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 z-50">
-                  <p className="text-[10px] text-gray-400 tabular-nums mb-3 px-1">
-                    {template.width} × {template.height} px
-                    <span className="mx-1 text-gray-300">·</span>
-                    {templateLabel}
-                    {!isGallery && <span className="text-gray-300"> · {fmt === 'desktop' ? 'Desktop' : 'Mobile'}</span>}
-                  </p>
-                  <ExportButton
-                    canvasRef={canvasRef}
-                    filename={`amazon-${isGallery ? 'gallery' : 'aplus'}-${isGallery ? design.activeGalleryTemplate : design.activeTemplate}${!isGallery ? `-${fmt}` : ''}`}
-                    altCanvasRef={isGallery ? undefined : altCanvasRef}
-                    altFilename={isGallery ? undefined : `amazon-aplus-${design.activeTemplate}-${fmt === 'desktop' ? 'mobile' : 'desktop'}`}
-                  />
-                </div>
-              </>
-            )}
-          </div>
+            <div className="w-px h-5 bg-gray-200 mx-1.5" />
 
-        </div>
+            {/* Canvas background color */}
+            <label title="Preview background" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors cursor-pointer relative">
+              <div className="w-4 h-4 rounded-sm ring-1 ring-black/10 shadow-sm" style={{ backgroundColor: canvasBg }} />
+              <input
+                type="color"
+                value={canvasBg}
+                onChange={e => setCanvasBg(e.target.value)}
+                style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }}
+              />
+            </label>
+
+            <div className="w-px h-5 bg-gray-200 mx-1.5" />
+
+            {/* Export dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setExportMenuOpen(o => !o)}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 transition-colors"
+              >
+                Export
+                <svg className={`w-3 h-3 transition-transform duration-150 ${exportMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {exportMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setExportMenuOpen(false)} />
+                  <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 z-50">
+                    <p className="text-[10px] text-gray-400 tabular-nums mb-3 px-1">
+                      {template.width} × {template.height} px
+                      <span className="mx-1 text-gray-300">·</span>
+                      {templateLabel}
+                      {!isGallery && <span className="text-gray-300"> · {fmt === 'desktop' ? 'Desktop' : 'Mobile'}</span>}
+                    </p>
+                    <ExportButton
+                      canvasRef={canvasRef}
+                      filename={`amazon-${isGallery ? 'gallery' : 'aplus'}-${isGallery ? design.activeGalleryTemplate : design.activeTemplate}${!isGallery ? `-${fmt}` : ''}`}
+                      altCanvasRef={isGallery ? undefined : altCanvasRef}
+                      altFilename={isGallery ? undefined : `amazon-aplus-${design.activeTemplate}-${fmt === 'desktop' ? 'mobile' : 'desktop'}`}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+          </div>
+        </>
+        )}
       </header>
 
       {/* ── Body ── */}
+      {appMode === 'bulk' ? (
+        <BulkMode />
+      ) : (<>
       <div className="flex flex-1 min-h-0">
 
         {/* ══ Sidebar ══ */}
@@ -862,6 +888,7 @@ export default function DesignWorkspace() {
           </div>
         )
       })()}
+      </>)}
     </div>
   )
 }
