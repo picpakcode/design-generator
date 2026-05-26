@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { toPng, toJpeg } from 'html-to-image'
 import { BulkProduct, ParseResult, downloadTemplate, parseCSV } from '@/lib/csv'
+import { DesignState, UploadedAsset } from '@/types'
+import { CanvasContent, CanvasContentIcons } from './CanvasRenderers'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,7 +59,7 @@ const TEMPLATE_LABELS: Record<SlotTemplate, string> = {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function BulkMode() {
+export default function BulkMode({ designState }: { designState: DesignState }) {
   // CSV
   const [parseResult, setParseResult] = useState<ParseResult | null>(null)
   const [csvFilename, setCsvFilename] = useState('')
@@ -88,8 +90,11 @@ export default function BulkMode() {
   const captureRef   = useRef<HTMLDivElement>(null)
   const jobsSnapshot = useRef<JobProduct[]>([])
   const [captureFrame, setCaptureFrame] = useState<{
-    sku: string; label: string; title: string; desc: string
-    photoUrl: string | null; template: SlotTemplate; width: number; height: number
+    slotDesign: DesignState
+    settings: typeof designState.desktop
+    template: SlotTemplate
+    width: number
+    height: number
   } | null>(null)
 
   // ── Init ─────────────────────────────────────────────────────────────────────
@@ -233,13 +238,34 @@ export default function BulkMode() {
           idx === i ? { ...r, renderingSlot: label, doneCount: j } : r
         ))
 
-        setCaptureFrame({
-          sku: job.sku, label,
-          title: slot?.title ?? '',
-          desc:  slot?.desc  ?? '',
-          photoUrl, template: cfg.template,
-          width, height,
-        })
+        // Build a slot-specific DesignState inheriting from designState
+        const photoAsset: UploadedAsset | undefined = photoUrl
+          ? { id: `photo-${job.sku}-${j}`, name: photoName ?? '', url: photoUrl, type: 'image' }
+          : undefined
+
+        const slotDesign: DesignState = {
+          ...designState,
+          assets: [
+            photoAsset ?? designState.assets[0],  // product photo
+            designState.assets[1],                 // texture (from Design tab)
+            designState.assets[2],                 // logo (from Design tab)
+            designState.assets[3],                 // icons 1-4
+            designState.assets[4],
+            designState.assets[5],
+            designState.assets[6],
+          ].filter(Boolean) as UploadedAsset[],
+          title: `<p>${slot?.title ?? ''}</p>`,
+          subtitleHtml: slot?.desc ? `<p>${slot.desc}</p>` : '',
+          activeFormat: 'desktop',
+          activeTemplate: cfg.template === 'icons' ? 'aplus-icons' : 'aplus-5050',
+        }
+
+        const settings = {
+          ...designState.desktop,
+          layoutFlipped: cfg.template === '5050-left',
+        }
+
+        setCaptureFrame({ slotDesign, settings, template: cfg.template, width, height })
         await new Promise(r => setTimeout(r, 200))
 
         if (captureRef.current) {
@@ -309,61 +335,14 @@ export default function BulkMode() {
 
       {/* ── Hidden capture target ── */}
       <div style={{ position: 'fixed', top: -99999, left: -99999, pointerEvents: 'none' }}>
-        <div ref={captureRef} style={{
-          width: captureFrame?.width ?? 1464, height: captureFrame?.height ?? 600,
-          backgroundColor: '#fff', display: 'flex', overflow: 'hidden',
-          flexDirection: captureFrame?.template === 'icons' ? 'column' : 'row',
-          fontFamily: 'Inter, sans-serif',
-        }}>
-          {captureFrame && captureFrame.template !== 'icons' && (
-            <>
-              {/* Photo side */}
-              {captureFrame.template === '5050-right' && captureFrame.photoUrl && (
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={captureFrame.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
-                </div>
-              )}
-              {/* Text side */}
-              <div style={{
-                flex: 1, display: 'flex', flexDirection: 'column',
-                justifyContent: 'center', padding: 60, boxSizing: 'border-box',
-                backgroundColor: '#222',
-              }}>
-                <p style={{ fontSize: 11, color: '#999', letterSpacing: 3, textTransform: 'uppercase', margin: '0 0 16px' }}>
-                  {captureFrame.sku}
-                </p>
-                <p style={{ fontSize: 42, fontWeight: 800, color: '#fff', lineHeight: 1.05, margin: '0 0 20px' }}>
-                  {captureFrame.title}
-                </p>
-                {captureFrame.desc && (
-                  <p style={{ fontSize: 16, color: '#aaa', lineHeight: 1.6, margin: 0 }}>
-                    {captureFrame.desc}
-                  </p>
-                )}
-              </div>
-              {/* Photo side (text-left layout) */}
-              {captureFrame.template === '5050-left' && captureFrame.photoUrl && (
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={captureFrame.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
-                </div>
-              )}
-            </>
-          )}
-          {captureFrame && captureFrame.template === 'icons' && (
-            <>
-              {captureFrame.photoUrl && (
-                <div style={{ flex: '0 0 55%', overflow: 'hidden' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={captureFrame.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} crossOrigin="anonymous" />
-                </div>
-              )}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: 40, backgroundColor: '#222', textAlign: 'center' }}>
-                <p style={{ fontSize: 36, fontWeight: 800, color: '#fff', margin: '0 0 12px' }}>{captureFrame.title}</p>
-                <p style={{ fontSize: 14, color: '#888', letterSpacing: 2, textTransform: 'uppercase' }}>Icons Template</p>
-              </div>
-            </>
+        <div
+          ref={captureRef}
+          style={{ width: captureFrame?.width ?? 1464, height: captureFrame?.height ?? 600, position: 'relative', overflow: 'hidden' }}
+        >
+          {captureFrame && (
+            captureFrame.template === 'icons'
+              ? <CanvasContentIcons design={captureFrame.slotDesign} settings={captureFrame.settings} />
+              : <CanvasContent design={captureFrame.slotDesign} settings={captureFrame.settings} />
           )}
         </div>
       </div>
