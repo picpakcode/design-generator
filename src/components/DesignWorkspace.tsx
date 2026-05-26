@@ -8,6 +8,8 @@ import AssetUploader from './AssetUploader'
 import ExportButton from './ExportButton'
 import BulkMode from './BulkMode'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
+import CantoAssetPicker, { CantoPick } from './CantoAssetPicker'
+import { FolderConfig, EMPTY_CONFIG, loadFolderConfig } from '@/lib/canto-folders'
 import { storeBlob, getBlob, deleteBlob } from '@/lib/idb'
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
@@ -125,6 +127,10 @@ export default function DesignWorkspace() {
   const [bulkExportOpen, setBulkExportOpen] = useState(false)
   const [bulkCanExport, setBulkCanExport] = useState(false)
   const bulkExportFnRef = useRef<() => void>(() => {})
+
+  // Canto folder-based asset pickers
+  const [folderConfig, setFolderConfig] = useState<FolderConfig>(EMPTY_CONFIG)
+  const [cantoPicks, setCantoPicks] = useState<Record<number, CantoPick>>({})
   const canvasRef    = useRef<HTMLDivElement>(null)
   const altCanvasRef = useRef<HTMLDivElement>(null)
   const wrapperRef   = useRef<HTMLDivElement>(null)
@@ -226,6 +232,7 @@ export default function DesignWorkspace() {
         const raw = localStorage.getItem('dg:presets')
         if (raw) setPresets(JSON.parse(raw))
       } catch {}
+      try { setFolderConfig(loadFolderConfig()) } catch {}
     }
     restore()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -641,6 +648,86 @@ export default function DesignWorkspace() {
               />
             </Section>
 
+            {/* Canto Assets — pick from configured Canto folders */}
+            <Section title="Canto Assets" icon={<CantoSidebarIcon />}>
+              <div className="space-y-3">
+                {/* Texture */}
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Background Texture</p>
+                  <CantoAssetPicker
+                    albumId={folderConfig.texturesAlbumId}
+                    value={cantoPicks[1] ?? null}
+                    onChange={pick => {
+                      if (pick) {
+                        handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 1)
+                        setCantoPicks(p => ({ ...p, 1: pick }))
+                      } else {
+                        if (design.assets[1]) handleRemoveAsset(design.assets[1].id)
+                        setCantoPicks(p => { const n = { ...p }; delete n[1]; return n })
+                      }
+                    }}
+                    placeholder="Pick texture from Canto"
+                    thumbnailFit="cover"
+                  />
+                </div>
+                {/* Logo */}
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Brand Logo</p>
+                  <CantoAssetPicker
+                    albumId={folderConfig.logosAlbumId}
+                    value={cantoPicks[2] ?? null}
+                    onChange={pick => {
+                      if (pick) {
+                        handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 2)
+                        setCantoPicks(p => ({ ...p, 2: pick }))
+                      } else {
+                        if (design.assets[2]) handleRemoveAsset(design.assets[2].id)
+                        setCantoPicks(p => { const n = { ...p }; delete n[2]; return n })
+                      }
+                    }}
+                    placeholder="Pick logo from Canto"
+                    thumbnailFit="contain"
+                  />
+                </div>
+                {/* Icons — shown only for icon templates */}
+                {(design.activeTemplate === 'aplus-icons' || !isGallery) && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Icons</p>
+                    <div className="space-y-1.5">
+                      {Array.from({ length: design.iconCount }, (_, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="text-[9px] font-semibold text-gray-400 w-10 shrink-0">Icon {i + 1}</span>
+                          <div className="flex-1">
+                            <CantoAssetPicker
+                              albumId={folderConfig.iconsAlbumId}
+                              value={cantoPicks[3 + i] ?? null}
+                              onChange={pick => {
+                                const slot = 3 + i
+                                if (pick) {
+                                  handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, slot)
+                                  setCantoPicks(p => ({ ...p, [slot]: pick }))
+                                } else {
+                                  if (design.assets[slot]) handleRemoveAsset(design.assets[slot].id)
+                                  setCantoPicks(p => { const n = { ...p }; delete n[slot]; return n })
+                                }
+                              }}
+                              placeholder={`Icon ${i + 1}`}
+                              thumbnailFit="contain"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(!folderConfig.texturesAlbumId && !folderConfig.logosAlbumId && !folderConfig.iconsAlbumId) && (
+                  <p className="text-[10px] text-gray-400 text-center py-1">
+                    Configure folders in Bulk Mode → Image Library ⚙
+                  </p>
+                )}
+              </div>
+            </Section>
+
             {/* Layout */}
             <Section title="Layout" icon={<LayoutGridIcon />}>
               <div className="space-y-4">
@@ -1042,6 +1129,14 @@ function ImagesIcon() {
   return (
     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
+function CantoSidebarIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zm0 0l5.5 9L14 8l3 4" />
     </svg>
   )
 }

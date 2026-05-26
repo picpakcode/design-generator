@@ -5,6 +5,8 @@ import { toPng, toJpeg } from 'html-to-image'
 import { BulkProduct, ParseResult, downloadTemplate, parseCSV } from '@/lib/csv'
 import { DesignState, UploadedAsset } from '@/types'
 import { CanvasContent, CanvasContentIcons } from './CanvasRenderers'
+import CantoAssetPicker, { CantoPick } from './CantoAssetPicker'
+import { CantoAlbum, FolderConfig, EMPTY_CONFIG, loadFolderConfig, saveFolderConfig, autoMatchFolders } from '@/lib/canto-folders'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,24 +14,16 @@ type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'error'
 type JobStatus = 'pending' | 'rendering' | 'done' | 'error'
 type SlotTemplate = '5050-right' | '5050-left' | 'icons'
 
-interface SlotConfig {
-  template: SlotTemplate
-}
+interface SlotConfig { template: SlotTemplate }
 
 interface BulkPreset {
-  id: string
-  name: string
-  aplusSlots: number
-  includeGallery: boolean
-  outputFormat: 'png' | 'jpeg'
-  slotConfigs: SlotConfig[]
-  createdAt: number
+  id: string; name: string; aplusSlots: number
+  includeGallery: boolean; outputFormat: 'png' | 'jpeg'
+  slotConfigs: SlotConfig[]; createdAt: number
 }
 
 interface JobProduct extends BulkProduct {
-  status: JobStatus
-  renderingSlot?: string
-  doneCount?: number
+  status: JobStatus; renderingSlot?: string; doneCount?: number
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -41,7 +35,6 @@ function defaultSlotConfigs(count: number): SlotConfig[] {
 }
 
 const PRESETS_KEY = 'bulk-presets'
-
 function loadPresets(): BulkPreset[] {
   try { return JSON.parse(localStorage.getItem(PRESETS_KEY) ?? '[]') } catch { return [] }
 }
@@ -52,9 +45,7 @@ function savePresetsToStorage(p: BulkPreset[]) {
 function slotName(i: number) { return String.fromCharCode(97 + i) + '1' }
 
 const TEMPLATE_LABELS: Record<SlotTemplate, string> = {
-  '5050-right': 'Text Right',
-  '5050-left':  'Text Left',
-  'icons':      'Icons',
+  '5050-right': 'Text Right', '5050-left': 'Text Left', 'icons': 'Icons',
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -72,13 +63,21 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
   const [isDragging, setIsDragging]   = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Canto
+  // Canto connection
   const [cantoStatus, setCantoStatus] = useState<ConnectionStatus>('connecting')
   const [cantoError, setCantoError]   = useState('')
 
-  // Branding overrides (local uploads that override designState assets)
-  const [localLogo,    setLocalLogo]    = useState<UploadedAsset | undefined>()
-  const [localTexture, setLocalTexture] = useState<UploadedAsset | undefined>()
+  // Canto folder config
+  const [albums, setAlbums]           = useState<CantoAlbum[]>([])
+  const [folderConfig, setFolderConfig] = useState<FolderConfig>(EMPTY_CONFIG)
+  const [folderConfigOpen, setFolderConfigOpen] = useState(false)
+  const folderConfigRef = useRef<FolderConfig>(EMPTY_CONFIG)
+
+  // Branding — Canto picks or file uploads (Canto takes priority)
+  const [cantoLogo,    setCantoLogo]    = useState<CantoPick | null>(null)
+  const [cantoTexture, setCantoTexture] = useState<CantoPick | null>(null)
+  const [fileLogo,     setFileLogo]     = useState<UploadedAsset | undefined>()
+  const [fileTexture,  setFileTexture]  = useState<UploadedAsset | undefined>()
   const logoInputRef    = useRef<HTMLInputElement>(null)
   const textureInputRef = useRef<HTMLInputElement>(null)
 
@@ -97,32 +96,63 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
   const [isRunning, setIsRunning] = useState(false)
   const [doneJobs, setDoneJobs]   = useState(0)
   const [totalJobs, setTotalJobs] = useState(0)
-  const cancelRef    = useRef(false)
-  const capturedRef  = useRef<Map<string, string>>(new Map())
-  const captureRef   = useRef<HTMLDivElement>(null)
-  const jobsSnapshot = useRef<JobProduct[]>([])
+  const cancelRef       = useRef(false)
+  const capturedRef     = useRef<Map<string, string>>(new Map())
+  const captureRef      = useRef<HTMLDivElement>(null)
+  const jobsSnapshot    = useRef<JobProduct[]>([])
+  const iconCacheRef    = useRef<CantoPick[] | null>(null)
+  const photoCache      = useRef<Map<string, string | null>>(new Map())
   const [captureFrame, setCaptureFrame] = useState<{
     slotDesign: DesignState
     settings: typeof designState.desktop
     template: SlotTemplate
-    width: number
-    height: number
+    width: number; height: number
   } | null>(null)
+
+  // Keep folderConfigRef in sync
+  folderConfigRef.current = folderConfig
 
   // ── Init ─────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     setPresets(loadPresets())
+
     fetch('/api/canto/status')
       .then(r => r.json())
       .then(d => {
-        if (d.connected) setCantoStatus('connected')
-        else { setCantoStatus('error'); setCantoError(d.error ?? 'Connection failed') }
+        if (d.connected) {
+          setCantoStatus('connected')
+          loadAlbumsAndConfig()
+        } else {
+          setCantoStatus('error')
+          setCantoError(d.error ?? 'Connection failed')
+        }
       })
       .catch(() => { setCantoStatus('error'); setCantoError('Could not reach server') })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Keep slot configs in sync when slot count changes
+  const loadAlbumsAndConfig = async () => {
+    try {
+      const data = await fetch('/api/canto/albums').then(r => r.json())
+      if (!Array.isArray(data)) return
+      setAlbums(data)
+      iconCacheRef.current = null  // reset icon cache when albums reload
+
+      const saved = loadFolderConfig()
+      const hasAnySaved = saved.iconsAlbumId || saved.texturesAlbumId || saved.logosAlbumId
+      if (!hasAnySaved) {
+        // First time: auto-match by album name
+        const matched = { ...EMPTY_CONFIG, ...autoMatchFolders(data) }
+        saveFolderConfig(matched)
+        setFolderConfig(matched)
+      } else {
+        setFolderConfig(saved)
+      }
+    } catch { /* non-critical */ }
+  }
+
+  // Keep slot configs in sync with slot count
   useEffect(() => {
     setSlotConfigs(prev => {
       const next = defaultSlotConfigs(aplusSlots)
@@ -156,40 +186,47 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // ── Branding uploads ──────────────────────────────────────────────────────────
+  // ── Folder config ─────────────────────────────────────────────────────────────
 
-  const handleBrandingFile = (file: File, slot: 'logo' | 'texture') => {
+  const updateFolderConfig = (patch: Partial<FolderConfig>) => {
+    const next = { ...folderConfig, ...patch }
+    setFolderConfig(next)
+    saveFolderConfig(next)
+    iconCacheRef.current = null  // invalidate icon cache on folder change
+  }
+
+  // ── Branding ──────────────────────────────────────────────────────────────────
+
+  const handleFileUpload = (file: File, slot: 'logo' | 'texture') => {
     const url = URL.createObjectURL(file)
     const asset: UploadedAsset = { id: `local-${slot}-${Date.now()}`, name: file.name, url, type: 'image' }
-    if (slot === 'logo')    setLocalLogo(asset)
-    if (slot === 'texture') setLocalTexture(asset)
+    if (slot === 'logo')    { setFileLogo(asset);    setCantoLogo(null) }
+    if (slot === 'texture') { setFileTexture(asset); setCantoTexture(null) }
   }
 
   const clearBranding = (slot: 'logo' | 'texture') => {
-    if (slot === 'logo')    { setLocalLogo(undefined);    if (logoInputRef.current)    logoInputRef.current.value = '' }
-    if (slot === 'texture') { setLocalTexture(undefined); if (textureInputRef.current) textureInputRef.current.value = '' }
+    if (slot === 'logo')    { setFileLogo(undefined); setCantoLogo(null);    if (logoInputRef.current)    logoInputRef.current.value = '' }
+    if (slot === 'texture') { setFileTexture(undefined); setCantoTexture(null); if (textureInputRef.current) textureInputRef.current.value = '' }
   }
+
+  const isLogoSet    = !!(cantoLogo ?? fileLogo)
+  const isTextureSet = !!(cantoTexture ?? fileTexture)
 
   // ── Presets ───────────────────────────────────────────────────────────────────
 
   const handleSavePreset = () => {
     if (!presetName.trim()) return
     const p: BulkPreset = {
-      id: Date.now().toString(),
-      name: presetName.trim(),
-      aplusSlots, includeGallery, outputFormat,
-      slotConfigs: [...slotConfigs],
-      createdAt: Date.now(),
+      id: Date.now().toString(), name: presetName.trim(),
+      aplusSlots, includeGallery, outputFormat, slotConfigs: [...slotConfigs], createdAt: Date.now(),
     }
     const next = [p, ...presets]
     setPresets(next); savePresetsToStorage(next); setPresetName('')
   }
 
   const handleLoadPreset = (p: BulkPreset) => {
-    setAplusSlots(p.aplusSlots)
-    setIncludeGallery(p.includeGallery)
-    setOutputFormat(p.outputFormat)
-    setSlotConfigs(p.slotConfigs)
+    setAplusSlots(p.aplusSlots); setIncludeGallery(p.includeGallery)
+    setOutputFormat(p.outputFormat); setSlotConfigs(p.slotConfigs)
   }
 
   const handleDeletePreset = (id: string) => {
@@ -197,15 +234,11 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
     setPresets(next); savePresetsToStorage(next)
   }
 
-  // ── Slot config ───────────────────────────────────────────────────────────────
-
   const setSlotTemplate = (i: number, t: SlotTemplate) => {
     setSlotConfigs(prev => prev.map((c, idx) => idx === i ? { ...c, template: t } : c))
   }
 
-  // ── Photo fetch ───────────────────────────────────────────────────────────────
-
-  const photoCache = useRef<Map<string, string | null>>(new Map())
+  // ── Photo / icon fetch ────────────────────────────────────────────────────────
 
   const fetchPhoto = async (name: string): Promise<string | null> => {
     if (photoCache.current.has(name)) return photoCache.current.get(name)!
@@ -216,9 +249,32 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
       photoCache.current.set(name, url)
       return url
     } catch {
-      photoCache.current.set(name, null)
-      return null
+      photoCache.current.set(name, null); return null
     }
+  }
+
+  const getIconFolder = async (): Promise<CantoPick[]> => {
+    const albumId = folderConfigRef.current.iconsAlbumId
+    if (!albumId) return []
+    if (iconCacheRef.current !== null) return iconCacheRef.current
+    try {
+      const data = await fetch(`/api/canto/folder?albumId=${encodeURIComponent(albumId)}`).then(r => r.json())
+      iconCacheRef.current = Array.isArray(data) ? data : []
+    } catch {
+      iconCacheRef.current = []
+    }
+    return iconCacheRef.current
+  }
+
+  const matchIcon = (icons: CantoPick[], callout: string): CantoPick | undefined => {
+    if (!callout) return undefined
+    const q = callout.toLowerCase()
+    const stem = (n: string) => n.toLowerCase().replace(/\.[^.]+$/, '')
+    return (
+      icons.find(a => stem(a.name) === q) ??
+      icons.find(a => stem(a.name).includes(q.split(' ')[0])) ??
+      icons.find(a => q.includes(stem(a.name).split('-').join(' ')))
+    )
   }
 
   // ── Download ZIP ──────────────────────────────────────────────────────────────
@@ -253,15 +309,16 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
     setDoneJobs(0); setIsRunning(true)
     setJobs(p => p.map(r => ({ ...r, status: 'pending', doneCount: 0, renderingSlot: undefined })))
 
+    // Pre-fetch icon folder once before the loop
+    const iconFolder = await getIconFolder()
+
     let done = 0
 
     for (let i = 0; i < snapshot.length; i++) {
       if (cancelRef.current) break
       const job = snapshot[i]
 
-      setJobs(p => p.map((r, idx) =>
-        idx === i ? { ...r, status: 'rendering', renderingSlot: slotName(0) } : r
-      ))
+      setJobs(p => p.map((r, idx) => idx === i ? { ...r, status: 'rendering', renderingSlot: slotName(0) } : r))
 
       for (let j = 0; j < imagesPerProduct; j++) {
         if (cancelRef.current) break
@@ -277,17 +334,28 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
         const photoName = job.photos[slotIdx % Math.max(job.photos.length, 1)]
         const photoUrl  = photoName ? await fetchPhoto(photoName) : null
 
-        setJobs(p => p.map((r, idx) =>
-          idx === i ? { ...r, renderingSlot: label, doneCount: j } : r
-        ))
+        setJobs(p => p.map((r, idx) => idx === i ? { ...r, renderingSlot: label, doneCount: j } : r))
 
         const photoAsset: UploadedAsset | undefined = photoUrl
           ? { id: `photo-${job.sku}-${j}`, name: photoName ?? '', url: photoUrl, type: 'image' }
           : undefined
 
-        // Resolve branding: local upload > inherited from Design tab
-        const logoAsset    = localLogo    ?? designState.assets[2]
-        const textureAsset = localTexture ?? designState.assets[1]
+        // Branding: Canto pick > file upload > Design tab asset
+        const logoAsset: UploadedAsset | undefined =
+          cantoLogo    ? { id: cantoLogo.id,    name: cantoLogo.name,    url: cantoLogo.previewUrl,    type: 'image' } :
+          fileLogo     ?? designState.assets[2]
+
+        const textureAsset: UploadedAsset | undefined =
+          cantoTexture ? { id: cantoTexture.id, name: cantoTexture.name, url: cantoTexture.previewUrl, type: 'image' } :
+          fileTexture  ?? designState.assets[1]
+
+        // Icons: match callout text against icons folder assets
+        const iconAssets: (UploadedAsset | undefined)[] = (slot?.iconCallouts ?? ['', '', '', '']).map(callout => {
+          const match = matchIcon(iconFolder, callout)
+          return match
+            ? { id: match.id, name: match.name, url: match.previewUrl, type: 'image' as const }
+            : designState.assets[3 + (slot?.iconCallouts?.indexOf(callout) ?? 0)]
+        })
 
         const slotDesign: DesignState = {
           ...designState,
@@ -295,21 +363,19 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
             photoAsset ?? designState.assets[0],
             textureAsset,
             logoAsset,
-            designState.assets[3],
-            designState.assets[4],
-            designState.assets[5],
-            designState.assets[6],
+            iconAssets[0],
+            iconAssets[1],
+            iconAssets[2],
+            iconAssets[3],
           ].filter(Boolean) as UploadedAsset[],
           title: `<p>${slot?.title ?? ''}</p>`,
           subtitleHtml: slot?.desc ? `<p>${slot.desc}</p>` : '',
+          iconLabels: (slot?.iconCallouts ?? ['', '', '', '']) as [string, string, string, string],
           activeFormat: 'desktop',
           activeTemplate: cfg.template === 'icons' ? 'aplus-icons' : 'aplus-5050',
         }
 
-        const settings = {
-          ...designState.desktop,
-          layoutFlipped: cfg.template === '5050-left',
-        }
+        const settings = { ...designState.desktop, layoutFlipped: cfg.template === '5050-left' }
 
         setCaptureFrame({ slotDesign, settings, template: cfg.template, width, height })
         await new Promise(r => setTimeout(r, 200))
@@ -344,16 +410,10 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
     setDoneJobs(0); setTotalJobs(0)
   }
 
-  // ── Expose download fn + state to parent header ───────────────────────────────
+  // ── Expose export to header ───────────────────────────────────────────────────
 
-  useEffect(() => {
-    exportFnRef.current = handleDownloadZip
-  })
-
-  useEffect(() => {
-    onCanExportChange(allDone)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobs])
+  useEffect(() => { exportFnRef.current = handleDownloadZip })
+  useEffect(() => { onCanExportChange(allDone) }, [jobs]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Derived ───────────────────────────────────────────────────────────────────
 
@@ -375,10 +435,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
 
       {/* ── Hidden capture target ── */}
       <div style={{ position: 'fixed', top: -99999, left: -99999, pointerEvents: 'none' }}>
-        <div
-          ref={captureRef}
-          style={{ width: captureFrame?.width ?? 1464, height: captureFrame?.height ?? 600, position: 'relative', overflow: 'hidden' }}
-        >
+        <div ref={captureRef} style={{ width: captureFrame?.width ?? 1464, height: captureFrame?.height ?? 600, position: 'relative', overflow: 'hidden' }}>
           {captureFrame && (
             captureFrame.template === 'icons'
               ? <CanvasContentIcons design={captureFrame.slotDesign} settings={captureFrame.settings} />
@@ -439,8 +496,9 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
             )}
           </Section>
 
-          {/* CANTO */}
+          {/* IMAGE LIBRARY (Canto) */}
           <Section label="Image Library" icon={<CantoSectionIcon />}>
+            {/* Connection status */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 {cantoStatus === 'connecting' && <SpinnerIcon className="text-gray-400" />}
@@ -449,86 +507,159 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                    cantoStatus === 'connecting' ? 'Connecting…' : cantoError || 'Connection failed'}
                 </span>
               </div>
-              <StatusBadge status={cantoStatus} />
+              <div className="flex items-center gap-1.5">
+                <StatusBadge status={cantoStatus} />
+                {cantoStatus === 'connected' && (
+                  <button
+                    onClick={() => setFolderConfigOpen(o => !o)}
+                    title="Configure asset folders"
+                    className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${folderConfigOpen ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-700'}`}
+                  >
+                    <GearIcon />
+                  </button>
+                )}
+              </div>
             </div>
+
             {cantoStatus === 'error' && (
               <button onClick={() => {
                 setCantoStatus('connecting'); setCantoError('')
                 fetch('/api/canto/status').then(r => r.json()).then(d => {
-                  if (d.connected) setCantoStatus('connected')
+                  if (d.connected) { setCantoStatus('connected'); loadAlbumsAndConfig() }
                   else { setCantoStatus('error'); setCantoError(d.error ?? '') }
                 })
               }} className="text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2 mt-1 block">
                 Retry
               </button>
             )}
+
+            {/* Folder config panel */}
+            {folderConfigOpen && cantoStatus === 'connected' && (
+              <div className="mt-1 pt-3 border-t border-gray-100 space-y-2">
+                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Asset Folders</p>
+                {([
+                  { key: 'iconsAlbumId',    label: 'Icons' },
+                  { key: 'texturesAlbumId', label: 'Textures' },
+                  { key: 'logosAlbumId',    label: 'Logos' },
+                ] as const).map(({ key, label }) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-500 font-medium w-16 shrink-0">{label}</span>
+                    <select
+                      value={folderConfig[key] ?? ''}
+                      onChange={e => updateFolderConfig({ [key]: e.target.value || null })}
+                      className="flex-1 h-7 px-2 rounded-lg border border-gray-200 text-[10px] text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-gray-400 truncate"
+                    >
+                      <option value="">— not set —</option>
+                      {albums.map(a => (
+                        <option key={a.id} value={a.id}>{a.name} ({a.size})</option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+                <p className="text-[9px] text-gray-400 leading-relaxed">
+                  Saved automatically. Bulk run uses these folders to find icons, textures, and logos.
+                </p>
+              </div>
+            )}
           </Section>
 
           {/* BRANDING */}
           <Section label="Branding" icon={<BrandingIcon />}>
-            <div className="space-y-3">
+            <div className="space-y-4">
+
               {/* Logo */}
               <div>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Logo</p>
-                {localLogo ? (
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Logo</p>
+                  {isLogoSet && (
+                    <button onClick={() => clearBranding('logo')} className="text-[9px] text-gray-400 hover:text-red-500 transition-colors">Clear</button>
+                  )}
+                </div>
+                {isLogoSet ? (
                   <div className="flex items-center gap-2">
                     <div className="w-14 h-10 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden shrink-0 flex items-center justify-center">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={localLogo.url} alt="logo" className="max-w-full max-h-full object-contain" />
+                      <img src={(cantoLogo?.previewUrl ?? fileLogo?.url)!} alt="logo" className="max-w-full max-h-full object-contain" crossOrigin="anonymous" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-gray-600 truncate font-medium">{localLogo.name}</p>
-                      <p className="text-[9px] text-gray-400">Bulk override</p>
+                      <p className="text-[10px] text-gray-600 truncate font-medium">{cantoLogo?.name ?? fileLogo?.name}</p>
+                      <p className="text-[9px] text-gray-400">{cantoLogo ? 'From Canto' : 'Uploaded file'}</p>
                     </div>
-                    <button onClick={() => clearBranding('logo')} className="text-[10px] text-gray-400 hover:text-red-500 transition-colors shrink-0">×</button>
                   </div>
                 ) : (
-                  <div>
-                    <button
-                      onClick={() => logoInputRef.current?.click()}
-                      className="w-full h-8 rounded-lg border border-dashed border-gray-200 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <UploadIcon /> Upload logo
+                  <div className="space-y-1.5">
+                    <CantoAssetPicker
+                      albumId={folderConfig.logosAlbumId}
+                      value={null}
+                      onChange={pick => { if (pick) { setCantoLogo(pick); setFileLogo(undefined) } }}
+                      placeholder="Pick logo from Canto"
+                      thumbnailFit="contain"
+                    />
+                    <div className="relative">
+                      <div className="absolute inset-x-0 top-1/2 border-t border-gray-100" />
+                      <span className="relative flex justify-center text-[9px] text-gray-400 bg-white px-2 w-fit mx-auto">or upload</span>
+                    </div>
+                    <button onClick={() => logoInputRef.current?.click()}
+                      className="w-full h-7 rounded-lg border border-dashed border-gray-200 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1.5">
+                      <UploadIcon /> Browse file
                     </button>
-                    {designState.assets[2] && (
-                      <p className="text-[9px] text-gray-400 mt-1 text-center">Using logo from Design tab</p>
-                    )}
+                    {designState.assets[2] && <p className="text-[9px] text-gray-400 text-center">Design tab logo used as fallback</p>}
                   </div>
                 )}
                 <input ref={logoInputRef} type="file" accept="image/*" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleBrandingFile(f, 'logo') }} />
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'logo') }} />
               </div>
 
               {/* Texture */}
               <div>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Background Texture</p>
-                {localTexture ? (
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Background Texture</p>
+                  {isTextureSet && (
+                    <button onClick={() => clearBranding('texture')} className="text-[9px] text-gray-400 hover:text-red-500 transition-colors">Clear</button>
+                  )}
+                </div>
+                {isTextureSet ? (
                   <div className="flex items-center gap-2">
                     <div className="w-14 h-10 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden shrink-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={localTexture.url} alt="texture" className="w-full h-full object-cover" />
+                      <img src={(cantoTexture?.previewUrl ?? fileTexture?.url)!} alt="texture" className="w-full h-full object-cover" crossOrigin="anonymous" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-gray-600 truncate font-medium">{localTexture.name}</p>
-                      <p className="text-[9px] text-gray-400">Bulk override</p>
+                      <p className="text-[10px] text-gray-600 truncate font-medium">{cantoTexture?.name ?? fileTexture?.name}</p>
+                      <p className="text-[9px] text-gray-400">{cantoTexture ? 'From Canto' : 'Uploaded file'}</p>
                     </div>
-                    <button onClick={() => clearBranding('texture')} className="text-[10px] text-gray-400 hover:text-red-500 transition-colors shrink-0">×</button>
                   </div>
                 ) : (
-                  <div>
-                    <button
-                      onClick={() => textureInputRef.current?.click()}
-                      className="w-full h-8 rounded-lg border border-dashed border-gray-200 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <UploadIcon /> Upload texture
+                  <div className="space-y-1.5">
+                    <CantoAssetPicker
+                      albumId={folderConfig.texturesAlbumId}
+                      value={null}
+                      onChange={pick => { if (pick) { setCantoTexture(pick); setFileTexture(undefined) } }}
+                      placeholder="Pick texture from Canto"
+                      thumbnailFit="cover"
+                    />
+                    <div className="relative">
+                      <div className="absolute inset-x-0 top-1/2 border-t border-gray-100" />
+                      <span className="relative flex justify-center text-[9px] text-gray-400 bg-white px-2 w-fit mx-auto">or upload</span>
+                    </div>
+                    <button onClick={() => textureInputRef.current?.click()}
+                      className="w-full h-7 rounded-lg border border-dashed border-gray-200 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1.5">
+                      <UploadIcon /> Browse file
                     </button>
-                    {designState.assets[1] && (
-                      <p className="text-[9px] text-gray-400 mt-1 text-center">Using texture from Design tab</p>
-                    )}
+                    {designState.assets[1] && <p className="text-[9px] text-gray-400 text-center">Design tab texture used as fallback</p>}
                   </div>
                 )}
                 <input ref={textureInputRef} type="file" accept="image/*" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleBrandingFile(f, 'texture') }} />
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'texture') }} />
+              </div>
+
+              {/* Icons note */}
+              <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+                <p className="text-[10px] text-gray-500 leading-relaxed">
+                  <span className="font-semibold text-gray-700">Icons</span> are matched automatically from the icons folder using callout text in the CSV.{' '}
+                  {!folderConfig.iconsAlbumId && <span className="text-amber-600">No icons folder set — configure in Image Library ↑</span>}
+                  {folderConfig.iconsAlbumId && <span className="text-emerald-600">Icons folder configured ✓</span>}
+                </p>
               </div>
             </div>
           </Section>
@@ -543,14 +674,10 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                   }`}>{slotName(i)}</span>
                   <div className="flex flex-1 rounded-lg border border-gray-200 overflow-hidden">
                     {(['5050-right', '5050-left', 'icons'] as SlotTemplate[]).map(t => (
-                      <button
-                        key={t}
-                        onClick={() => setSlotTemplate(i, t)}
+                      <button key={t} onClick={() => setSlotTemplate(i, t)}
                         className={`flex-1 h-6 text-[9px] font-bold uppercase tracking-wide transition-colors ${
                           cfg.template === t ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-700'
-                        }`}
-                        title={TEMPLATE_LABELS[t]}
-                      >
+                        }`} title={TEMPLATE_LABELS[t]}>
                         {t === '5050-right' ? '→' : t === '5050-left' ? '←' : '★'}
                       </button>
                     ))}
@@ -572,35 +699,28 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                   className="w-6 h-6 rounded-md border border-gray-200 text-gray-500 hover:border-gray-400 transition-colors text-sm flex items-center justify-center">+</button>
               </div>
             </SettingRow>
-
             <SettingRow label="Gallery Images">
               <button onClick={() => setIncludeGallery(v => !v)}
                 className={`w-9 h-5 rounded-full transition-colors relative ${includeGallery ? 'bg-gray-900' : 'bg-gray-200'}`}>
                 <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${includeGallery ? 'left-4' : 'left-0.5'}`} />
               </button>
             </SettingRow>
-
             <SettingRow label="Output Format">
               <div className="flex rounded-lg border border-gray-200 overflow-hidden">
                 {(['png', 'jpeg'] as const).map(f => (
                   <button key={f} onClick={() => setOutputFormat(f)}
                     className={`h-6 px-2.5 text-[10px] font-bold uppercase tracking-wide transition-colors ${
                       outputFormat === f ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-800'
-                    }`}>
-                    {f === 'jpeg' ? 'JPG' : 'PNG'}
-                  </button>
+                    }`}>{f === 'jpeg' ? 'JPG' : 'PNG'}</button>
                 ))}
               </div>
             </SettingRow>
-
             {hasProducts && (
               <div className="mt-1 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
                 <p className="text-[10px] text-gray-500">
                   <span className="font-semibold text-gray-700">{jobs.length} products</span>
-                  {' × '}
-                  <span className="font-semibold text-gray-700">{imagesPerProduct} images</span>
-                  {' = '}
-                  <span className="font-semibold text-gray-900">{jobs.length * imagesPerProduct} files</span>
+                  {' × '}<span className="font-semibold text-gray-700">{imagesPerProduct} images</span>
+                  {' = '}<span className="font-semibold text-gray-900">{jobs.length * imagesPerProduct} files</span>
                 </p>
               </div>
             )}
@@ -609,23 +729,15 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
           {/* PRESETS */}
           <Section label="Presets" icon={<PresetsIcon />}>
             <div className="flex gap-1.5">
-              <input
-                type="text"
-                placeholder="Preset name…"
-                value={presetName}
+              <input type="text" placeholder="Preset name…" value={presetName}
                 onChange={e => setPresetName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSavePreset()}
-                className="flex-1 h-7 px-2.5 rounded-lg border border-gray-200 text-[11px] text-gray-700 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400"
-              />
-              <button
-                onClick={handleSavePreset}
-                disabled={!presetName.trim()}
-                className="h-7 px-2.5 rounded-lg bg-gray-900 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-              >
+                className="flex-1 h-7 px-2.5 rounded-lg border border-gray-200 text-[11px] text-gray-700 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400" />
+              <button onClick={handleSavePreset} disabled={!presetName.trim()}
+                className="h-7 px-2.5 rounded-lg bg-gray-900 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
                 Save
               </button>
             </div>
-
             {presets.length === 0 ? (
               <p className="text-[10px] text-gray-400 text-center py-1">No presets saved yet</p>
             ) : (
@@ -636,14 +748,8 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                       <p className="text-[11px] font-semibold text-gray-700 truncate">{p.name}</p>
                       <p className="text-[9px] text-gray-400">{p.aplusSlots} slots · {p.outputFormat.toUpperCase()}</p>
                     </div>
-                    <button onClick={() => handleLoadPreset(p)}
-                      className="text-[10px] text-gray-500 hover:text-gray-800 font-semibold transition-colors shrink-0">
-                      Load
-                    </button>
-                    <button onClick={() => handleDeletePreset(p.id)}
-                      className="text-[10px] text-gray-400 hover:text-red-500 transition-colors shrink-0">
-                      ×
-                    </button>
+                    <button onClick={() => handleLoadPreset(p)} className="text-[10px] text-gray-500 hover:text-gray-800 font-semibold transition-colors shrink-0">Load</button>
+                    <button onClick={() => handleDeletePreset(p.id)} className="text-[10px] text-gray-400 hover:text-red-500 transition-colors shrink-0">×</button>
                   </div>
                 ))}
               </div>
@@ -665,7 +771,6 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
               </div>
             </div>
           )}
-
           <div className="flex gap-1.5">
             {isRunning ? (
               <button onClick={handleCancel}
@@ -684,7 +789,6 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
               </button>
             )}
           </div>
-
           {!canRun && !isRunning && !allDone && (
             <p className="text-[9px] text-gray-400 text-center">
               {cantoStatus === 'error' ? 'Canto connection failed' :
@@ -737,9 +841,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {jobs.map(job => (
-                    <ProductRow key={job.id} job={job} imagesPerProduct={imagesPerProduct} />
-                  ))}
+                  {jobs.map(job => <ProductRow key={job.id} job={job} imagesPerProduct={imagesPerProduct} />)}
                 </tbody>
               </table>
             </div>
@@ -815,9 +917,7 @@ function ProductRow({ job, imagesPerProduct }: { job: JobProduct; imagesPerProdu
         <span className="text-[12px] text-gray-700">{job.productName}</span>
         {job.warnings.length > 0 && <span className="ml-2 text-[9px] text-amber-500" title={job.warnings.join(', ')}>⚠</span>}
       </td>
-      <td className="px-4 py-3">
-        <span className="text-[10px] text-gray-500 tabular-nums">{job.photos.length}p · {job.slots.length}s</span>
-      </td>
+      <td className="px-4 py-3"><span className="text-[10px] text-gray-500 tabular-nums">{job.photos.length}p · {job.slots.length}s</span></td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1.5">
           {job.status === 'rendering' ? <SpinnerIcon className="text-blue-500" /> : <div className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
@@ -969,13 +1069,17 @@ function UploadIcon() {
     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
   </svg>
 }
+function GearIcon() {
+  return <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+}
 function CsvIcon() {
   return <svg className="w-7 h-7 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
   </svg>
 }
-
-// Section header icons
 function CsvSectionIcon() {
   return <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
