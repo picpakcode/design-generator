@@ -480,7 +480,7 @@ export default function DesignWorkspace() {
             </div>
             <button
               onClick={() => setTemplatePickerOpen(true)}
-              className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 hover:text-gray-700 transition-colors shrink-0 ml-2"
+              className="shrink-0 ml-2 px-2.5 py-1 rounded-md bg-gray-100 hover:bg-gray-200 text-[10px] font-bold uppercase tracking-widest text-gray-600 hover:text-gray-900 transition-colors"
             >
               Change
             </button>
@@ -512,16 +512,6 @@ export default function DesignWorkspace() {
                     </span>
                   </button>
                 ))}
-              </div>
-              <div className="shrink-0 border-b border-gray-100 px-4 py-2 flex justify-end">
-                <button
-                  onClick={copyFormatSettings}
-                  title={`Copy all settings from ${fmt === 'desktop' ? 'Desktop to Mobile' : 'Mobile to Desktop'}`}
-                  className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 hover:text-gray-700 transition-colors"
-                >
-                  <CopyFormatIcon />
-                  {fmt === 'desktop' ? 'Copy to Mobile' : 'Copy to Desktop'}
-                </button>
               </div>
             </>
           )}
