@@ -12,6 +12,7 @@ export async function GET(req: Request) {
       id: a.id,
       name: a.name,
       previewUrl: proxyUrl(a.url?.directUrlPreview ?? a.url?.preview ?? ''),
+      keywords: [...(a.keyword ?? []), ...(a.tag ?? [])],
     })))
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })

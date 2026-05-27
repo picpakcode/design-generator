@@ -267,14 +267,42 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
   }
 
   const matchIcon = (icons: CantoPick[], callout: string): CantoPick | undefined => {
-    if (!callout) return undefined
-    const q = callout.toLowerCase()
-    const stem = (n: string) => n.toLowerCase().replace(/\.[^.]+$/, '')
-    return (
-      icons.find(a => stem(a.name) === q) ??
-      icons.find(a => stem(a.name).includes(q.split(' ')[0])) ??
-      icons.find(a => q.includes(stem(a.name).split('-').join(' ')))
-    )
+    if (!callout || icons.length === 0) return undefined
+
+    // Common words that carry no meaning for matching
+    const STOP = new Set([
+      'the','and','for','from','with','that','this','will','are','was','not',
+      'but','its','our','per','into','your','against','before','after','more',
+      'their','each','both','also','than','then','when','which','while','about',
+    ])
+
+    const calloutWords = callout.toLowerCase()
+      .split(/[\s\-_,./()]+/)
+      .filter(w => w.length > 2 && !STOP.has(w))
+
+    let best: CantoPick | undefined
+    let bestScore = 0
+
+    for (const icon of icons) {
+      // Merge Canto keywords + tags + filename stem as searchable terms
+      const nameStem = icon.name.toLowerCase().replace(/\.[^.]+$/, '').split(/[\s\-_]+/)
+      const kwTerms  = (icon.keywords ?? []).map(k => k.toLowerCase().trim())
+      const allTerms = [...kwTerms, ...nameStem]
+
+      let score = 0
+      for (const word of calloutWords) {
+        for (const term of allTerms) {
+          if (term === word)                          score += 4  // exact match
+          else if (kwTerms.includes(term) && term.startsWith(word) && word.length > 3) score += 3  // keyword starts with callout word
+          else if (term.includes(word) && word.length > 3) score += 2  // term contains callout word
+          else if (word.includes(term) && term.length > 3) score += 1  // callout contains term (shorter keyword)
+        }
+      }
+
+      if (score > bestScore) { bestScore = score; best = icon }
+    }
+
+    return bestScore > 0 ? best : undefined
   }
 
   // ── Download ZIP ──────────────────────────────────────────────────────────────

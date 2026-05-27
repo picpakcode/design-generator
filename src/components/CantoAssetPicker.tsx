@@ -6,6 +6,7 @@ export interface CantoPick {
   id: string
   name: string
   previewUrl: string
+  keywords?: string[]
 }
 
 interface Props {
