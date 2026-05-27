@@ -100,8 +100,9 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
   const capturedRef     = useRef<Map<string, string>>(new Map())
   const captureRef      = useRef<HTMLDivElement>(null)
   const jobsSnapshot    = useRef<JobProduct[]>([])
-  const iconCacheRef    = useRef<CantoPick[] | null>(null)
-  const photoCache      = useRef<Map<string, string | null>>(new Map())
+  const iconCacheRef      = useRef<CantoPick[] | null>(null)
+  const productPhotoCache = useRef<Map<string, CantoPick[]>>(new Map())
+  const photoCache        = useRef<Map<string, string | null>>(new Map())
   const [captureFrame, setCaptureFrame] = useState<{
     slotDesign: DesignState
     settings: typeof designState.desktop
@@ -137,7 +138,8 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
       const data = await fetch('/api/canto/albums').then(r => r.json())
       if (!Array.isArray(data)) return
       setAlbums(data)
-      iconCacheRef.current = null  // reset icon cache when albums reload
+      iconCacheRef.current = null
+      productPhotoCache.current.clear()
 
       const saved = loadFolderConfig()
       const hasAnySaved = saved.iconsAlbumId || saved.texturesAlbumId || saved.logosAlbumId
@@ -192,7 +194,8 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
     const next = { ...folderConfig, ...patch }
     setFolderConfig(next)
     saveFolderConfig(next)
-    iconCacheRef.current = null  // invalidate icon cache on folder change
+    iconCacheRef.current = null
+    productPhotoCache.current.clear()
   }
 
   // ── Branding ──────────────────────────────────────────────────────────────────
@@ -266,6 +269,23 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
     return iconCacheRef.current
   }
 
+  // Searches Canto by SKU + product name and returns lifestyle photos for this product.
+  // Results are cached per SKU so multiple slots don't re-fetch.
+  const fetchProductPhotos = async (sku: string, productName: string, need: number): Promise<CantoPick[]> => {
+    const cacheKey = sku || productName
+    if (productPhotoCache.current.has(cacheKey)) return productPhotoCache.current.get(cacheKey)!
+    try {
+      const params = new URLSearchParams({ sku, name: productName, limit: String(Math.max(need * 3, 25)) })
+      const data = await fetch(`/api/canto/photos?${params}`).then(r => r.json())
+      const photos: CantoPick[] = Array.isArray(data) ? data : []
+      productPhotoCache.current.set(cacheKey, photos)
+      return photos
+    } catch {
+      productPhotoCache.current.set(cacheKey, [])
+      return []
+    }
+  }
+
   const matchIcon = (icons: CantoPick[], callout: string): CantoPick | undefined => {
     if (!callout || icons.length === 0) return undefined
 
@@ -284,9 +304,20 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
     let bestScore = 0
 
     for (const icon of icons) {
-      // Merge Canto keywords + tags + filename stem as searchable terms
-      const nameStem = icon.name.toLowerCase().replace(/\.[^.]+$/, '').split(/[\s\-_]+/)
-      const kwTerms  = (icon.keywords ?? []).map(k => k.toLowerCase().trim())
+      // Strip vendor prefixes (dd-, li_) from filename, then split into terms
+      const nameStem = icon.name.toLowerCase()
+        .replace(/\.[^.]+$/, '')
+        .replace(/^(dd-|li_)/, '')
+        .split(/[\s\-_]+/)
+        .filter(p => p.length > 1)
+
+      // Expand hyphenated keywords: "Anti-Corrosion" → ["anti-corrosion", "anti", "corrosion"]
+      // so individual parts can score exact matches
+      const kwTerms = (icon.keywords ?? []).flatMap(k => {
+        const lower = k.toLowerCase().trim()
+        const parts = lower.split(/[\-_]+/).filter(p => p.length > 2)
+        return parts.length > 1 ? [lower, ...parts] : [lower]
+      })
       const allTerms = [...kwTerms, ...nameStem]
 
       let score = 0
@@ -348,6 +379,10 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
 
       setJobs(p => p.map((r, idx) => idx === i ? { ...r, status: 'rendering', renderingSlot: slotName(0) } : r))
 
+      // Search Canto for lifestyle photos matching this product's SKU / name
+      const productPhotos = await fetchProductPhotos(job.sku, job.productName, imagesPerProduct)
+      const usedPhotoIds: string[] = []
+
       for (let j = 0; j < imagesPerProduct; j++) {
         if (cancelRef.current) break
 
@@ -359,14 +394,34 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
         const width     = isGallery ? 1500 : 1464
         const height    = isGallery ? 1500 : 600
 
-        const photoName = job.photos[slotIdx % Math.max(job.photos.length, 1)]
-        const photoUrl  = photoName ? await fetchPhoto(photoName) : null
-
         setJobs(p => p.map((r, idx) => idx === i ? { ...r, renderingSlot: label, doneCount: j } : r))
 
-        const photoAsset: UploadedAsset | undefined = photoUrl
-          ? { id: `photo-${job.sku}-${j}`, name: photoName ?? '', url: photoUrl, type: 'image' }
-          : undefined
+        // Photo resolution: CSV name → photos folder SKU match → Design tab slot[0]
+        let photoAsset: UploadedAsset | undefined = undefined
+
+        const csvPhotoName = job.photos[slotIdx % Math.max(job.photos.length, 1)]
+        if (csvPhotoName) {
+          // CSV name → check already-fetched product photos first, then fall back to name search
+          const exactInPool = productPhotos.find(p => p.name === csvPhotoName)
+          if (exactInPool) {
+            photoAsset = { id: exactInPool.id, name: exactInPool.name, url: exactInPool.previewUrl, type: 'image' }
+          } else {
+            const photoUrl = await fetchPhoto(csvPhotoName)
+            if (photoUrl) photoAsset = { id: `photo-${job.sku}-${j}`, name: csvPhotoName, url: photoUrl, type: 'image' }
+          }
+        }
+
+        if (!photoAsset && productPhotos.length > 0) {
+          // Pick the next unused lifestyle photo for this product
+          const pick = productPhotos.find(p => usedPhotoIds.indexOf(p.id) === -1) ?? productPhotos[j % productPhotos.length]
+          if (pick) {
+            usedPhotoIds.push(pick.id)
+            photoAsset = { id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }
+          }
+        }
+
+        // Last resort: Design tab product photo (slot 0) — only if user explicitly has one set
+        if (!photoAsset) photoAsset = designState.assets[0]
 
         // Branding: Canto pick > file upload > Design tab asset
         const logoAsset: UploadedAsset | undefined =
@@ -378,24 +433,25 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
           fileTexture  ?? designState.assets[1]
 
         // Icons: match callout text against icons folder assets
+        // Use originalUrl (PNG with transparency) so CSS color filter works correctly
         const iconAssets: (UploadedAsset | undefined)[] = (slot?.iconCallouts ?? ['', '', '', '']).map(callout => {
           const match = matchIcon(iconFolder, callout)
           return match
-            ? { id: match.id, name: match.name, url: match.previewUrl, type: 'image' as const }
+            ? { id: match.id, name: match.name, url: match.originalUrl ?? match.previewUrl, type: 'image' as const }
             : designState.assets[3 + (slot?.iconCallouts?.indexOf(callout) ?? 0)]
         })
 
         const slotDesign: DesignState = {
           ...designState,
           assets: [
-            photoAsset ?? designState.assets[0],
+            photoAsset,
             textureAsset,
             logoAsset,
             iconAssets[0],
             iconAssets[1],
             iconAssets[2],
             iconAssets[3],
-          ].filter(Boolean) as UploadedAsset[],
+          ] as UploadedAsset[],
           title: `<p>${slot?.title ?? ''}</p>`,
           subtitleHtml: slot?.desc ? `<p>${slot.desc}</p>` : '',
           iconLabels: (slot?.iconCallouts ?? ['', '', '', '']) as [string, string, string, string],
@@ -579,7 +635,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                     >
                       <option value="">— not set —</option>
                       {albums.map(a => (
-                        <option key={a.id} value={a.id}>{a.name} ({a.size})</option>
+                        <option key={a.id} value={a.id}>{a.namePath ?? a.name}</option>
                       ))}
                     </select>
                   </div>
@@ -681,11 +737,14 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                   onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'texture') }} />
               </div>
 
-              {/* Icons note */}
-              <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100">
+              {/* Auto-matching note */}
+              <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 space-y-1">
                 <p className="text-[10px] text-gray-500 leading-relaxed">
-                  <span className="font-semibold text-gray-700">Icons</span> are matched automatically from the icons folder using callout text in the CSV.{' '}
-                  {!folderConfig.iconsAlbumId && <span className="text-amber-600">No icons folder set — configure in Image Library ↑</span>}
+                  <span className="font-semibold text-gray-700">Photos</span> are searched automatically by SKU — unique lifestyle images are assigned to each block. Tag photos in Canto with their SKU for best results.
+                </p>
+                <p className="text-[10px] text-gray-500 leading-relaxed">
+                  <span className="font-semibold text-gray-700">Icons</span> are matched from the icons folder using callout text.{' '}
+                  {!folderConfig.iconsAlbumId && <span className="text-amber-600">No icons folder set ↑</span>}
                   {folderConfig.iconsAlbumId && <span className="text-emerald-600">Icons folder configured ✓</span>}
                 </p>
               </div>
@@ -853,7 +912,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
               <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-100">
                 <span className="text-amber-500 shrink-0 mt-0.5">⚠</span>
                 <p className="text-[11px] text-amber-700">
-                  {productWarnings} product{productWarnings !== 1 ? 's have' : ' has'} missing data — they will be skipped.
+                  {productWarnings} product{productWarnings !== 1 ? 's have' : ' has'} warnings — hover the ⚠ to see details. Generation will still run.
                 </p>
               </div>
             )}

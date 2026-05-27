@@ -36,6 +36,16 @@ export interface UploadedAsset {
   type: 'image'
 }
 
+export interface PhotoComposition {
+  scale:    number   // 1.0 – 4.0
+  x:        number   // pan, fraction of container width, -1 to 1
+  y:        number   // pan, fraction of container height, -1 to 1
+  rotation: number   // degrees -180 to 180
+  flipH:    boolean
+}
+
+export const DEFAULT_PHOTO_COMP: PhotoComposition = { scale: 1, x: 0, y: 0, rotation: 0, flipH: false }
+
 export interface FormatSettings {
   layoutFlipped: boolean
   logoCorner: LogoCorner
@@ -55,6 +65,7 @@ export interface FormatSettings {
   iconSize: number
   iconLabelFontSize: number
   iconLabelLineHeight: number
+  photoComposition: PhotoComposition
 }
 
 export interface DesignState {
@@ -70,6 +81,7 @@ export interface DesignState {
   primaryColor: string
   accentColor: string
   bodyColor: string
+  iconColor: string
   desktop: FormatSettings
   mobile: FormatSettings
   gallery: FormatSettings

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getAlbums } from '@/lib/canto'
+import { getFolders } from '@/lib/canto'
 
 export async function GET() {
   try {
-    const albums = await getAlbums()
-    return NextResponse.json(albums)
+    const folders = await getFolders()
+    return NextResponse.json(folders)
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }

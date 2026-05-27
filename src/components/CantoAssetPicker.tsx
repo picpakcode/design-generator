@@ -6,6 +6,7 @@ export interface CantoPick {
   id: string
   name: string
   previewUrl: string
+  originalUrl?: string   // PNG with transparency — use for icons
   keywords?: string[]
 }
 

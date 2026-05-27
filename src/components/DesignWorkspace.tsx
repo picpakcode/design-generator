@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Category, DesignState, Format, FormatSettings, GalleryTemplateId, TemplateId, TextTransform, UploadedAsset } from '@/types'
+import { Category, DesignState, Format, FormatSettings, GalleryTemplateId, PhotoComposition, DEFAULT_PHOTO_COMP, TemplateId, TextTransform, UploadedAsset } from '@/types'
 import { getGalleryTemplate, getTemplate } from '@/lib/templates'
 import AssetUploader from './AssetUploader'
 import ExportButton from './ExportButton'
@@ -34,6 +34,7 @@ const DESKTOP_DEFAULTS: FormatSettings = {
   iconSize: 64,
   iconLabelFontSize: 18,
   iconLabelLineHeight: 22,
+  photoComposition: { ...DEFAULT_PHOTO_COMP },
 }
 
 const MOBILE_DEFAULTS: FormatSettings = {
@@ -54,6 +55,7 @@ const MOBILE_DEFAULTS: FormatSettings = {
   iconSize: 40,
   iconLabelFontSize: 13,
   iconLabelLineHeight: 16,
+  photoComposition: { ...DEFAULT_PHOTO_COMP },
 }
 
 // Gallery images are 1500×1500 — typography scaled for larger square canvas
@@ -75,6 +77,7 @@ const GALLERY_DEFAULTS: FormatSettings = {
   iconSize: 92,
   iconLabelFontSize: 28,
   iconLabelLineHeight: 36,
+  photoComposition: { ...DEFAULT_PHOTO_COMP },
 }
 
 const DEFAULT_STATE: DesignState = {
@@ -90,6 +93,7 @@ const DEFAULT_STATE: DesignState = {
   primaryColor: '#222222',
   accentColor: '#AF3939',
   bodyColor: '#FEFBF7',
+  iconColor: '#ffffff',
   desktop: DESKTOP_DEFAULTS,
   mobile: MOBILE_DEFAULTS,
   gallery: GALLERY_DEFAULTS,
@@ -113,6 +117,9 @@ function migrateLoadedState(raw: unknown): DesignState {
     ...s,
     assets: [],  // blob URLs don't survive page reload
     iconLabels: labels.slice(0, 4) as [string, string, string, string],
+    desktop: { ...DESKTOP_DEFAULTS, ...(s.desktop ?? {}) },
+    mobile:  { ...MOBILE_DEFAULTS,  ...(s.mobile  ?? {}) },
+    gallery: { ...GALLERY_DEFAULTS, ...(s.gallery  ?? {}) },
   }
 }
 
@@ -159,8 +166,19 @@ export default function DesignWorkspace() {
       return { ...d, [d.activeFormat]: { ...d[d.activeFormat], ...patch } }
     })
 
-  const patchDesign = (p: Partial<Pick<DesignState, 'title' | 'subtitleHtml' | 'primaryColor' | 'accentColor' | 'bodyColor' | 'iconCount' | 'iconLabels'>>) =>
+  const patchDesign = (p: Partial<Pick<DesignState, 'title' | 'subtitleHtml' | 'primaryColor' | 'accentColor' | 'bodyColor' | 'iconColor' | 'iconCount' | 'iconLabels'>>) =>
     setDesign(d => ({ ...d, ...p }))
+
+  const [photoEditMode, setPhotoEditMode] = useState(false)
+  const [isOverPhoto,   setIsOverPhoto]   = useState(false)
+
+  const patchPhotoComp = useCallback((updater: (prev: PhotoComposition) => PhotoComposition) => {
+    setDesign(d => {
+      const key = d.activeCategory === 'gallery' ? 'gallery' : d.activeFormat
+      const prev = d[key].photoComposition ?? DEFAULT_PHOTO_COMP
+      return { ...d, [key]: { ...d[key], photoComposition: updater(prev) } }
+    })
+  }, [])
 
   // Push to history — debounced, skipped during undo/redo
   useEffect(() => {
@@ -347,6 +365,57 @@ export default function DesignWorkspace() {
     : design.activeTemplate === 'aplus-icons'
       ? ['Product Photo', 'Background', 'Brand Logo', ...iconSlots]
       : ['Product Photo', 'Background Texture', 'Brand Logo']
+
+  const computePhotoScreenRect = (): { left: number; top: number; width: number; height: number } | null => {
+    if (!wrapperRef.current) return null
+    const wRect = wrapperRef.current.getBoundingClientRect()
+    const W = template.width * scale
+    const H = template.height * scale
+    const canvasLeft = wRect.left + (wRect.width  - W) / 2
+    const canvasTop  = wRect.top  + (wRect.height - H) / 2
+    if (isGallery) {
+      const proportion = design.activeGalleryTemplate === 'gallery-icons' ? 0.55 : 0.58
+      return { left: canvasLeft, top: canvasTop, width: W, height: H * proportion }
+    }
+    const photoW = W * 0.5
+    const photoLeft = settings.layoutFlipped ? canvasLeft + W * 0.5 : canvasLeft
+    return { left: photoLeft, top: canvasTop, width: photoW, height: H }
+  }
+
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!photoEditMode) { if (isOverPhoto) setIsOverPhoto(false); return }
+    const r = computePhotoScreenRect()
+    if (!r) return
+    const over = e.clientX >= r.left && e.clientX <= r.left + r.width && e.clientY >= r.top && e.clientY <= r.top + r.height
+    if (over !== isOverPhoto) setIsOverPhoto(over)
+  }
+
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!photoEditMode) return
+    const r = computePhotoScreenRect()
+    if (!r) return
+    if (e.clientX < r.left || e.clientX > r.left + r.width || e.clientY < r.top || e.clientY > r.top + r.height) return
+    e.preventDefault()
+    const photoW = r.width
+    const photoH = r.height
+    const onMove = (me: MouseEvent) => {
+      const dx = me.movementX / photoW
+      const dy = me.movementY / photoH
+      patchPhotoComp(p => ({
+        ...p,
+        x: Math.max(-1, Math.min(1, p.x + dx)),
+        y: Math.max(-1, Math.min(1, p.y + dy)),
+      }))
+    }
+    const onUp = () => {
+      document.body.style.cursor = ''
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.body.style.cursor = 'grabbing'
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [photoEditMode, patchPhotoComp]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -648,6 +717,91 @@ export default function DesignWorkspace() {
               />
             </Section>
 
+            {/* Photo composition */}
+            <Section title="Photo" icon={<PhotoCompIcon />} defaultOpen>
+              <div className="space-y-4">
+
+                {/* Edit mode toggle */}
+                <button
+                  onClick={() => setPhotoEditMode(m => !m)}
+                  className={`w-full h-9 flex items-center justify-center gap-2 rounded-xl border-2 text-[11px] font-bold uppercase tracking-widest transition-all ${
+                    photoEditMode
+                      ? 'border-gray-900 bg-gray-900 text-white'
+                      : 'border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700'
+                  }`}
+                >
+                  <MoveIcon />
+                  {photoEditMode ? 'Drag enabled · click photo' : 'Drag to reposition'}
+                </button>
+
+                {/* Scale */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Scale</span>
+                    <span className="text-[11px] text-gray-500 tabular-nums font-mono">
+                      {((settings.photoComposition ?? DEFAULT_PHOTO_COMP).scale).toFixed(2)}×
+                    </span>
+                  </div>
+                  <input type="range" min={1} max={4} step={0.01}
+                    value={(settings.photoComposition ?? DEFAULT_PHOTO_COMP).scale}
+                    onChange={e => patchPhotoComp(p => ({ ...p, scale: Number(e.target.value) }))}
+                    className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
+                </div>
+
+                {/* X / Y pan */}
+                <div className="grid grid-cols-2 gap-3">
+                  {([['x', 'Pan X'], ['y', 'Pan Y']] as const).map(([axis, label]) => (
+                    <div key={axis}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{label}</span>
+                        <span className="text-[10px] text-gray-500 tabular-nums font-mono">
+                          {Math.round((settings.photoComposition ?? DEFAULT_PHOTO_COMP)[axis] * 100)}%
+                        </span>
+                      </div>
+                      <input type="range" min={-100} max={100} step={1}
+                        value={Math.round((settings.photoComposition ?? DEFAULT_PHOTO_COMP)[axis] * 100)}
+                        onChange={e => patchPhotoComp(p => ({ ...p, [axis]: Number(e.target.value) / 100 }))}
+                        className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Rotation */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Rotation</span>
+                    <span className="text-[11px] text-gray-500 tabular-nums font-mono">
+                      {(settings.photoComposition ?? DEFAULT_PHOTO_COMP).rotation}°
+                    </span>
+                  </div>
+                  <input type="range" min={-180} max={180} step={1}
+                    value={(settings.photoComposition ?? DEFAULT_PHOTO_COMP).rotation}
+                    onChange={e => patchPhotoComp(p => ({ ...p, rotation: Number(e.target.value) }))}
+                    className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
+                </div>
+
+                {/* Flip H + Reset row */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => patchPhotoComp(p => ({ ...p, flipH: !p.flipH }))}
+                    className={`flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg border text-[10px] font-semibold transition-all ${
+                      (settings.photoComposition ?? DEFAULT_PHOTO_COMP).flipH
+                        ? 'border-gray-900 bg-gray-900 text-white'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-400'
+                    }`}
+                  >
+                    <FlipHIcon /> Flip H
+                  </button>
+                  <button
+                    onClick={() => patchPhotoComp(() => DEFAULT_PHOTO_COMP)}
+                    className="flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 text-[10px] font-semibold text-gray-500 hover:border-gray-400 transition-all"
+                  >
+                    <ResetIcon /> Reset
+                  </button>
+                </div>
+              </div>
+            </Section>
+
             {/* Canto Assets — pick from configured Canto folders */}
             <Section title="Canto Assets" icon={<CantoSidebarIcon />}>
               <div className="space-y-3">
@@ -942,6 +1096,11 @@ export default function DesignWorkspace() {
                   value={design.bodyColor}
                   onChange={v => patchDesign({ bodyColor: v })}
                 />
+                <ColorRow
+                  label="Icon tint"
+                  value={design.iconColor ?? '#ffffff'}
+                  onChange={v => patchDesign({ iconColor: v })}
+                />
               </div>
             </Section>
 
@@ -955,12 +1114,16 @@ export default function DesignWorkspace() {
           {/* Canvas preview */}
           <div
             className="shadow-2xl overflow-hidden ring-1 ring-black/5"
+            onMouseDown={handleCanvasMouseDown}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseLeave={() => setIsOverPhoto(false)}
             style={{
               width: template.width * scale,
               height: template.height * scale,
               position: 'relative',
               flexShrink: 0,
               borderRadius: isGallery ? 12 : 12,
+              cursor: photoEditMode && isOverPhoto ? 'grab' : undefined,
             }}
           >
             <div
@@ -1219,6 +1382,38 @@ function CopyFormatIcon() {
   return (
     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+    </svg>
+  )
+}
+
+function PhotoCompIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
+function MoveIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 9l-3 3m0 0l3 3M2 12h20M15 9l3 3m0 0l-3 3" />
+    </svg>
+  )
+}
+
+function FlipHIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h8M8 12h8M8 17h8M4 7v10M20 7v10" />
+    </svg>
+  )
+}
+
+function ResetIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
     </svg>
   )
 }

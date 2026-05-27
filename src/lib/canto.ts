@@ -78,13 +78,29 @@ export async function searchAssets(query: string, limit = 20): Promise<CantoAsse
   return (data.results ?? []) as CantoAsset[]
 }
 
-export async function getAlbums(): Promise<{ id: string; name: string; size: number }[]> {
-  const data = await cantoFetch('/album')
-  return (data.results ?? []) as { id: string; name: string; size: number }[]
+export interface CantoFolder {
+  id: string
+  name: string
+  namePath: string
+  children?: CantoFolder[]
 }
 
-export async function getAlbumContents(albumId: string, limit = 100): Promise<CantoAsset[]> {
-  const data = await cantoFetch(`/album/${albumId}`, { limit: String(limit) })
+function flattenTree(nodes: CantoFolder[]): CantoFolder[] {
+  const out: CantoFolder[] = []
+  for (const n of nodes) {
+    out.push({ id: n.id, name: n.name, namePath: n.namePath })
+    if (n.children?.length) out.push(...flattenTree(n.children))
+  }
+  return out
+}
+
+export async function getFolders(): Promise<CantoFolder[]> {
+  const data = await cantoFetch('/tree')
+  return flattenTree((data.results ?? []) as CantoFolder[])
+}
+
+export async function getAlbumContents(folderId: string, limit = 100): Promise<CantoAsset[]> {
+  const data = await cantoFetch(`/folder/${folderId}`, { limit: String(limit), sortBy: 'name', sortDirection: 'ascending' })
   return (data.results ?? data.images ?? []) as CantoAsset[]
 }
 

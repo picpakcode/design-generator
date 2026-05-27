@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getAlbums, searchAssets } from '@/lib/canto'
+import { getFolders, searchAssets } from '@/lib/canto'
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
@@ -10,8 +10,8 @@ export async function GET(req: Request) {
       const results = await searchAssets(q, 10)
       return NextResponse.json({ query: q, count: results.length, results })
     }
-    const albums = await getAlbums()
-    return NextResponse.json({ albums })
+    const folders = await getFolders()
+    return NextResponse.json({ folders })
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }

@@ -81,13 +81,12 @@ function rowToProduct(row: Record<string, string>, idx: number): BulkProduct {
   const name = row['product_name']?.trim() || row['name']?.trim() || ''
   if (!name) warnings.push('Missing product_name')
 
-  // Photos
+  // Photos (optional — Canto auto-fetches by SKU when columns are blank)
   const photos: string[] = []
   for (let p = 1; p <= MAX_PHOTOS; p++) {
     const v = row[`photo_${p}`]?.trim()
     if (v) photos.push(v)
   }
-  if (photos.length === 0) warnings.push('No photos found (photo_1 … photo_5)')
 
   // Slots
   const slots: SlotData[] = []
