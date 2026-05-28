@@ -144,6 +144,7 @@ export default function DesignWorkspace() {
   const [scale, setScale]           = useState(1)
   const [canvasBg, setCanvasBg]     = useState('#F0F0F0')
   const [draggingIcon, setDraggingIcon] = useState<number | null>(null)
+  const [customBase, setCustomBase] = useState<string | null>(null)
 
   const histRef     = useRef<DesignState[]>([DEFAULT_STATE])
   const histIdxRef  = useRef(0)
@@ -351,6 +352,18 @@ export default function DesignWorkspace() {
     : design.activeTemplate === 'aplus-5050' ? 'A+ 50/50 Split' : 'A+ Title + Icons'
 
   const categoryLabel = isGallery ? 'Amazon Gallery Images' : 'Amazon A+ Content'
+
+  // Filename derivation — user can override the base; format suffix appended automatically
+  const defaultBase = isGallery
+    ? `amazon-gallery-${design.activeGalleryTemplate}`
+    : `amazon-aplus-${design.activeTemplate}`
+  const fileBase = customBase ?? defaultBase
+  const exportFilename    = isGallery ? fileBase : `${fileBase}-${fmt}`
+  const altFmtLabel       = fmt === 'desktop' ? 'mobile' : 'desktop'
+  const exportAltFilename = `${fileBase}-${altFmtLabel}`
+
+  // Reset custom name whenever the auto-generated base would change
+  useEffect(() => { setCustomBase(null) }, [defaultBase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live browser tab title
   useEffect(() => {
@@ -588,11 +601,40 @@ export default function DesignWorkspace() {
                       {templateLabel}
                       {!isGallery && <span className="text-gray-300"> · {fmt === 'desktop' ? 'Desktop' : 'Mobile'}</span>}
                     </p>
+                    {/* Editable filename */}
+                    <div className="mb-3">
+                      <label className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider block mb-1 px-0.5">Filename</label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={fileBase}
+                          onChange={e => setCustomBase(e.target.value || null)}
+                          spellCheck={false}
+                          className="flex-1 min-w-0 px-2.5 h-8 text-[11px] font-mono text-gray-700 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-400 focus:bg-white transition-all"
+                        />
+                        {customBase && (
+                          <button
+                            onClick={() => setCustomBase(null)}
+                            title="Reset to default"
+                            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      {!isGallery && (
+                        <p className="text-[9px] text-gray-400 mt-1 px-0.5">
+                          Saves as <span className="font-mono">{exportFilename}.png</span>
+                        </p>
+                      )}
+                    </div>
                     <ExportButton
                       canvasRef={canvasRef}
-                      filename={`amazon-${isGallery ? 'gallery' : 'aplus'}-${isGallery ? design.activeGalleryTemplate : design.activeTemplate}${!isGallery ? `-${fmt}` : ''}`}
+                      filename={exportFilename}
                       altCanvasRef={isGallery ? undefined : altCanvasRef}
-                      altFilename={isGallery ? undefined : `amazon-aplus-${design.activeTemplate}-${fmt === 'desktop' ? 'mobile' : 'desktop'}`}
+                      altFilename={isGallery ? undefined : exportAltFilename}
                     />
                   </div>
                 </>
@@ -1157,24 +1199,75 @@ export default function DesignWorkspace() {
         </main>
       </div>
 
-      {/* Hidden off-screen canvas for Export All (opposite format) */}
+      {/* Right format-preview panel — shows alternate format at thumbnail scale */}
       {!isGallery && (() => {
-        const altFmt = fmt === 'desktop' ? 'mobile' : 'desktop'
-        const altTpl = getTemplate(design.activeTemplate, altFmt)
+        const altFmt     = fmt === 'desktop' ? 'mobile' : 'desktop'
+        const altTpl     = getTemplate(design.activeTemplate, altFmt)
         const altSettings = design[altFmt]
+        const thumbW     = 176  // usable thumbnail width in px
+        const altScale   = Math.min(thumbW / altTpl.width, 200 / altTpl.height, 1)
+        const thumbH     = Math.round(altTpl.height * altScale)
         return (
-          <div style={{ position: 'fixed', top: -99999, left: -99999, pointerEvents: 'none' }}>
-            <div
-              ref={altCanvasRef}
-              className="design-canvas"
-              style={{ width: altTpl.width, height: altTpl.height, position: 'relative' }}
-            >
-              {design.activeTemplate === 'aplus-icons'
-                ? <CanvasContentIcons design={{ ...design, activeFormat: altFmt }} settings={altSettings} />
-                : <CanvasContent design={{ ...design, activeFormat: altFmt }} settings={altSettings} />
-              }
+          <aside className="w-52 shrink-0 border-l border-gray-100 bg-white flex flex-col z-10">
+            {/* Header */}
+            <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <div className="flex items-center gap-1.5">
+                {altFmt === 'mobile'
+                  ? <MobileIcon className="w-3.5 h-3.5 text-gray-400" />
+                  : <DesktopIcon className="w-3.5 h-3.5 text-gray-400" />
+                }
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                  {altFmt}
+                </span>
+              </div>
+              <button
+                onClick={() => setDesign(d => ({ ...d, activeFormat: altFmt }))}
+                className="text-[9px] font-bold uppercase tracking-wider text-gray-400 hover:text-gray-800 transition-colors"
+              >
+                Edit →
+              </button>
             </div>
-          </div>
+
+            {/* Thumbnail */}
+            <div className="flex-1 flex flex-col items-center justify-center px-4 py-5 gap-3">
+              <div
+                style={{
+                  width: Math.round(altTpl.width * altScale),
+                  height: thumbH,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: 6,
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.10)',
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{
+                  width: altTpl.width,
+                  height: altTpl.height,
+                  transform: `scale(${altScale})`,
+                  transformOrigin: 'top left',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                }}>
+                  <div
+                    ref={altCanvasRef}
+                    className="design-canvas"
+                    style={{ width: altTpl.width, height: altTpl.height, position: 'relative' }}
+                  >
+                    {design.activeTemplate === 'aplus-icons'
+                      ? <CanvasContentIcons design={{ ...design, activeFormat: altFmt }} settings={altSettings} />
+                      : <CanvasContent design={{ ...design, activeFormat: altFmt }} settings={altSettings} />
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[9px] font-mono text-gray-400 tabular-nums">
+                {altTpl.width}×{altTpl.height}
+              </p>
+            </div>
+          </aside>
         )
       })()}
       </>)}
