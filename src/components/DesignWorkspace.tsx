@@ -14,6 +14,13 @@ import { storeBlob, getBlob, deleteBlob } from '@/lib/idb'
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
 
+// ─── Module-level constants ───────────────────────────────────────────────────
+
+const APLUS_TEMPLATE_IDS: TemplateId[] = ['aplus-5050', 'aplus-icons']
+const GALLERY_TEMPLATE_IDS: GalleryTemplateId[] = ['gallery-hero', 'gallery-icons']
+const FORMATS: Format[] = ['desktop', 'mobile']
+const FRAME_GAP = 32
+
 // ─── Default settings per format ─────────────────────────────────────────────
 
 const DESKTOP_DEFAULTS: FormatSettings = {
@@ -141,6 +148,7 @@ export default function DesignWorkspace() {
   const canvasRef    = useRef<HTMLDivElement>(null)
   const altCanvasRef = useRef<HTMLDivElement>(null)
   const wrapperRef   = useRef<HTMLDivElement>(null)
+  const frameContainerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale]           = useState(1)
   const [canvasBg, setCanvasBg]     = useState('#F0F0F0')
   const [draggingIcon, setDraggingIcon] = useState<number | null>(null)
@@ -311,15 +319,19 @@ export default function DesignWorkspace() {
   useEffect(() => {
     const compute = () => {
       if (!wrapperRef.current) return
-      const w = wrapperRef.current.clientWidth - 64
-      const h = wrapperRef.current.clientHeight - 64
-      setScale(Math.min(w / template.width, h / template.height, 1))
+      const w = wrapperRef.current.clientWidth - 48
+      if (isGallery) {
+        const h = wrapperRef.current.clientHeight - 96
+        setScale(Math.min(w / (1500 * 2 + FRAME_GAP), h / 1500))
+      } else {
+        setScale(w / (1464 + 600 + FRAME_GAP))
+      }
     }
     compute()
     const ro = new ResizeObserver(compute)
     if (wrapperRef.current) ro.observe(wrapperRef.current)
     return () => ro.disconnect()
-  }, [template.width, template.height])
+  }, [isGallery])
 
 
   const handleAddAsset = (asset: UploadedAsset, slotIndex?: number) => {
@@ -380,19 +392,20 @@ export default function DesignWorkspace() {
       : ['Product Photo', 'Background Texture', 'Brand Logo']
 
   const computePhotoScreenRect = (): { left: number; top: number; width: number; height: number } | null => {
-    if (!wrapperRef.current) return null
-    const wRect = wrapperRef.current.getBoundingClientRect()
-    const W = template.width * scale
-    const H = template.height * scale
-    const canvasLeft = wRect.left + (wRect.width  - W) / 2
-    const canvasTop  = wRect.top  + (wRect.height - H) / 2
+    if (!frameContainerRef.current) return null
+    const wRect = frameContainerRef.current.getBoundingClientRect()
+    const W = wRect.width
+    const H = wRect.height
     if (isGallery) {
       const proportion = design.activeGalleryTemplate === 'gallery-icons' ? 0.55 : 0.58
-      return { left: canvasLeft, top: canvasTop, width: W, height: H * proportion }
+      return { left: wRect.left, top: wRect.top, width: W, height: H * proportion }
     }
-    const photoW = W * 0.5
-    const photoLeft = settings.layoutFlipped ? canvasLeft + W * 0.5 : canvasLeft
-    return { left: photoLeft, top: canvasTop, width: photoW, height: H }
+    // aplus-icons: photo RIGHT by default (not flipped), LEFT when flipped
+    // aplus-5050: photo LEFT by default (not flipped), RIGHT when flipped
+    const isIconsTpl = design.activeTemplate === 'aplus-icons'
+    const photoOnLeft = isIconsTpl ? settings.layoutFlipped : !settings.layoutFlipped
+    const photoLeft = photoOnLeft ? wRect.left : wRect.left + W * 0.5
+    return { left: photoLeft, top: wRect.top, width: W * 0.5, height: H }
   }
 
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -432,16 +445,6 @@ export default function DesignWorkspace() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      {templatePickerOpen && (
-        <TemplatePicker
-          category={design.activeCategory}
-          currentTemplate={design.activeTemplate}
-          currentGalleryTemplate={design.activeGalleryTemplate}
-          onSelectAplus={id => { setDesign(d => ({ ...d, activeTemplate: id })); setTemplatePickerOpen(false) }}
-          onSelectGallery={id => { setDesign(d => ({ ...d, activeGalleryTemplate: id })); setTemplatePickerOpen(false) }}
-          onClose={() => setTemplatePickerOpen(false)}
-        />
-      )}
 
       {/* ── App header ── */}
       <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3 z-20 shadow-sm">
@@ -656,48 +659,18 @@ export default function DesignWorkspace() {
         <aside className="w-72 shrink-0 flex flex-col border-r border-gray-100 bg-white shadow-sm z-10">
 
           {/* Template bar — pinned */}
-          <div className="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-white">
+          <div className="shrink-0 px-4 py-2.5 border-b border-gray-100 bg-white">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-              <span className="text-[11px] font-semibold text-gray-700 truncate">{templateLabel}</span>
+              <span className="text-[11px] font-semibold text-gray-700 truncate">
+                {templateLabel}
+                {!isGallery && (
+                  <span className="font-normal text-gray-400"> · {fmt === 'desktop' ? 'Desktop' : 'Mobile'}</span>
+                )}
+              </span>
             </div>
-            <button
-              onClick={() => setTemplatePickerOpen(true)}
-              className="shrink-0 ml-2 px-2.5 py-1 rounded-md bg-gray-100 hover:bg-gray-200 text-[10px] font-bold uppercase tracking-widest text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              Change
-            </button>
+            <p className="text-[9px] text-gray-400 mt-0.5 ml-3.5">Click a frame to select</p>
           </div>
-
-          {/* Format tabs — hidden for gallery (no desktop/mobile split) */}
-          {!isGallery && (
-            <>
-              <div className="shrink-0 grid grid-cols-2 bg-gray-50 border-b border-gray-100">
-                {(['desktop', 'mobile'] as Format[]).map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setDesign(d => ({ ...d, activeFormat: f }))}
-                    className={`py-3 flex flex-col items-center gap-1 transition-all ${
-                      fmt === f
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {f === 'desktop'
-                      ? <DesktopIcon className={`w-4 h-4 ${fmt === f ? 'text-gray-700' : 'text-gray-400'}`} />
-                      : <MobileIcon  className={`w-4 h-4 ${fmt === f ? 'text-gray-700' : 'text-gray-400'}`} />
-                    }
-                    <span className={`text-[10px] font-bold uppercase tracking-widest ${fmt === f ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {f}
-                    </span>
-                    <span className="text-[9px] font-mono text-gray-400">
-                      {f === 'desktop' ? '1464×600' : '600×450'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
 
           {/* Scrollable settings sections */}
           <div className="flex-1 min-h-0 overflow-y-auto">
@@ -1151,125 +1124,185 @@ export default function DesignWorkspace() {
         </aside>
 
         {/* ══ Canvas area ══ */}
-        <main ref={wrapperRef} className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center p-8" style={{ backgroundColor: canvasBg }}>
-
-          {/* Canvas preview */}
-          <div
-            className="shadow-2xl overflow-hidden ring-1 ring-black/5"
-            onMouseDown={handleCanvasMouseDown}
-            onMouseMove={handleCanvasMouseMove}
-            onMouseLeave={() => setIsOverPhoto(false)}
-            style={{
-              width: template.width * scale,
-              height: template.height * scale,
-              position: 'relative',
-              flexShrink: 0,
-              borderRadius: isGallery ? 12 : 12,
-              cursor: photoEditMode && isOverPhoto ? 'grab' : undefined,
-            }}
-          >
-            <div
-              style={{
-                width: template.width,
-                height: template.height,
-                transform: `scale(${scale})`,
-                transformOrigin: 'top left',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-              }}
-            >
-              <div
-                ref={canvasRef}
-                className="design-canvas"
-                style={{ width: template.width, height: template.height, position: 'relative' }}
-              >
-                {isGallery
-                  ? design.activeGalleryTemplate === 'gallery-icons'
-                    ? <CanvasContentGalleryIcons design={design} settings={settings} />
-                    : <CanvasContentGallery design={design} settings={settings} />
-                  : design.activeTemplate === 'aplus-icons'
-                    ? <CanvasContentIcons design={design} settings={settings} />
-                    : <CanvasContent design={design} settings={settings} />
-                }
-              </div>
-            </div>
-          </div>
-
-        </main>
-      </div>
-
-      {/* Right format-preview panel — shows alternate format at thumbnail scale */}
-      {!isGallery && (() => {
-        const altFmt     = fmt === 'desktop' ? 'mobile' : 'desktop'
-        const altTpl     = getTemplate(design.activeTemplate, altFmt)
-        const altSettings = design[altFmt]
-        const thumbW     = 176  // usable thumbnail width in px
-        const altScale   = Math.min(thumbW / altTpl.width, 200 / altTpl.height, 1)
-        const thumbH     = Math.round(altTpl.height * altScale)
-        return (
-          <aside className="w-52 shrink-0 border-l border-gray-100 bg-white flex flex-col z-10">
-            {/* Header */}
-            <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-100">
-              <div className="flex items-center gap-1.5">
-                {altFmt === 'mobile'
-                  ? <MobileIcon className="w-3.5 h-3.5 text-gray-400" />
-                  : <DesktopIcon className="w-3.5 h-3.5 text-gray-400" />
-                }
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                  {altFmt}
-                </span>
-              </div>
-              <button
-                onClick={() => setDesign(d => ({ ...d, activeFormat: altFmt }))}
-                className="text-[9px] font-bold uppercase tracking-wider text-gray-400 hover:text-gray-800 transition-colors"
-              >
-                Edit →
-              </button>
-            </div>
-
-            {/* Thumbnail */}
-            <div className="flex-1 flex flex-col items-center justify-center px-4 py-5 gap-3">
-              <div
-                style={{
-                  width: Math.round(altTpl.width * altScale),
-                  height: thumbH,
-                  position: 'relative',
-                  overflow: 'hidden',
-                  borderRadius: 6,
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.10)',
-                  flexShrink: 0,
-                }}
-              >
-                <div style={{
-                  width: altTpl.width,
-                  height: altTpl.height,
-                  transform: `scale(${altScale})`,
-                  transformOrigin: 'top left',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                }}>
-                  <div
-                    ref={altCanvasRef}
-                    className="design-canvas"
-                    style={{ width: altTpl.width, height: altTpl.height, position: 'relative' }}
-                  >
-                    {design.activeTemplate === 'aplus-icons'
-                      ? <CanvasContentIcons design={{ ...design, activeFormat: altFmt }} settings={altSettings} />
-                      : <CanvasContent design={{ ...design, activeFormat: altFmt }} settings={altSettings} />
-                    }
-                  </div>
+        <main
+          ref={wrapperRef}
+          className="flex-1 min-h-0 overflow-y-auto"
+          style={{ backgroundColor: canvasBg }}
+        >
+          <div className="px-6 py-6 space-y-10">
+            {isGallery ? (
+              /* ── Gallery mode: one row of two gallery frames ── */
+              <div>
+                {/* Section label */}
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Gallery Images</span>
+                  <div className="flex-1 h-px bg-gray-200" />
+                </div>
+                {/* Frames row */}
+                <div className="flex items-start" style={{ gap: FRAME_GAP }}>
+                  {GALLERY_TEMPLATE_IDS.map(tplId => {
+                    const tpl = getGalleryTemplate(tplId as GalleryTemplateId)
+                    const isSelected = design.activeGalleryTemplate === tplId
+                    const scaledW = tpl.width * scale
+                    const scaledH = tpl.height * scale
+                    const tplSettings = design.gallery
+                    return (
+                      <div key={tplId} className="flex flex-col items-center gap-1.5">
+                        {/* Frame label */}
+                        <div className="flex items-center gap-1">
+                          <span className={`text-[10px] font-semibold ${isSelected ? 'text-blue-500' : 'text-gray-400'}`}>
+                            {tplId === 'gallery-hero' ? 'Gallery Hero' : 'Gallery Icons'} · 1500×1500
+                          </span>
+                        </div>
+                        {/* Outer clip div — selected frame gets frameContainerRef + mouse events */}
+                        <div
+                          ref={el => {
+                            if (isSelected) (frameContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                          }}
+                          onClick={() => setDesign(d => ({ ...d, activeGalleryTemplate: tplId as GalleryTemplateId }))}
+                          onMouseDown={isSelected ? handleCanvasMouseDown : undefined}
+                          onMouseMove={isSelected ? handleCanvasMouseMove : undefined}
+                          onMouseLeave={isSelected ? () => setIsOverPhoto(false) : undefined}
+                          style={{
+                            width: scaledW,
+                            height: scaledH,
+                            position: 'relative',
+                            overflow: 'hidden',
+                            borderRadius: 10,
+                            flexShrink: 0,
+                            outline: isSelected ? '2px solid #3B82F6' : '2px solid transparent',
+                            outlineOffset: 2,
+                            boxShadow: isSelected
+                              ? '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
+                              : '0 2px 12px rgba(0,0,0,0.10)',
+                            cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
+                          }}
+                        >
+                          {/* Inner full-res div, scaled down */}
+                          <div
+                            style={{
+                              width: tpl.width,
+                              height: tpl.height,
+                              transform: `scale(${scale})`,
+                              transformOrigin: 'top left',
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                            }}
+                          >
+                            <div
+                              ref={el => {
+                                if (isSelected) (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                              }}
+                              className="design-canvas"
+                              style={{ width: tpl.width, height: tpl.height, position: 'relative' }}
+                            >
+                              {tplId === 'gallery-icons'
+                                ? <CanvasContentGalleryIcons design={{ ...design, activeGalleryTemplate: tplId }} settings={tplSettings} />
+                                : <CanvasContentGallery design={{ ...design, activeGalleryTemplate: tplId }} settings={tplSettings} />
+                              }
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
-
-              <p className="text-[9px] font-mono text-gray-400 tabular-nums">
-                {altTpl.width}×{altTpl.height}
-              </p>
-            </div>
-          </aside>
-        )
-      })()}
+            ) : (
+              /* ── A+ mode: one row per template, desktop + mobile side by side ── */
+              APLUS_TEMPLATE_IDS.map(tplId => {
+                const rowLabel = tplId === 'aplus-5050' ? 'A+ 50/50 Split' : 'A+ Title + Icons'
+                return (
+                  <div key={tplId}>
+                    {/* Section label */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{rowLabel}</span>
+                      <div className="flex-1 h-px bg-gray-200" />
+                    </div>
+                    {/* Frames row: desktop + mobile */}
+                    <div className="flex items-start" style={{ gap: FRAME_GAP }}>
+                      {FORMATS.map(frameFmt => {
+                        const tpl = getTemplate(tplId as TemplateId, frameFmt)
+                        const isSelected = design.activeTemplate === tplId && design.activeFormat === frameFmt
+                        const isAlt = design.activeTemplate === tplId && frameFmt !== design.activeFormat
+                        const scaledW = tpl.width * scale
+                        const scaledH = tpl.height * scale
+                        const tplSettings = design[frameFmt]
+                        return (
+                          <div key={frameFmt} className="flex flex-col items-center gap-1.5">
+                            {/* Frame label */}
+                            <div className="flex items-center gap-1">
+                              {frameFmt === 'desktop'
+                                ? <DesktopIcon className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
+                                : <MobileIcon  className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
+                              }
+                              <span className={`text-[10px] font-semibold ${isSelected ? 'text-blue-500' : 'text-gray-400'}`}>
+                                {frameFmt === 'desktop' ? 'Desktop · 1464×600' : 'Mobile · 600×450'}
+                              </span>
+                            </div>
+                            {/* Outer clip div */}
+                            <div
+                              ref={el => {
+                                if (isSelected) (frameContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                              }}
+                              onClick={() => setDesign(d => ({ ...d, activeTemplate: tplId as TemplateId, activeFormat: frameFmt }))}
+                              onMouseDown={isSelected ? handleCanvasMouseDown : undefined}
+                              onMouseMove={isSelected ? handleCanvasMouseMove : undefined}
+                              onMouseLeave={isSelected ? () => setIsOverPhoto(false) : undefined}
+                              style={{
+                                width: scaledW,
+                                height: scaledH,
+                                position: 'relative',
+                                overflow: 'hidden',
+                                borderRadius: 8,
+                                flexShrink: 0,
+                                outline: isSelected ? '2px solid #3B82F6' : '2px solid transparent',
+                                outlineOffset: 2,
+                                boxShadow: isSelected
+                                  ? '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
+                                  : '0 2px 12px rgba(0,0,0,0.10)',
+                                cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
+                              }}
+                            >
+                              {/* Inner full-res div, scaled down */}
+                              <div
+                                style={{
+                                  width: tpl.width,
+                                  height: tpl.height,
+                                  transform: `scale(${scale})`,
+                                  transformOrigin: 'top left',
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                }}
+                              >
+                                <div
+                                  ref={el => {
+                                    if (isSelected) (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                                    if (isAlt) (altCanvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                                  }}
+                                  className="design-canvas"
+                                  style={{ width: tpl.width, height: tpl.height, position: 'relative' }}
+                                >
+                                  {tplId === 'aplus-icons'
+                                    ? <CanvasContentIcons design={{ ...design, activeTemplate: tplId as TemplateId, activeFormat: frameFmt }} settings={tplSettings} />
+                                    : <CanvasContent design={{ ...design, activeTemplate: tplId as TemplateId, activeFormat: frameFmt }} settings={tplSettings} />
+                                  }
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </main>
+      </div>
       </>)}
     </div>
   )
