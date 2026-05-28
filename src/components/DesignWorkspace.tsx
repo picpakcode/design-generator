@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Category, DesignState, Format, FormatSettings, GalleryTemplateId, PhotoComposition, DEFAULT_PHOTO_COMP, TemplateId, TextTransform, UploadedAsset } from '@/types'
+import { Category, DesignBlock, DesignState, Format, FormatSettings, GalleryTemplateId, PhotoComposition, DEFAULT_PHOTO_COMP, TemplateId, TextTransform, UploadedAsset } from '@/types'
 import { getGalleryTemplate, getTemplate } from '@/lib/templates'
 import AssetUploader from './AssetUploader'
 import ExportButton from './ExportButton'
@@ -87,6 +87,26 @@ const GALLERY_DEFAULTS: FormatSettings = {
   photoComposition: { ...DEFAULT_PHOTO_COMP },
 }
 
+const INITIAL_BLOCK_1: DesignBlock = {
+  id: 'block-1',
+  templateId: 'aplus-5050',
+  title: '<p>Product Title</p>',
+  subtitleHtml: '<p>Direct-fit replacement with o-rings included. Protects fuel flow, pressure, and system components right out of the box.</p>',
+  iconCount: 3,
+  iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
+  layoutFlipped: false,
+}
+
+const INITIAL_BLOCK_2: DesignBlock = {
+  id: 'block-2',
+  templateId: 'aplus-icons',
+  title: '<p>Product Title</p>',
+  subtitleHtml: '<p>Direct-fit replacement with o-rings included. Protects fuel flow, pressure, and system components right out of the box.</p>',
+  iconCount: 3,
+  iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
+  layoutFlipped: false,
+}
+
 const DEFAULT_STATE: DesignState = {
   activeCategory: 'aplus',
   activeFormat: 'desktop',
@@ -104,6 +124,8 @@ const DEFAULT_STATE: DesignState = {
   desktop: DESKTOP_DEFAULTS,
   mobile: MOBILE_DEFAULTS,
   gallery: GALLERY_DEFAULTS,
+  blocks: [INITIAL_BLOCK_1, INITIAL_BLOCK_2],
+  activeBlockId: 'block-1',
 }
 
 // ─── Preset types & helpers ───────────────────────────────────────────────────
@@ -119,14 +141,39 @@ function migrateLoadedState(raw: unknown): DesignState {
   const s = raw as Partial<DesignState>
   const labels = [...(s.iconLabels ?? DEFAULT_STATE.iconLabels)]
   while (labels.length < 4) labels.push(`Feature ${labels.length + 1}`)
+  const safeLabels = labels.slice(0, 4) as [string, string, string, string]
+
+  const blocks: DesignBlock[] = s.blocks ?? [
+    {
+      id: 'block-1',
+      templateId: (s.activeTemplate ?? DEFAULT_STATE.activeTemplate) as TemplateId,
+      title: s.title ?? DEFAULT_STATE.title,
+      subtitleHtml: s.subtitleHtml ?? DEFAULT_STATE.subtitleHtml,
+      iconCount: s.iconCount ?? DEFAULT_STATE.iconCount,
+      iconLabels: safeLabels,
+      layoutFlipped: false,
+    },
+    {
+      id: 'block-2',
+      templateId: 'aplus-icons',
+      title: s.title ?? DEFAULT_STATE.title,
+      subtitleHtml: s.subtitleHtml ?? DEFAULT_STATE.subtitleHtml,
+      iconCount: s.iconCount ?? DEFAULT_STATE.iconCount,
+      iconLabels: safeLabels,
+      layoutFlipped: false,
+    },
+  ]
+
   return {
     ...DEFAULT_STATE,
     ...s,
     assets: [],  // blob URLs don't survive page reload
-    iconLabels: labels.slice(0, 4) as [string, string, string, string],
+    iconLabels: safeLabels,
     desktop: { ...DESKTOP_DEFAULTS, ...(s.desktop ?? {}) },
     mobile:  { ...MOBILE_DEFAULTS,  ...(s.mobile  ?? {}) },
     gallery: { ...GALLERY_DEFAULTS, ...(s.gallery  ?? {}) },
+    blocks,
+    activeBlockId: s.activeBlockId ?? blocks[0].id,
   }
 }
 
@@ -172,11 +219,31 @@ export default function DesignWorkspace() {
   const patchSettings = (patch: Partial<FormatSettings>) =>
     setDesign(d => {
       if (d.activeCategory === 'gallery') return { ...d, gallery: { ...d.gallery, ...patch } }
-      return { ...d, [d.activeFormat]: { ...d[d.activeFormat], ...patch } }
+      const newSettings = { ...d[d.activeFormat], ...patch }
+      const result: DesignState = { ...d, [d.activeFormat]: newSettings }
+      if ('layoutFlipped' in patch) {
+        // Sync to the other format and to the active block
+        const otherFmt = d.activeFormat === 'desktop' ? 'mobile' : 'desktop'
+        result[otherFmt] = { ...d[otherFmt], layoutFlipped: patch.layoutFlipped! }
+        result.blocks = d.blocks.map(b =>
+          b.id === d.activeBlockId ? { ...b, layoutFlipped: patch.layoutFlipped! } : b
+        )
+      }
+      return result
     })
 
   const patchDesign = (p: Partial<Pick<DesignState, 'title' | 'subtitleHtml' | 'primaryColor' | 'accentColor' | 'bodyColor' | 'iconColor' | 'iconCount' | 'iconLabels'>>) =>
-    setDesign(d => ({ ...d, ...p }))
+    setDesign(d => {
+      const blockPatch: Partial<DesignBlock> = {}
+      if ('title'        in p) blockPatch.title        = p.title
+      if ('subtitleHtml' in p) blockPatch.subtitleHtml = p.subtitleHtml
+      if ('iconCount'    in p) blockPatch.iconCount    = p.iconCount
+      if ('iconLabels'   in p) blockPatch.iconLabels   = p.iconLabels
+      const updatedBlocks = Object.keys(blockPatch).length > 0
+        ? d.blocks.map(b => b.id === d.activeBlockId ? { ...b, ...blockPatch } : b)
+        : d.blocks
+      return { ...d, ...p, blocks: updatedBlocks }
+    })
 
   const [photoEditMode, setPhotoEditMode] = useState(false)
   const [isOverPhoto,   setIsOverPhoto]   = useState(false)
@@ -314,6 +381,93 @@ export default function DesignWorkspace() {
       ? { ...d, mobile: { ...d.desktop } }
       : { ...d, desktop: { ...d.mobile } }
     )
+  }
+
+  // Select a block — syncs its content into the top-level fields
+  const selectBlock = (blockId: string, format?: Format) => {
+    setDesign(d => {
+      const block = d.blocks.find(b => b.id === blockId)
+      if (!block) return d
+      return {
+        ...d,
+        activeBlockId: blockId,
+        activeTemplate: block.templateId,
+        activeFormat: format ?? d.activeFormat,
+        title: block.title,
+        subtitleHtml: block.subtitleHtml,
+        iconCount: block.iconCount as 2 | 3 | 4,
+        iconLabels: block.iconLabels,
+        desktop: { ...d.desktop, layoutFlipped: block.layoutFlipped },
+        mobile: { ...d.mobile, layoutFlipped: block.layoutFlipped },
+      }
+    })
+  }
+
+  // Add a new block at the end
+  const addBlock = () => {
+    const id = `block-${Date.now()}`
+    const newBlock: DesignBlock = {
+      id,
+      templateId: 'aplus-5050',
+      title: '<p>New Block Title</p>',
+      subtitleHtml: '<p>Add your description here.</p>',
+      iconCount: 3,
+      iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
+      layoutFlipped: false,
+    }
+    setDesign(d => {
+      const updated = { ...d, blocks: [...d.blocks, newBlock] }
+      return {
+        ...updated,
+        activeBlockId: id,
+        activeTemplate: newBlock.templateId,
+        title: newBlock.title,
+        subtitleHtml: newBlock.subtitleHtml,
+        iconCount: newBlock.iconCount as 2 | 3 | 4,
+        iconLabels: newBlock.iconLabels,
+        desktop: { ...d.desktop, layoutFlipped: false },
+        mobile: { ...d.mobile, layoutFlipped: false },
+      }
+    })
+  }
+
+  // Delete a block (at least one must remain)
+  const deleteBlock = (blockId: string) => {
+    setDesign(d => {
+      if (d.blocks.length <= 1) return d
+      const remaining = d.blocks.filter(b => b.id !== blockId)
+      const nextBlock = d.activeBlockId === blockId
+        ? remaining[0]
+        : d.blocks.find(b => b.id === d.activeBlockId)!
+      const sameNext = nextBlock.id === d.activeBlockId
+      return {
+        ...d,
+        blocks: remaining,
+        activeBlockId: nextBlock.id,
+        ...(sameNext ? {} : {
+          activeTemplate: nextBlock.templateId,
+          title: nextBlock.title,
+          subtitleHtml: nextBlock.subtitleHtml,
+          iconCount: nextBlock.iconCount as 2 | 3 | 4,
+          iconLabels: nextBlock.iconLabels,
+          desktop: { ...d.desktop, layoutFlipped: nextBlock.layoutFlipped },
+          mobile: { ...d.mobile, layoutFlipped: nextBlock.layoutFlipped },
+        }),
+      }
+    })
+  }
+
+  // Change a block's template type
+  const changeBlockTemplate = (blockId: string, templateId: TemplateId) => {
+    setDesign(d => {
+      const updatedBlocks = d.blocks.map(b => b.id === blockId ? { ...b, templateId } : b)
+      const isActive = d.activeBlockId === blockId
+      return {
+        ...d,
+        blocks: updatedBlocks,
+        ...(isActive ? { activeTemplate: templateId } : {}),
+      }
+    })
   }
 
   useEffect(() => {
@@ -1210,64 +1364,105 @@ export default function DesignWorkspace() {
                 </div>
               </div>
             ) : (
-              /* ── A+ mode: one row per template, desktop + mobile side by side ── */
-              APLUS_TEMPLATE_IDS.map(tplId => {
-                const rowLabel = tplId === 'aplus-5050' ? 'A+ 50/50 Split' : 'A+ Title + Icons'
-                return (
-                  <div key={tplId}>
-                    {/* Section label */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{rowLabel}</span>
-                      <div className="flex-1 h-px bg-gray-200" />
-                    </div>
-                    {/* Frames row: desktop + mobile */}
-                    <div className="flex items-start" style={{ gap: FRAME_GAP }}>
-                      {FORMATS.map(frameFmt => {
-                        const tpl = getTemplate(tplId as TemplateId, frameFmt)
-                        const isSelected = design.activeTemplate === tplId && design.activeFormat === frameFmt
-                        const isAlt = design.activeTemplate === tplId && frameFmt !== design.activeFormat
-                        const scaledW = tpl.width * scale
-                        const scaledH = tpl.height * scale
-                        const tplSettings = design[frameFmt]
-                        return (
-                          <div key={frameFmt} className="flex flex-col items-center gap-1.5">
-                            {/* Frame label */}
-                            <div className="flex items-center gap-1">
-                              {frameFmt === 'desktop'
-                                ? <DesktopIcon className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
-                                : <MobileIcon  className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
-                              }
-                              <span className={`text-[10px] font-semibold ${isSelected ? 'text-blue-500' : 'text-gray-400'}`}>
-                                {frameFmt === 'desktop' ? 'Desktop · 1464×600' : 'Mobile · 600×450'}
-                              </span>
-                            </div>
-                            {/* Outer clip div */}
-                            <div
-                              ref={el => {
-                                if (isSelected) (frameContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
-                              }}
-                              onClick={() => setDesign(d => ({ ...d, activeTemplate: tplId as TemplateId, activeFormat: frameFmt }))}
-                              onMouseDown={isSelected ? handleCanvasMouseDown : undefined}
-                              onMouseMove={isSelected ? handleCanvasMouseMove : undefined}
-                              onMouseLeave={isSelected ? () => setIsOverPhoto(false) : undefined}
-                              style={{
-                                width: scaledW,
-                                height: scaledH,
-                                position: 'relative',
-                                overflow: 'hidden',
-                                borderRadius: 8,
-                                flexShrink: 0,
-                                outline: isSelected ? '2px solid #3B82F6' : '2px solid transparent',
-                                outlineOffset: 2,
-                                boxShadow: isSelected
-                                  ? '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
-                                  : '0 2px 12px rgba(0,0,0,0.10)',
-                                cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
-                              }}
+              /* ── A+ mode: one row per block, desktop + mobile side by side ── */
+              <>
+                {design.blocks.map((block, blockIdx) => {
+                  return (
+                    <div key={block.id}>
+                      {/* Block row header */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 shrink-0">
+                          Block {blockIdx + 1}
+                        </span>
+                        {/* Template switcher */}
+                        <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5">
+                          {(['aplus-5050', 'aplus-icons'] as TemplateId[]).map(tid => (
+                            <button
+                              key={tid}
+                              onClick={e => { e.stopPropagation(); changeBlockTemplate(block.id, tid) }}
+                              className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all ${
+                                block.templateId === tid
+                                  ? 'bg-white shadow-sm text-gray-900'
+                                  : 'text-gray-500 hover:text-gray-700'
+                              }`}
                             >
-                              {/* Inner full-res div, scaled down */}
+                              {tid === 'aplus-5050' ? '50/50' : 'Icons'}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex-1 h-px bg-gray-200" />
+                        {design.blocks.length > 1 && (
+                          <button
+                            onClick={e => { e.stopPropagation(); deleteBlock(block.id) }}
+                            title="Remove block"
+                            className="shrink-0 w-5 h-5 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors rounded"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Frames row: desktop + mobile */}
+                      <div className="flex items-start" style={{ gap: FRAME_GAP }}>
+                        {FORMATS.map(frameFmt => {
+                          const tpl = getTemplate(block.templateId, frameFmt)
+                          const isSelected = design.activeBlockId === block.id && design.activeFormat === frameFmt
+                          const isAlt = design.activeBlockId === block.id && frameFmt !== design.activeFormat
+                          const scaledW = tpl.width * scale
+                          const scaledH = tpl.height * scale
+                          // Build render design: merge block content + global settings
+                          const renderDesign: DesignState = {
+                            ...design,
+                            activeTemplate: block.templateId,
+                            activeFormat: frameFmt,
+                            title: block.title,
+                            subtitleHtml: block.subtitleHtml,
+                            iconCount: block.iconCount as 2 | 3 | 4,
+                            iconLabels: block.iconLabels,
+                            desktop: { ...design.desktop, layoutFlipped: block.layoutFlipped },
+                            mobile: { ...design.mobile, layoutFlipped: block.layoutFlipped },
+                          }
+                          const renderSettings = frameFmt === 'desktop' ? renderDesign.desktop : renderDesign.mobile
+                          return (
+                            <div key={frameFmt} className="flex flex-col items-center gap-1.5">
+                              {/* Frame label */}
+                              <div className="flex items-center gap-1">
+                                {frameFmt === 'desktop'
+                                  ? <DesktopIcon className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
+                                  : <MobileIcon  className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
+                                }
+                                <span className={`text-[10px] font-semibold ${isSelected ? 'text-blue-500' : 'text-gray-400'}`}>
+                                  {frameFmt === 'desktop' ? 'Desktop · 1464×600' : 'Mobile · 600×450'}
+                                </span>
+                              </div>
+                              {/* Outer clip div */}
                               <div
+                                ref={el => {
+                                  if (isSelected) (frameContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                                }}
+                                onClick={() => selectBlock(block.id, frameFmt)}
+                                onMouseDown={isSelected ? handleCanvasMouseDown : undefined}
+                                onMouseMove={isSelected ? handleCanvasMouseMove : undefined}
+                                onMouseLeave={isSelected ? () => setIsOverPhoto(false) : undefined}
                                 style={{
+                                  width: scaledW,
+                                  height: scaledH,
+                                  position: 'relative',
+                                  overflow: 'hidden',
+                                  borderRadius: 8,
+                                  flexShrink: 0,
+                                  outline: isSelected ? '2px solid #3B82F6' : '2px solid transparent',
+                                  outlineOffset: 2,
+                                  boxShadow: isSelected
+                                    ? '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
+                                    : '0 2px 12px rgba(0,0,0,0.10)',
+                                  cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
+                                }}
+                              >
+                                {/* Inner full-res div */}
+                                <div style={{
                                   width: tpl.width,
                                   height: tpl.height,
                                   transform: `scale(${scale})`,
@@ -1275,30 +1470,41 @@ export default function DesignWorkspace() {
                                   position: 'absolute',
                                   top: 0,
                                   left: 0,
-                                }}
-                              >
-                                <div
-                                  ref={el => {
-                                    if (isSelected) (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
-                                    if (isAlt) (altCanvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
-                                  }}
-                                  className="design-canvas"
-                                  style={{ width: tpl.width, height: tpl.height, position: 'relative' }}
-                                >
-                                  {tplId === 'aplus-icons'
-                                    ? <CanvasContentIcons design={{ ...design, activeTemplate: tplId as TemplateId, activeFormat: frameFmt }} settings={tplSettings} />
-                                    : <CanvasContent design={{ ...design, activeTemplate: tplId as TemplateId, activeFormat: frameFmt }} settings={tplSettings} />
-                                  }
+                                }}>
+                                  <div
+                                    ref={el => {
+                                      if (isSelected) (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                                      if (isAlt)     (altCanvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                                    }}
+                                    className="design-canvas"
+                                    style={{ width: tpl.width, height: tpl.height, position: 'relative' }}
+                                  >
+                                    {block.templateId === 'aplus-icons'
+                                      ? <CanvasContentIcons design={renderDesign} settings={renderSettings} />
+                                      : <CanvasContent      design={renderDesign} settings={renderSettings} />
+                                    }
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        )
-                      })}
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )
-              })
+                  )
+                })}
+
+                {/* Add block button */}
+                <button
+                  onClick={addBlock}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gray-700 border-2 border-dashed border-gray-200 hover:border-gray-400 rounded-lg transition-all"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add Block
+                </button>
+              </>
             )}
           </div>
         </main>

@@ -68,6 +68,16 @@ export interface FormatSettings {
   photoComposition: PhotoComposition
 }
 
+export interface DesignBlock {
+  id: string
+  templateId: TemplateId
+  title: string
+  subtitleHtml: string
+  iconCount: number
+  iconLabels: [string, string, string, string]
+  layoutFlipped: boolean  // applies to both desktop and mobile for this block
+}
+
 export interface DesignState {
   activeCategory: Category
   activeFormat: Format
@@ -85,4 +95,6 @@ export interface DesignState {
   desktop: FormatSettings
   mobile: FormatSettings
   gallery: FormatSettings
+  blocks: DesignBlock[]
+  activeBlockId: string
 }
