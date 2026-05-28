@@ -6,6 +6,7 @@ import { Category, DesignBlock, DesignState, Format, FormatSettings, GalleryTemp
 import { getGalleryTemplate, getTemplate } from '@/lib/templates'
 import AssetUploader from './AssetUploader'
 import ExportButton from './ExportButton'
+import { exportAllAsZip } from '@/lib/export'
 import BulkMode from './BulkMode'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import CantoAssetPicker, { CantoPick } from './CantoAssetPicker'
@@ -20,6 +21,10 @@ const APLUS_TEMPLATE_IDS: TemplateId[] = ['aplus-5050', 'aplus-icons']
 const GALLERY_TEMPLATE_IDS: GalleryTemplateId[] = ['gallery-hero', 'gallery-icons']
 const FORMATS: Format[] = ['desktop', 'mobile']
 const FRAME_GAP = 32
+
+// Converts any string to a lowercase URL-safe slug
+const toSlug = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 
 // ─── Default settings per format ─────────────────────────────────────────────
 
@@ -194,14 +199,17 @@ export default function DesignWorkspace() {
   // Canto folder-based asset pickers
   const [folderConfig, setFolderConfig] = useState<FolderConfig>(EMPTY_CONFIG)
   const [cantoPicks, setCantoPicks] = useState<Record<number, CantoPick>>({})
-  const canvasRef    = useRef<HTMLDivElement>(null)
-  const altCanvasRef = useRef<HTMLDivElement>(null)
-  const wrapperRef   = useRef<HTMLDivElement>(null)
+  const canvasRef        = useRef<HTMLDivElement>(null)
+  const altCanvasRef     = useRef<HTMLDivElement>(null)
+  const wrapperRef       = useRef<HTMLDivElement>(null)
   const frameContainerRef = useRef<HTMLDivElement>(null)
+  // Tracks all rendered block-frame inner divs: key = "{blockId}-{format}"
+  const allFrameRefs     = useRef<Map<string, HTMLDivElement | null>>(new Map())
   const [scale, setScale]           = useState(1)
   const [canvasBg, setCanvasBg]     = useState('#F0F0F0')
   const [draggingIcon, setDraggingIcon] = useState<number | null>(null)
   const [customBase, setCustomBase] = useState<string | null>(null)
+  const [isExportingAll, setIsExportingAll] = useState(false)
 
   const histRef     = useRef<DesignState[]>([DEFAULT_STATE])
   const histIdxRef  = useRef(0)
@@ -477,6 +485,38 @@ export default function DesignWorkspace() {
     setDesign(d => ({ ...d, blocks: d.blocks.map(b => b.id === blockId ? { ...b, slug } : b) }))
   }
 
+  // Export every block (desktop + mobile) as a ZIP
+  const exportAllBlocks = async (currentDesign: DesignState) => {
+    setIsExportingAll(true)
+    try {
+      const prod = currentDesign.productName?.trim()
+        ? toSlug(currentDesign.productName)
+        : 'product'
+
+      const entries: { el: HTMLElement; filename: string; format: 'png' }[] = []
+
+      currentDesign.blocks.forEach((block, idx) => {
+        const blockSlug = block.slug?.trim() ? toSlug(block.slug) : `block-${idx + 1}`
+        for (const fmt of FORMATS) {
+          const key = `${block.id}-${fmt}`
+          const el  = allFrameRefs.current.get(key)
+          if (!el) return
+          entries.push({ el, filename: `${prod}-${blockSlug}-${fmt}`, format: 'png' })
+        }
+      })
+
+      if (entries.length === 0) {
+        alert('No frames found. Make sure the Design tab is visible.')
+        return
+      }
+
+      const zipName = `${prod}-aplus`
+      await exportAllAsZip(entries, zipName)
+    } finally {
+      setIsExportingAll(false)
+    }
+  }
+
   useEffect(() => {
     const compute = () => {
       if (!wrapperRef.current) return
@@ -527,29 +567,20 @@ export default function DesignWorkspace() {
   const categoryLabel = isGallery ? 'Amazon Gallery Images' : 'Amazon A+ Content'
 
   // ── Smart filename derivation ──────────────────────────────────────────────
-  // Converts any string to a URL-safe lowercase slug
-  const toSlug = (s: string) =>
-    s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 
   const activeBlockIdx = design.blocks.findIndex(b => b.id === design.activeBlockId)
   const activeBlock    = design.blocks[activeBlockIdx]
 
-  const productPart = design.productName?.trim()
-    ? toSlug(design.productName)
-    : ''
+  // "product" is the fallback when no product name is set
+  const productPart = design.productName?.trim() ? toSlug(design.productName) : 'product'
 
   const blockPart = activeBlock?.slug?.trim()
     ? toSlug(activeBlock.slug)
     : `block-${activeBlockIdx + 1}`
 
-  // Format: "{product}-{block}" or fallback to legacy names when product is blank
   const defaultBase = isGallery
-    ? productPart
-      ? `${productPart}-${design.activeGalleryTemplate}`
-      : `amazon-gallery-${design.activeGalleryTemplate}`
-    : productPart
-      ? `${productPart}-${blockPart}`
-      : `amazon-aplus-${blockPart}`
+    ? `${productPart}-${design.activeGalleryTemplate}`
+    : `${productPart}-${blockPart}`
 
   const fileBase          = customBase ?? defaultBase
   const exportFilename    = isGallery ? fileBase : `${fileBase}-${fmt}`
@@ -821,6 +852,40 @@ export default function DesignWorkspace() {
                       altCanvasRef={isGallery ? undefined : altCanvasRef}
                       altFilename={isGallery ? undefined : exportAltFilename}
                     />
+
+                    {/* Export All Blocks — only shown in A+ mode */}
+                    {!isGallery && (
+                      <>
+                        <div className="my-3 h-px bg-gray-100" />
+                        <div>
+                          <p className="text-[9px] text-gray-400 mb-2 px-0.5">
+                            {design.blocks.length} block{design.blocks.length !== 1 ? 's' : ''} · {design.blocks.length * 2} files
+                          </p>
+                          <button
+                            onClick={() => { setExportMenuOpen(false); exportAllBlocks(design) }}
+                            disabled={isExportingAll}
+                            className="w-full h-9 flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            {isExportingAll ? (
+                              <>
+                                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                </svg>
+                                Exporting…
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                                </svg>
+                                Export All Blocks
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </>
               )}
@@ -1541,6 +1606,8 @@ export default function DesignWorkspace() {
                                 }}>
                                   <div
                                     ref={el => {
+                                      // Register in global map for Export All Blocks
+                                      allFrameRefs.current.set(`${block.id}-${frameFmt}`, el)
                                       if (isSelected) (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
                                       if (isAlt)     (altCanvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
                                     }}
