@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { toPng, toJpeg } from 'html-to-image'
 import { BulkProduct, ParseResult, downloadTemplate, parseCSV } from '@/lib/csv'
 import { DesignState, UploadedAsset } from '@/types'
-import { CanvasContent, CanvasContentIcons } from './CanvasRenderers'
+import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import CantoAssetPicker, { CantoPick } from './CantoAssetPicker'
 import { CantoAlbum, FolderConfig, EMPTY_CONFIG, loadFolderConfig, saveFolderConfig, autoMatchFolders } from '@/lib/canto-folders'
 
@@ -45,7 +45,7 @@ function savePresetsToStorage(p: BulkPreset[]) {
 function slotName(i: number) { return String.fromCharCode(97 + i) + '1' }
 
 const TEMPLATE_LABELS: Record<SlotTemplate, string> = {
-  '5050-right': 'Text Right', '5050-left': 'Text Left', 'icons': 'Icons',
+  '5050-right': 'Img | Txt', '5050-left': 'Txt | Img', 'icons': 'Icons',
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -107,6 +107,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
     slotDesign: DesignState
     settings: typeof designState.desktop
     template: SlotTemplate
+    isGallery: boolean
     width: number; height: number
   } | null>(null)
 
@@ -286,7 +287,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
     }
   }
 
-  const matchIcon = (icons: CantoPick[], callout: string): CantoPick | undefined => {
+  const matchIcon = (icons: CantoPick[], callout: string, excludeIds: string[] = []): CantoPick | undefined => {
     if (!callout || icons.length === 0) return undefined
 
     // Common words that carry no meaning for matching
@@ -304,6 +305,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
     let bestScore = 0
 
     for (const icon of icons) {
+      if (excludeIds.indexOf(icon.id) !== -1) continue  // skip already used on this slide
       // Strip vendor prefixes (dd-, li_) from filename, then split into terms
       const nameStem = icon.name.toLowerCase()
         .replace(/\.[^.]+$/, '')
@@ -432,13 +434,15 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
           cantoTexture ? { id: cantoTexture.id, name: cantoTexture.name, url: cantoTexture.previewUrl, type: 'image' } :
           fileTexture  ?? designState.assets[1]
 
-        // Icons: match callout text against icons folder assets
+        // Icons: match callout text against icons folder assets, no repeats within the same slide
         // Use originalUrl (PNG with transparency) so CSS color filter works correctly
-        const iconAssets: (UploadedAsset | undefined)[] = (slot?.iconCallouts ?? ['', '', '', '']).map(callout => {
-          const match = matchIcon(iconFolder, callout)
+        const usedIconIds: string[] = []
+        const iconAssets: (UploadedAsset | undefined)[] = (slot?.iconCallouts ?? ['', '', '', '']).map((callout, ci) => {
+          const match = matchIcon(iconFolder, callout, usedIconIds)
+          if (match) usedIconIds.push(match.id)
           return match
             ? { id: match.id, name: match.name, url: match.originalUrl ?? match.previewUrl, type: 'image' as const }
-            : designState.assets[3 + (slot?.iconCallouts?.indexOf(callout) ?? 0)]
+            : designState.assets[3 + ci]
         })
 
         const slotDesign: DesignState = {
@@ -461,7 +465,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
 
         const settings = { ...designState.desktop, layoutFlipped: cfg.template === '5050-left' }
 
-        setCaptureFrame({ slotDesign, settings, template: cfg.template, width, height })
+        setCaptureFrame({ slotDesign, settings, template: cfg.template, isGallery, width, height })
         await new Promise(r => setTimeout(r, 200))
 
         if (captureRef.current) {
@@ -521,9 +525,13 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
       <div style={{ position: 'fixed', top: -99999, left: -99999, pointerEvents: 'none' }}>
         <div ref={captureRef} style={{ width: captureFrame?.width ?? 1464, height: captureFrame?.height ?? 600, position: 'relative', overflow: 'hidden' }}>
           {captureFrame && (
-            captureFrame.template === 'icons'
-              ? <CanvasContentIcons design={captureFrame.slotDesign} settings={captureFrame.settings} />
-              : <CanvasContent design={captureFrame.slotDesign} settings={captureFrame.settings} />
+            captureFrame.isGallery
+              ? captureFrame.template === 'icons'
+                ? <CanvasContentGalleryIcons design={captureFrame.slotDesign} settings={captureFrame.settings} />
+                : <CanvasContentGallery design={captureFrame.slotDesign} settings={captureFrame.settings} />
+              : captureFrame.template === 'icons'
+                ? <CanvasContentIcons design={captureFrame.slotDesign} settings={captureFrame.settings} />
+                : <CanvasContent design={captureFrame.slotDesign} settings={captureFrame.settings} />
           )}
         </div>
       </div>
@@ -765,7 +773,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                         className={`flex-1 h-6 text-[9px] font-bold uppercase tracking-wide transition-colors ${
                           cfg.template === t ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-700'
                         }`} title={TEMPLATE_LABELS[t]}>
-                        {t === '5050-right' ? '→' : t === '5050-left' ? '←' : '★'}
+                        {t === '5050-right' ? '▷|' : t === '5050-left' ? '|◁' : '✦'}
                       </button>
                     ))}
                   </div>

@@ -522,11 +522,16 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
     )
   }
 
+  // When flipped, accent bar is on the RIGHT of the content panel → swap the extra 8px to the right side
+  const iconsPanelPad = settings.layoutFlipped
+    ? `${settings.contentPaddingV}px ${settings.contentPaddingX + 8}px ${settings.contentPaddingV * 0.75}px ${settings.contentPaddingX}px`
+    : `${settings.contentPaddingV}px ${settings.contentPaddingX}px ${settings.contentPaddingV * 0.75}px ${settings.contentPaddingX + 8}px`
+
   const ContentPanel = (
     <div style={{ width: '50%', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
       {bgPanel}
       <div style={accentBarStyle} />
-      <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: `${settings.contentPaddingV}px ${settings.contentPaddingX}px ${settings.contentPaddingV * 0.75}px ${settings.contentPaddingX + 8}px` }}>
+      <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: iconsPanelPad }}>
         {logoImg && (
           <div style={logoPos}>
             <img src={logoImg.url} alt="logo" style={{ maxHeight: settings.logoSize, maxWidth: settings.logoSize * 3.5, objectFit: 'contain', display: 'block' }} />
