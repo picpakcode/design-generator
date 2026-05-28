@@ -76,6 +76,7 @@ export interface DesignBlock {
   iconCount: number
   iconLabels: [string, string, string, string]
   layoutFlipped: boolean  // applies to both desktop and mobile for this block
+  slug?: string           // optional label used in export filenames
 }
 
 export interface DesignState {
@@ -97,4 +98,5 @@ export interface DesignState {
   gallery: FormatSettings
   blocks: DesignBlock[]
   activeBlockId: string
+  productName: string     // used as the constant prefix in all export filenames
 }

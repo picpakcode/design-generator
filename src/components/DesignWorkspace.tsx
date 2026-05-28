@@ -126,6 +126,7 @@ const DEFAULT_STATE: DesignState = {
   gallery: GALLERY_DEFAULTS,
   blocks: [INITIAL_BLOCK_1, INITIAL_BLOCK_2],
   activeBlockId: 'block-1',
+  productName: '',
 }
 
 // ─── Preset types & helpers ───────────────────────────────────────────────────
@@ -174,6 +175,7 @@ function migrateLoadedState(raw: unknown): DesignState {
     gallery: { ...GALLERY_DEFAULTS, ...(s.gallery  ?? {}) },
     blocks,
     activeBlockId: s.activeBlockId ?? blocks[0].id,
+    productName: s.productName ?? '',
   }
 }
 
@@ -470,6 +472,11 @@ export default function DesignWorkspace() {
     })
   }
 
+  // Update a block's slug (used in export filenames)
+  const updateBlockSlug = (blockId: string, slug: string) => {
+    setDesign(d => ({ ...d, blocks: d.blocks.map(b => b.id === blockId ? { ...b, slug } : b) }))
+  }
+
   useEffect(() => {
     const compute = () => {
       if (!wrapperRef.current) return
@@ -519,16 +526,37 @@ export default function DesignWorkspace() {
 
   const categoryLabel = isGallery ? 'Amazon Gallery Images' : 'Amazon A+ Content'
 
-  // Filename derivation — user can override the base; format suffix appended automatically
+  // ── Smart filename derivation ──────────────────────────────────────────────
+  // Converts any string to a URL-safe lowercase slug
+  const toSlug = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+
+  const activeBlockIdx = design.blocks.findIndex(b => b.id === design.activeBlockId)
+  const activeBlock    = design.blocks[activeBlockIdx]
+
+  const productPart = design.productName?.trim()
+    ? toSlug(design.productName)
+    : ''
+
+  const blockPart = activeBlock?.slug?.trim()
+    ? toSlug(activeBlock.slug)
+    : `block-${activeBlockIdx + 1}`
+
+  // Format: "{product}-{block}" or fallback to legacy names when product is blank
   const defaultBase = isGallery
-    ? `amazon-gallery-${design.activeGalleryTemplate}`
-    : `amazon-aplus-${design.activeTemplate}`
-  const fileBase = customBase ?? defaultBase
+    ? productPart
+      ? `${productPart}-${design.activeGalleryTemplate}`
+      : `amazon-gallery-${design.activeGalleryTemplate}`
+    : productPart
+      ? `${productPart}-${blockPart}`
+      : `amazon-aplus-${blockPart}`
+
+  const fileBase          = customBase ?? defaultBase
   const exportFilename    = isGallery ? fileBase : `${fileBase}-${fmt}`
   const altFmtLabel       = fmt === 'desktop' ? 'mobile' : 'desktop'
   const exportAltFilename = `${fileBase}-${altFmtLabel}`
 
-  // Reset custom name whenever the auto-generated base would change
+  // Reset manual override whenever the auto-generated base changes
   useEffect(() => { setCustomBase(null) }, [defaultBase]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live browser tab title
@@ -828,6 +856,35 @@ export default function DesignWorkspace() {
 
           {/* Scrollable settings sections */}
           <div className="flex-1 min-h-0 overflow-y-auto">
+
+            {/* Product — sets the constant prefix for all export filenames */}
+            <Section title="Product" icon={<ProductIcon />} defaultOpen>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
+                    Product name
+                  </label>
+                  <input
+                    type="text"
+                    value={design.productName}
+                    onChange={e => setDesign(d => ({ ...d, productName: e.target.value }))}
+                    placeholder="e.g. CCV Filter D3932C"
+                    spellCheck={false}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 transition-all"
+                  />
+                </div>
+                {design.productName.trim() && (
+                  <p className="text-[10px] text-gray-400 px-0.5">
+                    Files: <span className="font-mono text-gray-600">{toSlug(design.productName)}-block-1-desktop.png</span>
+                  </p>
+                )}
+                {!design.productName.trim() && (
+                  <p className="text-[10px] text-gray-400 px-0.5">
+                    Set a product name — it becomes the prefix for all exported filenames.
+                  </p>
+                )}
+              </div>
+            </Section>
 
             {/* Presets */}
             <Section title="Presets" icon={<PresetsIcon />}>
@@ -1371,9 +1428,20 @@ export default function DesignWorkspace() {
                     <div key={block.id}>
                       {/* Block row header */}
                       <div className="flex items-center gap-2 mb-3">
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 shrink-0">
-                          Block {blockIdx + 1}
-                        </span>
+                        {/* Editable block label / slug */}
+                        <div className="flex items-center gap-1 shrink-0 group">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-gray-300 select-none">#</span>
+                          <input
+                            type="text"
+                            value={block.slug ?? ''}
+                            onChange={e => { e.stopPropagation(); updateBlockSlug(block.id, e.target.value) }}
+                            onClick={e => e.stopPropagation()}
+                            placeholder={`block-${blockIdx + 1}`}
+                            spellCheck={false}
+                            title="Block label — used in export filename"
+                            className="text-[10px] font-semibold text-gray-600 bg-transparent border-b border-transparent group-hover:border-gray-200 focus:border-gray-400 focus:outline-none w-28 placeholder-gray-300 transition-colors"
+                          />
+                        </div>
                         {/* Template switcher */}
                         <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5">
                           {(['aplus-5050', 'aplus-icons'] as TemplateId[]).map(tid => (
@@ -1698,6 +1766,14 @@ function RedoIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+    </svg>
+  )
+}
+
+function ProductIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
     </svg>
   )
 }
