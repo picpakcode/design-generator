@@ -463,7 +463,10 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
           activeTemplate: cfg.template === 'icons' ? 'aplus-icons' : 'aplus-5050',
         }
 
-        const settings = { ...designState.desktop, layoutFlipped: cfg.template === '5050-left' }
+        // Gallery slots use the gallery format settings; A+ slots use desktop settings
+        const settings = isGallery
+          ? { ...designState.gallery, layoutFlipped: false }
+          : { ...designState.desktop, layoutFlipped: cfg.template === '5050-left' }
 
         setCaptureFrame({ slotDesign, settings, template: cfg.template, isGallery, width, height })
         await new Promise(r => setTimeout(r, 200))

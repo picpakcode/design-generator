@@ -30,13 +30,14 @@ export async function GET(req: Request) {
       }
     }
 
-    // Primary: search by SKU — part numbers like D3932C map directly to Canto tags
+    // Primary: search by exact SKU tag — part numbers like D3932C map directly to Canto tags
     if (sku) {
       addImages(await searchAssets(sku, fetchLimit))
     }
 
-    // Secondary: always also search by product name keywords to expand the photo pool
-    if (name) {
+    // Keyword fallback only when SKU search returned nothing — avoids mixing unrelated
+    // "oil filter" generic photos across different filter products
+    if (pool.length === 0 && name) {
       const keywords = name
         .split(/[\s,&—–\-/]+/)
         .map(w => w.toLowerCase())

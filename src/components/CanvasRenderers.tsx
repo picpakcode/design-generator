@@ -409,9 +409,11 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
     </div>
   )
 
+  // Default (not flipped): content LEFT, photo RIGHT → accent bar on RIGHT edge of content panel
+  // Flipped: content RIGHT, photo LEFT → accent bar on LEFT edge of content panel
   const accentBarStyle: React.CSSProperties = settings.layoutFlipped
-    ? { position: 'absolute', top: 0, right: 0, bottom: 0, width: 8, backgroundColor: design.accentColor }
-    : { position: 'absolute', top: 0, left: 0, bottom: 0, width: 8, backgroundColor: design.accentColor }
+    ? { position: 'absolute', top: 0, left: 0, bottom: 0, width: 8, backgroundColor: design.accentColor }
+    : { position: 'absolute', top: 0, right: 0, bottom: 0, width: 8, backgroundColor: design.accentColor }
 
   const iconFilter2 = iconColorToFilter(design.iconColor ?? '#ffffff')
 
@@ -522,22 +524,25 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
     )
   }
 
-  // When flipped, accent bar is on the RIGHT of the content panel → swap the extra 8px to the right side
+  // Default (not flipped): content LEFT, photo RIGHT → extra 8px pad on RIGHT (next to accent bar)
+  // Flipped: content RIGHT, photo LEFT → extra 8px pad on LEFT (next to accent bar)
   const iconsPanelPad = settings.layoutFlipped
-    ? `${settings.contentPaddingV}px ${settings.contentPaddingX + 8}px ${settings.contentPaddingV * 0.75}px ${settings.contentPaddingX}px`
-    : `${settings.contentPaddingV}px ${settings.contentPaddingX}px ${settings.contentPaddingV * 0.75}px ${settings.contentPaddingX + 8}px`
+    ? `${settings.contentPaddingV}px ${settings.contentPaddingX}px ${settings.contentPaddingV * 0.75}px ${settings.contentPaddingX + 8}px`
+    : `${settings.contentPaddingV}px ${settings.contentPaddingX + 8}px ${settings.contentPaddingV * 0.75}px ${settings.contentPaddingX}px`
 
   const ContentPanel = (
     <div style={{ width: '50%', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
       {bgPanel}
       <div style={accentBarStyle} />
-      <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: iconsPanelPad }}>
+      <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', padding: iconsPanelPad, boxSizing: 'border-box' }}>
+        {/* Logo as a flow item so it never overlaps the title — left/right corner controls alignment */}
         {logoImg && (
-          <div style={logoPos}>
+          <div style={{ flexShrink: 0, marginBottom: 16, display: 'flex', justifyContent: settings.logoCorner.endsWith('r') ? 'flex-end' : 'flex-start' }}>
             <img src={logoImg.url} alt="logo" style={{ maxHeight: settings.logoSize, maxWidth: settings.logoSize * 3.5, objectFit: 'contain', display: 'block' }} />
           </div>
         )}
-        <div>
+        {/* Title + subtitle vertically centered in remaining space */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 0 }}>
           <div className="rich-title" style={{
             fontFamily: 'var(--font-anton), Anton, sans-serif',
             fontSize: settings.titleFontSize,
@@ -563,7 +568,8 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
             }} dangerouslySetInnerHTML={{ __html: design.subtitleHtml }} />
           )}
         </div>
-        <div style={{ marginTop: 16 }}>{iconRow}</div>
+        {/* Icons pinned to bottom */}
+        <div style={{ flexShrink: 0, marginTop: 16 }}>{iconRow}</div>
       </div>
     </div>
   )
@@ -580,9 +586,10 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
     </div>
   )
 
+  // Default (not flipped): content LEFT, photo RIGHT
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden' }}>
-      {settings.layoutFlipped ? <>{ContentPanel}{PhotoPanel}</> : <>{PhotoPanel}{ContentPanel}</>}
+      {settings.layoutFlipped ? <>{PhotoPanel}{ContentPanel}</> : <>{ContentPanel}{PhotoPanel}</>}
     </div>
   )
 }
