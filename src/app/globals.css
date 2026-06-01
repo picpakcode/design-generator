@@ -78,3 +78,25 @@
 .dark input[type="range"] {
   accent-color: rgb(209 213 219);
 }
+
+/* ── Dark mode: sidebar inner cards (bg-gray-50 / bg-gray-100 panels) ── */
+.dark .dg-sidebar .rounded-xl.bg-gray-50,
+.dark .dg-sidebar .rounded-xl.bg-gray-100 {
+  background-color: rgb(31 41 55 / 0.5);
+}
+
+/* ── Dark mode: sidebar small secondary text ───────────── */
+.dark .dg-sidebar .text-gray-600 { color: rgb(156 163 175); }
+.dark .dg-sidebar p.text-gray-400 { color: rgb(107 114 128); }
+.dark .dg-sidebar span.text-gray-400 { color: rgb(107 114 128); }
+
+/* ── Dark mode: sidebar dashed-border pick buttons ──────── */
+.dark .dg-sidebar button.border-dashed {
+  border-color: rgb(75 85 99);
+  color: rgb(107 114 128);
+}
+.dark .dg-sidebar button.border-dashed:hover {
+  border-color: rgb(107 114 128);
+  background-color: rgb(31 41 55 / 0.5);
+  color: rgb(156 163 175);
+}

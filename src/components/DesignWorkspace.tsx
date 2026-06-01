@@ -368,6 +368,9 @@ export default function DesignWorkspace({ projectId }: Props) {
               const restoredAssets = await Promise.all(
                 ((block.assets ?? []) as (UploadedAsset | undefined)[]).map(async a => {
                   if (!a?.id) return undefined
+                  // External CDN URLs (Canto etc.) are saved as-is — use them directly
+                  if (a.url && !a.url.startsWith('blob:')) return a
+                  // Local uploads: restore from IDB
                   const blob = await getBlob(a.id).catch(() => undefined)
                   if (!blob) return undefined
                   return { ...a, url: URL.createObjectURL(blob) }
@@ -390,27 +393,45 @@ export default function DesignWorkspace({ projectId }: Props) {
   useEffect(() => {
     if (!projectId || !user) return
     const supabase = createClient()
-    loadProject(supabase, projectId).then(project => {
+    loadProject(supabase, projectId).then(async project => {
       if (!project) return
       setProjectName(project.name)
       const state = migrateLoadedState(project.state)
-      setDesign(state)
-      histRef.current = [state]
+      // Restore local-upload blobs from IDB; external CDN URLs (Canto etc.) already saved
+      const blocks = await Promise.all(
+        state.blocks.map(async block => {
+          const restoredAssets = await Promise.all(
+            ((block.assets ?? []) as (UploadedAsset | undefined)[]).map(async a => {
+              if (!a?.id) return undefined
+              if (a.url && !a.url.startsWith('blob:')) return a
+              const blob = await getBlob(a.id).catch(() => undefined)
+              if (!blob) return undefined
+              return { ...a, url: URL.createObjectURL(blob) }
+            })
+          )
+          return { ...block, assets: restoredAssets as UploadedAsset[] }
+        })
+      )
+      const loaded = { ...state, blocks }
+      setDesign(loaded)
+      histRef.current = [loaded]
       histIdxRef.current = 0
       skipHistRef.current = true
     }).catch(console.error)
   }, [projectId, user]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-save last session (debounced) — asset metadata saved, blobs live in IDB
+  // Auto-save last session (debounced) — blob: URLs stripped, external CDN URLs kept
   useEffect(() => {
     const t = setTimeout(() => {
       try {
+        const wipeBlob = (a: UploadedAsset | undefined) =>
+          a ? { ...a, url: a.url?.startsWith('blob:') ? '' : (a.url ?? '') } : a
         const stripped = {
           ...design,
-          assets: design.assets.map(a => a ? { ...a, url: '' } : a),
+          assets: design.assets.map(wipeBlob),
           blocks: design.blocks.map(b => ({
             ...b,
-            assets: (b.assets ?? []).map(a => a ? { ...a, url: '' } : a),
+            assets: (b.assets ?? []).map(wipeBlob),
           })),
         }
         localStorage.setItem('dg:last', JSON.stringify(stripped))
@@ -1273,20 +1294,20 @@ export default function DesignWorkspace({ projectId }: Props) {
                   />
                   <button
                     onClick={savePreset}
-                    className="shrink-0 px-3 h-[38px] text-[11px] font-bold uppercase tracking-widest rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+                    className="shrink-0 px-3 h-[38px] text-[11px] font-bold uppercase tracking-widest rounded-lg bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
                   >
                     Save
                   </button>
                 </div>
                 {presets.length === 0 ? (
-                  <p className="text-[11px] text-gray-300 text-center py-1">No saved presets yet</p>
+                  <p className="text-[11px] text-gray-300 dark:text-gray-600 text-center py-1">No saved presets yet</p>
                 ) : (
                   <div className="space-y-1.5">
                     {[...presets].reverse().map(p => (
                       <div key={p.id} className="flex items-center gap-1.5 group">
                         <button
                           onClick={() => loadPreset(p)}
-                          className="flex-1 text-left px-3 py-2 text-xs text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors truncate font-medium"
+                          className="flex-1 text-left px-3 py-2 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-700/60 rounded-lg transition-colors truncate font-medium"
                         >
                           {p.name}
                         </button>
@@ -1529,8 +1550,8 @@ export default function DesignWorkspace({ projectId }: Props) {
                     onClick={() => setPhotoEditMode(m => !m)}
                     className={`w-full h-9 flex items-center justify-center gap-2 rounded-xl border-2 text-[11px] font-bold uppercase tracking-widest transition-all ${
                       photoEditMode
-                        ? 'border-gray-900 bg-gray-900 text-white'
-                        : 'border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700'
+                        ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
+                        : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                   >
                     <MoveIcon />
@@ -1583,15 +1604,15 @@ export default function DesignWorkspace({ projectId }: Props) {
                       onClick={() => patchPhotoComp(p => ({ ...p, flipH: !p.flipH }))}
                       className={`flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg border text-[10px] font-semibold transition-all ${
                         (settings.photoComposition ?? DEFAULT_PHOTO_COMP).flipH
-                          ? 'border-gray-900 bg-gray-900 text-white'
-                          : 'border-gray-200 text-gray-500 hover:border-gray-400'
+                          ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
+                          : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500'
                       }`}
                     >
                       <FlipHIcon /> Flip H
                     </button>
                     <button
                       onClick={() => patchPhotoComp(() => DEFAULT_PHOTO_COMP)}
-                      className="flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 text-[10px] font-semibold text-gray-500 hover:border-gray-400 transition-all"
+                      className="flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-[10px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 transition-all"
                     >
                       <ResetIcon /> Reset
                     </button>
@@ -1616,8 +1637,8 @@ export default function DesignWorkspace({ projectId }: Props) {
                           title={flipped ? 'Text left · Photo right' : 'Photo left · Text right'}
                           className={`flex-1 h-9 rounded-lg border-2 flex items-center justify-center transition-all ${
                             settings.layoutFlipped === flipped
-                              ? 'border-gray-900 bg-gray-900 text-white'
-                              : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                              ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
+                              : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-500'
                           }`}
                         >
                           <PanelIcon photoLeft={!flipped} active={settings.layoutFlipped === flipped} />
@@ -1635,8 +1656,8 @@ export default function DesignWorkspace({ projectId }: Props) {
                         onClick={() => patchSettings({ logoCorner: c })}
                         className={`h-7 rounded text-sm border-2 flex items-center justify-center transition-all ${
                           settings.logoCorner === c
-                            ? 'border-gray-900 bg-gray-900 text-white'
-                            : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                            ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
+                            : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-500'
                         }`}
                       >
                         {c === 'tl' ? '↖' : c === 'tr' ? '↗' : c === 'bl' ? '↙' : '↘'}
@@ -1665,8 +1686,8 @@ export default function DesignWorkspace({ projectId }: Props) {
                             onClick={() => patchDesign({ iconCount: n })}
                             className={`flex-1 h-7 rounded-md text-xs font-bold border-2 transition-all ${
                               design.iconCount === n
-                                ? 'border-gray-900 bg-gray-900 text-white'
-                                : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600'
+                                ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
+                                : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
                             }`}
                           >
                             {n}

@@ -1,6 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { DesignState } from '@/types'
+import type { DesignState, UploadedAsset } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Client = SupabaseClient<any>
@@ -157,20 +157,24 @@ export async function saveProjectThumbnail(db: Client, id: string, thumbnailUrl:
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Only wipe blob: URLs — external CDN URLs (Canto etc.) are persistent and should be kept.
+const wipeBlob = (a: UploadedAsset | null | undefined) =>
+  a ? { ...a, url: a.url?.startsWith('blob:') ? '' : (a.url ?? '') } : a
+
 function stripBlobUrls(state: DesignState): DesignState {
   return {
     ...state,
-    assets: state.assets.map(a => a ? { ...a, url: '' } : a),
+    assets: state.assets.map(wipeBlob) as DesignState['assets'],
   }
 }
 
 function stripProjectBlobUrls(state: DesignState): DesignState {
   return {
     ...state,
-    assets: (state.assets ?? []).map(a => a ? { ...a, url: '' } : a),
+    assets: (state.assets ?? []).map(wipeBlob) as DesignState['assets'],
     blocks: (state.blocks ?? []).map(b => ({
       ...b,
-      assets: (b.assets ?? []).map(a => a ? { ...a, url: '' } : a),
+      assets: (b.assets ?? []).map(wipeBlob) as DesignState['assets'],
     })),
   }
 }

@@ -35,9 +35,9 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write d
   if (!editor) return null
 
   return (
-    <div className="rte-wrapper border border-gray-200 rounded-lg overflow-hidden bg-white focus-within:ring-2 focus-within:ring-blue-300 focus-within:border-transparent transition-all">
+    <div className="rte-wrapper border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800 focus-within:ring-2 focus-within:ring-blue-300 focus-within:border-transparent transition-all">
       {/* Toolbar */}
-      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 bg-gray-50">
+      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
         <ToolbarBtn
           active={editor.isActive('bold')}
           onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBold().run() }}
@@ -52,7 +52,7 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write d
         >
           <span className="italic text-sm">I</span>
         </ToolbarBtn>
-        <div className="w-px h-4 bg-gray-200 mx-1" />
+        <div className="w-px h-4 bg-gray-200 dark:bg-gray-600 mx-1" />
         <ToolbarBtn
           active={editor.isActive('bulletList')}
           onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().toggleBulletList().run() }}
@@ -71,7 +71,7 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write d
         <button
           onMouseDown={(e) => { e.preventDefault(); editor.chain().focus().clearContent(true).run() }}
           title="Clear"
-          className="text-[10px] text-gray-400 hover:text-red-400 transition-colors px-1"
+          className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-red-400 transition-colors px-1"
         >
           Clear
         </button>
@@ -99,7 +99,7 @@ function ToolbarBtn({
       onMouseDown={onMouseDown}
       title={title}
       className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
-        active ? 'bg-gray-800 text-white' : 'text-gray-500 hover:bg-gray-200'
+        active ? 'bg-gray-800 dark:bg-gray-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
       }`}
     >
       {children}

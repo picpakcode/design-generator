@@ -75,25 +75,25 @@ export default function AuthModal({ open, onClose }: Props) {
 
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="pointer-events-auto w-full max-w-xs bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-slide-up"
+          className="pointer-events-auto w-full max-w-xs bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden animate-slide-up"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
           <div className="px-5 pt-5 pb-4 flex items-start justify-between">
             <div>
               <div className="flex items-center gap-2 mb-0.5">
-                <div className="w-5 h-5 rounded-md bg-gray-900 flex items-center justify-center shrink-0">
+                <div className="w-5 h-5 rounded-md bg-gray-900 dark:bg-gray-700 flex items-center justify-center shrink-0">
                   <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <span className="text-sm font-bold text-gray-900">Design Generator</span>
+                <span className="text-sm font-bold text-gray-900 dark:text-white">Design Generator</span>
               </div>
-              <p className="text-[10px] text-gray-400 ml-7">DocsDiesel internal tool</p>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 ml-7">DocsDiesel internal tool</p>
             </div>
             <button
               onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -103,15 +103,15 @@ export default function AuthModal({ open, onClose }: Props) {
 
           {/* Mode tabs */}
           <div className="px-5 mb-4">
-            <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5">
+            <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-0.5 gap-0.5">
               {(['signin', 'signup'] as const).map(m => (
                 <button
                   key={m}
                   onClick={() => switchMode(m)}
                   className={`flex-1 h-7 rounded-[10px] text-[11px] font-bold transition-all ${
                     mode === m
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                   }`}
                 >
                   {m === 'signin' ? 'Sign in' : 'Create account'}
@@ -134,7 +134,7 @@ export default function AuthModal({ open, onClose }: Props) {
                 required
                 autoComplete="email"
                 placeholder="you@docsdiesel.com"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/15 focus:border-gray-400 placeholder:text-gray-300 transition-all"
+                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/15 dark:focus:ring-gray-100/10 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
               />
             </div>
 
@@ -150,7 +150,7 @@ export default function AuthModal({ open, onClose }: Props) {
                   required
                   autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                   placeholder="••••••••"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/15 focus:border-gray-400 placeholder:text-gray-300 transition-all"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/15 dark:focus:ring-gray-100/10 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
                 />
               </div>
             )}
@@ -175,7 +175,7 @@ export default function AuthModal({ open, onClose }: Props) {
             <button
               type="submit"
               disabled={busy || !!info}
-              className="w-full h-9 rounded-xl bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="w-full h-9 rounded-xl bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {busy
                 ? 'Please wait…'
@@ -191,7 +191,7 @@ export default function AuthModal({ open, onClose }: Props) {
                 <button
                   type="button"
                   onClick={() => switchMode('magic')}
-                  className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-[11px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   Send a magic link instead →
                 </button>
@@ -199,7 +199,7 @@ export default function AuthModal({ open, onClose }: Props) {
                 <button
                   type="button"
                   onClick={() => switchMode('signin')}
-                  className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-[11px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   ← Back to sign in
                 </button>
