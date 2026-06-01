@@ -12,10 +12,10 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const sku   = searchParams.get('sku')   ?? ''
   const name  = searchParams.get('name')  ?? ''
-  const limit = Math.min(parseInt(searchParams.get('limit') ?? '25'), 60)
+  const limit = Math.min(parseInt(searchParams.get('limit') ?? '40'), 200)
 
-  // Search with a larger internal pool so lifestyle filtering still yields enough results
-  const fetchLimit = limit * 3
+  // Fetch a larger internal pool so lifestyle filtering still yields enough results
+  const fetchLimit = Math.min(limit * 2, 400)
 
   try {
     const pool: CantoAsset[] = []

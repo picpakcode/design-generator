@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Category, DesignBlock, DesignState, Format, FormatSettings, GalleryTemplateId, PhotoComposition, DEFAULT_PHOTO_COMP, TemplateId, TextTransform, UploadedAsset } from '@/types'
+import { createClient } from '@/lib/supabase/client'
+import { loadProject, saveProject, saveProjectThumbnail, renameProject } from '@/lib/db'
 import { getGalleryTemplate, getTemplate } from '@/lib/templates'
 import AssetUploader from './AssetUploader'
 import ExportButton from './ExportButton'
@@ -10,10 +12,13 @@ import { exportAllAsZip } from '@/lib/export'
 import BulkMode from './BulkMode'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import CantoAssetPicker from './CantoAssetPicker'
+import CantoIconPickerModal from './CantoIconPickerModal'
+import CantoPhotoPickerModal from './CantoPhotoPickerModal'
 import { FolderConfig, EMPTY_CONFIG, loadFolderConfig } from '@/lib/canto-folders'
 import { storeBlob, getBlob, deleteBlob } from '@/lib/idb'
 import { useAuth } from '@/hooks/useAuth'
 import AuthModal from './AuthModal'
+import PreviewModal from './PreviewModal'
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
 
@@ -66,9 +71,9 @@ const MOBILE_DEFAULTS: FormatSettings = {
   subtitleWidth: 100,
   titleTextTransform: 'uppercase',
   subtitleTextTransform: 'none',
-  iconSize: 40,
-  iconLabelFontSize: 13,
-  iconLabelLineHeight: 16,
+  iconSize: 64,
+  iconLabelFontSize: 18,
+  iconLabelLineHeight: 32,
   photoComposition: { ...DEFAULT_PHOTO_COMP },
 }
 
@@ -98,7 +103,7 @@ const INITIAL_BLOCK_1: DesignBlock = {
   id: 'block-1',
   templateId: 'aplus-5050',
   title: '<p>Product Title</p>',
-  subtitleHtml: '<p>Direct-fit replacement with o-rings included. Protects fuel flow, pressure, and system components right out of the box.</p>',
+  subtitleHtml: '<p>Add your product description here.</p>',
   iconCount: 3,
   iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
   layoutFlipped: false,
@@ -109,7 +114,7 @@ const INITIAL_BLOCK_2: DesignBlock = {
   id: 'block-2',
   templateId: 'aplus-icons',
   title: '<p>Product Title</p>',
-  subtitleHtml: '<p>Direct-fit replacement with o-rings included. Protects fuel flow, pressure, and system components right out of the box.</p>',
+  subtitleHtml: '<p>Add your product description here.</p>',
   iconCount: 3,
   iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
   layoutFlipped: false,
@@ -125,7 +130,7 @@ const DEFAULT_STATE: DesignState = {
   iconCount: 3,
   iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
   title: '<p>Product Title</p>',
-  subtitleHtml: '<p>Direct-fit replacement with o-rings included. Protects fuel flow, pressure, and system components right out of the box.</p>',
+  subtitleHtml: '<p>Add your product description here.</p>',
   primaryColor: '#222222',
   accentColor: '#AF3939',
   bodyColor: '#FEFBF7',
@@ -194,10 +199,14 @@ function migrateLoadedState(raw: unknown): DesignState {
 
 // ─── Main workspace ───────────────────────────────────────────────────────────
 
-export default function DesignWorkspace() {
+interface Props { projectId?: string }
+
+export default function DesignWorkspace({ projectId }: Props) {
   const { user, signOut } = useAuth()
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen]   = useState(false)
+  const [iconPickerSlot, setIconPickerSlot] = useState<number | null>(null)
+  const [photoPickerOpen, setPhotoPickerOpen] = useState(false)
 
   const [appMode, setAppMode] = useState<'design' | 'bulk'>('design')
   const [design, setDesign] = useState<DesignState>(DEFAULT_STATE)
@@ -226,6 +235,14 @@ export default function DesignWorkspace() {
   const histIdxRef  = useRef(0)
   const skipHistRef = useRef(false)
   const [histMark, setHistMark] = useState(0) // bumped to force re-render of button states
+  const hasSavedThumbnailRef = useRef(false)
+
+  const [projectName, setProjectName] = useState<string>('')
+  const [isRenamingProject, setIsRenamingProject] = useState(false)
+  const [projectNameDraft, setProjectNameDraft] = useState('')
+  const projectNameInputRef = useRef<HTMLInputElement>(null)
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const [presets, setPresets]       = useState<Preset[]>([])
   const [presetName, setPresetName] = useState('')
@@ -316,18 +333,34 @@ export default function DesignWorkspace() {
     return () => window.removeEventListener('keydown', handler)
   }, [undo, redo])
 
+  const commitRenameProject = async (draft: string) => {
+    const name = draft.trim() || projectName || 'Untitled Project'
+    setIsRenamingProject(false)
+    if (name !== projectName && projectId) {
+      setProjectName(name)
+      const supabase = createClient()
+      await renameProject(supabase, projectId, name).catch(console.error)
+    }
+  }
+
   const canUndo = histIdxRef.current > 0
   const canRedo = histIdxRef.current < histRef.current.length - 1
 
-  // Auto-restore last session on mount — blobs fetched from IDB
+  // Always load presets and folder config on mount
   useEffect(() => {
+    try { const raw = localStorage.getItem('dg:presets'); if (raw) setPresets(JSON.parse(raw)) } catch {}
+    try { setFolderConfig(loadFolderConfig()) } catch {}
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Restore last session from localStorage — only in non-project mode
+  useEffect(() => {
+    if (projectId) return
     const restore = async () => {
       try {
         const raw = localStorage.getItem('dg:last')
         if (raw) {
           const saved = JSON.parse(raw)
           const state = migrateLoadedState(saved)
-          // Restore per-block assets from IDB
           state.blocks = await Promise.all(
             (state.blocks ?? []).map(async block => {
               const restoredAssets = await Promise.all(
@@ -347,14 +380,24 @@ export default function DesignWorkspace() {
           skipHistRef.current = true
         }
       } catch {}
-      try {
-        const raw = localStorage.getItem('dg:presets')
-        if (raw) setPresets(JSON.parse(raw))
-      } catch {}
-      try { setFolderConfig(loadFolderConfig()) } catch {}
     }
     restore()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load project from Supabase when projectId + user are available
+  useEffect(() => {
+    if (!projectId || !user) return
+    const supabase = createClient()
+    loadProject(supabase, projectId).then(project => {
+      if (!project) return
+      setProjectName(project.name)
+      const state = migrateLoadedState(project.state)
+      setDesign(state)
+      histRef.current = [state]
+      histIdxRef.current = 0
+      skipHistRef.current = true
+    }).catch(console.error)
+  }, [projectId, user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-save last session (debounced) — asset metadata saved, blobs live in IDB
   useEffect(() => {
@@ -373,6 +416,39 @@ export default function DesignWorkspace() {
     }, 1000)
     return () => clearTimeout(t)
   }, [design])
+
+  // Auto-save project to Supabase (debounced 2s) — runs alongside localStorage save
+  useEffect(() => {
+    if (!projectId || !user) return
+    const supabase = createClient()
+    const t = setTimeout(async () => {
+      try {
+        await saveProject(supabase, projectId, design)
+
+        // Capture thumbnail once per session after first successful save
+        if (!hasSavedThumbnailRef.current && canvasRef.current) {
+          hasSavedThumbnailRef.current = true
+          try {
+            const { toBlob } = await import('html-to-image')
+            const blob = await toBlob(canvasRef.current, { pixelRatio: 0.15, quality: 0.8 })
+            if (blob) {
+              const path = `${user.id}/${projectId}.jpg`
+              await supabase.storage.from('project-thumbnails').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+              const { data } = supabase.storage.from('project-thumbnails').getPublicUrl(path)
+              await saveProjectThumbnail(supabase, projectId, data.publicUrl)
+            }
+          } catch (thumbErr) {
+            console.warn('Thumbnail capture failed (non-fatal):', thumbErr)
+            // Reset so it can retry on next save
+            hasSavedThumbnailRef.current = false
+          }
+        }
+      } catch (err) {
+        console.error('Supabase project save failed:', err)
+      }
+    }, 2000)
+    return () => clearTimeout(t)
+  }, [design, projectId, user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const savePreset = () => {
     const name = presetName.trim() || `Preset ${presets.length + 1}`
@@ -450,7 +526,7 @@ export default function DesignWorkspace() {
       id,
       templateId: 'aplus-5050',
       title: '<p>New Block Title</p>',
-      subtitleHtml: '<p>Add your description here.</p>',
+      subtitleHtml: '<p>Add your product description here.</p>',
       iconCount: 3,
       iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
       layoutFlipped: false,
@@ -707,12 +783,54 @@ export default function DesignWorkspace() {
 
       {/* ── App header ── */}
       <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3 z-20 shadow-sm">
-        <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center shrink-0">
-          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <span className="font-bold text-gray-900 text-base tracking-tight shrink-0">Design Generator</span>
+        {projectId ? (
+          <>
+            <a
+              href="/dashboard"
+              className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-500 hover:border-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-all shrink-0"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              Projects
+            </a>
+            <div className="w-px h-5 bg-gray-200 shrink-0" />
+            {isRenamingProject ? (
+              <input
+                ref={projectNameInputRef}
+                type="text"
+                value={projectNameDraft}
+                onChange={e => setProjectNameDraft(e.target.value)}
+                onBlur={() => commitRenameProject(projectNameDraft)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { e.preventDefault(); commitRenameProject(projectNameDraft) }
+                  if (e.key === 'Escape') { e.preventDefault(); setIsRenamingProject(false) }
+                }}
+                spellCheck={false}
+                autoFocus
+                className="text-sm font-semibold text-gray-900 bg-transparent border-b-2 border-gray-400 outline-none px-0.5 min-w-0 shrink"
+                style={{ width: `${Math.max((projectNameDraft || '').length, 6)}ch` }}
+              />
+            ) : (
+              <span
+                onDoubleClick={() => { setProjectNameDraft(projectName); setIsRenamingProject(true) }}
+                title="Double-click to rename"
+                className="text-sm font-semibold text-gray-700 hover:text-gray-900 cursor-default select-none truncate max-w-xs shrink"
+              >
+                {projectName || 'Untitled Project'}
+              </span>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <span className="font-bold text-gray-900 text-base tracking-tight shrink-0">Design Generator</span>
+          </>
+        )}
 
         {/* Mode tabs */}
         <div className="flex items-center bg-gray-100 rounded-lg p-0.5 shrink-0">
@@ -734,15 +852,12 @@ export default function DesignWorkspace() {
         {/* Bulk mode — Export ZIP button in header */}
         {appMode === 'bulk' && (
           <div className="ml-auto relative">
-            <button
-              onClick={() => setBulkExportOpen(o => !o)}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 transition-colors"
-            >
+            <Btn variant="primary" onClick={() => setBulkExportOpen(o => !o)}>
               Export
               <svg className={`w-3 h-3 transition-transform duration-150 ${bulkExportOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
-            </button>
+            </Btn>
             {bulkExportOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setBulkExportOpen(false)} />
@@ -860,40 +975,80 @@ export default function DesignWorkspace() {
                 )}
               </div>
             ) : (
-              <button
-                onClick={() => setAuthModalOpen(true)}
-                className="h-7 px-3 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-all"
-              >
+              <Btn variant="secondary" size="sm" onClick={() => setAuthModalOpen(true)}>
                 Sign in
-              </button>
+              </Btn>
             )}
 
             <div className="w-px h-5 bg-gray-200 mx-1.5" />
 
-            {/* Canvas background color */}
-            <label title="Preview background" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors cursor-pointer relative">
-              <div className="w-4 h-4 rounded-sm ring-1 ring-black/10 shadow-sm" style={{ backgroundColor: canvasBg }} />
-              <input
-                type="color"
-                value={canvasBg}
-                onChange={e => setCanvasBg(e.target.value)}
-                style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }}
-              />
-            </label>
+            {/* Preview — only for A+ content mode */}
+            {!isGallery && (
+              <button
+                onClick={() => setPreviewOpen(true)}
+                title="Preview all blocks"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </button>
+            )}
+
+            {/* Settings menu */}
+            <div className="relative">
+              <button
+                onClick={() => setSettingsMenuOpen(o => !o)}
+                title="Settings"
+                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${settingsMenuOpen ? 'bg-gray-100 text-gray-800' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'}`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+              {settingsMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setSettingsMenuOpen(false)} />
+                  <div className="absolute top-full right-0 mt-2 w-60 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 z-50">
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-3">Preview background</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      {(['#FFFFFF', '#F0F0F0', '#E0E0E0', '#1a1a1a'] as const).map(color => (
+                        <button
+                          key={color}
+                          onClick={() => setCanvasBg(color)}
+                          title={color}
+                          className={`w-8 h-8 rounded-lg ring-2 transition-all ${canvasBg === color ? 'ring-gray-900 ring-offset-1' : 'ring-gray-200 hover:ring-gray-400'}`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                      <label title="Custom color" className="relative w-8 h-8 flex items-center justify-center rounded-lg ring-2 ring-gray-200 hover:ring-gray-400 transition-all cursor-pointer overflow-hidden shrink-0">
+                        <div className="w-full h-full rounded-lg" style={{ background: 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />
+                        <input
+                          type="color"
+                          value={canvasBg}
+                          onChange={e => setCanvasBg(e.target.value)}
+                          style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }}
+                        />
+                      </label>
+                    </div>
+                    <p className="text-[9px] text-gray-400 mt-2">Current: <span className="font-mono">{canvasBg}</span></p>
+                  </div>
+                </>
+              )}
+            </div>
 
             <div className="w-px h-5 bg-gray-200 mx-1.5" />
 
             {/* Export dropdown */}
             <div className="relative">
-              <button
-                onClick={() => setExportMenuOpen(o => !o)}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 transition-colors"
-              >
+              <Btn variant="primary" onClick={() => setExportMenuOpen(o => !o)}>
                 Export
                 <svg className={`w-3 h-3 transition-transform duration-150 ${exportMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
-              </button>
+              </Btn>
 
               {exportMenuOpen && (
                 <>
@@ -1086,294 +1241,6 @@ export default function DesignWorkspace() {
               </div>
             </Section>
 
-            {/* Images */}
-            <Section title="Images" icon={<ImagesIcon />} defaultOpen>
-              <AssetUploader
-                assets={activeBlock?.assets ?? []}
-                onAdd={handleAddAsset}
-                onRemove={handleRemoveAsset}
-                slotLabels={assetSlotLabels}
-              />
-            </Section>
-
-            {/* Photo composition */}
-            <Section title="Photo" icon={<PhotoCompIcon />} defaultOpen>
-              <div className="space-y-4">
-
-                {/* Edit mode toggle */}
-                <button
-                  onClick={() => setPhotoEditMode(m => !m)}
-                  className={`w-full h-9 flex items-center justify-center gap-2 rounded-xl border-2 text-[11px] font-bold uppercase tracking-widest transition-all ${
-                    photoEditMode
-                      ? 'border-gray-900 bg-gray-900 text-white'
-                      : 'border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700'
-                  }`}
-                >
-                  <MoveIcon />
-                  {photoEditMode ? 'Drag enabled · click photo' : 'Drag to reposition'}
-                </button>
-
-                {/* Scale */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Scale</span>
-                    <span className="text-[11px] text-gray-500 tabular-nums font-mono">
-                      {((settings.photoComposition ?? DEFAULT_PHOTO_COMP).scale).toFixed(2)}×
-                    </span>
-                  </div>
-                  <input type="range" min={1} max={4} step={0.01}
-                    value={(settings.photoComposition ?? DEFAULT_PHOTO_COMP).scale}
-                    onChange={e => patchPhotoComp(p => ({ ...p, scale: Number(e.target.value) }))}
-                    className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
-                </div>
-
-                {/* X / Y pan */}
-                <div className="grid grid-cols-2 gap-3">
-                  {([['x', 'Pan X'], ['y', 'Pan Y']] as const).map(([axis, label]) => (
-                    <div key={axis}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{label}</span>
-                        <span className="text-[10px] text-gray-500 tabular-nums font-mono">
-                          {Math.round((settings.photoComposition ?? DEFAULT_PHOTO_COMP)[axis] * 100)}%
-                        </span>
-                      </div>
-                      <input type="range" min={-100} max={100} step={1}
-                        value={Math.round((settings.photoComposition ?? DEFAULT_PHOTO_COMP)[axis] * 100)}
-                        onChange={e => patchPhotoComp(p => ({ ...p, [axis]: Number(e.target.value) / 100 }))}
-                        className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Rotation */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Rotation</span>
-                    <span className="text-[11px] text-gray-500 tabular-nums font-mono">
-                      {(settings.photoComposition ?? DEFAULT_PHOTO_COMP).rotation}°
-                    </span>
-                  </div>
-                  <input type="range" min={-180} max={180} step={1}
-                    value={(settings.photoComposition ?? DEFAULT_PHOTO_COMP).rotation}
-                    onChange={e => patchPhotoComp(p => ({ ...p, rotation: Number(e.target.value) }))}
-                    className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
-                </div>
-
-                {/* Flip H + Reset row */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => patchPhotoComp(p => ({ ...p, flipH: !p.flipH }))}
-                    className={`flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg border text-[10px] font-semibold transition-all ${
-                      (settings.photoComposition ?? DEFAULT_PHOTO_COMP).flipH
-                        ? 'border-gray-900 bg-gray-900 text-white'
-                        : 'border-gray-200 text-gray-500 hover:border-gray-400'
-                    }`}
-                  >
-                    <FlipHIcon /> Flip H
-                  </button>
-                  <button
-                    onClick={() => patchPhotoComp(() => DEFAULT_PHOTO_COMP)}
-                    className="flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 text-[10px] font-semibold text-gray-500 hover:border-gray-400 transition-all"
-                  >
-                    <ResetIcon /> Reset
-                  </button>
-                </div>
-              </div>
-            </Section>
-
-            {/* Canto Assets — pick from configured Canto folders */}
-            <Section title="Canto Assets" icon={<CantoSidebarIcon />}>
-              <div className="space-y-3">
-                {/* Texture */}
-                <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Background Texture</p>
-                  <CantoAssetPicker
-                    albumId={folderConfig.texturesAlbumId}
-                    value={activeBlock?.assets[1] ? { id: activeBlock.assets[1].id, name: activeBlock.assets[1].name, previewUrl: activeBlock.assets[1].url } : null}
-                    onChange={pick => {
-                      if (pick) handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 1)
-                      else if (activeBlock?.assets[1]) handleRemoveAsset(activeBlock.assets[1].id)
-                    }}
-                    placeholder="Pick texture from Canto"
-                    thumbnailFit="cover"
-                  />
-                </div>
-                {/* Logo */}
-                <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Brand Logo</p>
-                  <CantoAssetPicker
-                    albumId={folderConfig.logosAlbumId}
-                    value={activeBlock?.assets[2] ? { id: activeBlock.assets[2].id, name: activeBlock.assets[2].name, previewUrl: activeBlock.assets[2].url } : null}
-                    onChange={pick => {
-                      if (pick) handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 2)
-                      else if (activeBlock?.assets[2]) handleRemoveAsset(activeBlock.assets[2].id)
-                    }}
-                    placeholder="Pick logo from Canto"
-                    thumbnailFit="contain"
-                  />
-                </div>
-                {/* Icons — shown only for icon templates */}
-                {(design.activeTemplate === 'aplus-icons' || !isGallery) && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Icons</p>
-                    <div className="space-y-1.5">
-                      {Array.from({ length: design.iconCount }, (_, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <span className="text-[9px] font-semibold text-gray-400 w-10 shrink-0">Icon {i + 1}</span>
-                          <div className="flex-1">
-                            <CantoAssetPicker
-                              albumId={folderConfig.iconsAlbumId}
-                              value={activeBlock?.assets[3 + i] ? { id: activeBlock.assets[3 + i].id, name: activeBlock.assets[3 + i].name, previewUrl: activeBlock.assets[3 + i].url } : null}
-                              onChange={pick => {
-                                const slot = 3 + i
-                                if (pick) handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, slot)
-                                else if (activeBlock?.assets[slot]) handleRemoveAsset(activeBlock.assets[slot].id)
-                              }}
-                              placeholder={`Icon ${i + 1}`}
-                              thumbnailFit="contain"
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {(!folderConfig.texturesAlbumId && !folderConfig.logosAlbumId && !folderConfig.iconsAlbumId) && (
-                  <p className="text-[10px] text-gray-400 text-center py-1">
-                    Configure folders in Bulk Mode → Image Library ⚙
-                  </p>
-                )}
-              </div>
-            </Section>
-
-            {/* Layout */}
-            <Section title="Layout" icon={<LayoutGridIcon />}>
-              <div className="space-y-4">
-                {/* Panel order — not applicable for gallery */}
-                {!isGallery && (
-                  <div>
-                    <p className="label-xs mb-2">Panel order</p>
-                    <div className="flex gap-2">
-                      {[false, true].map(flipped => (
-                        <button
-                          key={String(flipped)}
-                          onClick={() => patchSettings({ layoutFlipped: flipped })}
-                          title={flipped ? 'Text left · Photo right' : 'Photo left · Text right'}
-                          className={`flex-1 h-9 rounded-lg border-2 flex items-center justify-center transition-all ${
-                            settings.layoutFlipped === flipped
-                              ? 'border-gray-900 bg-gray-900 text-white'
-                              : 'border-gray-200 text-gray-400 hover:border-gray-300'
-                          }`}
-                        >
-                          <PanelIcon photoLeft={!flipped} active={settings.layoutFlipped === flipped} />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <p className="label-xs mb-2">Logo corner</p>
-                  <div className="grid grid-cols-2 gap-1 w-16">
-                    {(['tl', 'tr', 'bl', 'br'] as const).map(c => (
-                      <button
-                        key={c}
-                        onClick={() => patchSettings({ logoCorner: c })}
-                        className={`h-7 rounded text-sm border-2 flex items-center justify-center transition-all ${
-                          settings.logoCorner === c
-                            ? 'border-gray-900 bg-gray-900 text-white'
-                            : 'border-gray-200 text-gray-400 hover:border-gray-300'
-                        }`}
-                      >
-                        {c === 'tl' ? '↖' : c === 'tr' ? '↗' : c === 'bl' ? '↙' : '↘'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </Section>
-
-            {/* Typography */}
-            <Section title="Typography" icon={<TypoIcon />}>
-              <div className="space-y-3">
-
-                {/* Title card */}
-                <div className="rounded-xl bg-gray-50 px-3 pt-2.5 pb-3 space-y-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Title</p>
-                  <Slider label="Size" value={settings.titleFontSize} unit="px" min={24} max={200} step={2}
-                    onChange={v => patchSettings({ titleFontSize: v })} />
-                  <Slider label="Line height" value={Math.round(settings.titleLineHeight * 100)} unit="%" min={70} max={150} step={5}
-                    onChange={v => patchSettings({ titleLineHeight: v / 100 })} />
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Transform</p>
-                    <TransformBtns value={settings.titleTextTransform} onChange={v => patchSettings({ titleTextTransform: v })} />
-                  </div>
-                  <Slider label="Max width" value={settings.titleWidth} unit="%" min={20} max={100} step={5}
-                    onChange={v => patchSettings({ titleWidth: v })} />
-                </div>
-
-                {/* Description card */}
-                <div className="rounded-xl bg-gray-50 px-3 pt-2.5 pb-3 space-y-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Description</p>
-                  <Slider label="Size" value={settings.subtitleFontSize} unit="px" min={10} max={80} step={1}
-                    onChange={v => patchSettings({ subtitleFontSize: v })} />
-                  <Slider label="Line height" value={settings.subtitleLineHeight} unit="px" min={10} max={120} step={1}
-                    onChange={v => patchSettings({ subtitleLineHeight: v })} />
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Transform</p>
-                    <TransformBtns value={settings.subtitleTextTransform} onChange={v => patchSettings({ subtitleTextTransform: v })} />
-                  </div>
-                  <Slider label="Max width" value={settings.subtitleWidth} unit="%" min={20} max={100} step={5}
-                    onChange={v => patchSettings({ subtitleWidth: v })} />
-                </div>
-
-                {/* Icon labels card — for aplus-icons and gallery-icons */}
-                {((!isGallery && design.activeTemplate === 'aplus-icons') || (isGallery && design.activeGalleryTemplate === 'gallery-icons')) && (
-                  <div className="rounded-xl bg-gray-50 px-3 pt-2.5 pb-3 space-y-2.5">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Icon Labels</p>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Count</p>
-                      <div className="flex gap-1">
-                        {([2, 3, 4] as const).map(n => (
-                          <button
-                            key={n}
-                            onClick={() => patchDesign({ iconCount: n })}
-                            className={`flex-1 h-7 rounded-md text-xs font-bold border-2 transition-all ${
-                              design.iconCount === n
-                                ? 'border-gray-900 bg-gray-900 text-white'
-                                : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600'
-                            }`}
-                          >
-                            {n}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <Slider label="Icon size" value={settings.iconSize} unit="px" min={24} max={120} step={4}
-                      onChange={v => patchSettings({ iconSize: v })} />
-                    <Slider label="Label size" value={settings.iconLabelFontSize} unit="px" min={10} max={32} step={1}
-                      onChange={v => patchSettings({ iconLabelFontSize: v })} />
-                    <Slider label="Label leading" value={settings.iconLabelLineHeight} unit="px" min={10} max={50} step={1}
-                      onChange={v => patchSettings({ iconLabelLineHeight: v })} />
-                  </div>
-                )}
-
-              </div>
-            </Section>
-
-            {/* Spacing */}
-            <Section title="Spacing" icon={<SpacingIcon />}>
-              <div className="space-y-2">
-                <Slider label="Padding H" value={settings.contentPaddingX} unit="px" min={8} max={120} step={4}
-                  onChange={v => patchSettings({ contentPaddingX: v })} />
-                <Slider label="Padding V" value={settings.contentPaddingV} unit="px" min={8} max={120} step={4}
-                  onChange={v => patchSettings({ contentPaddingV: v })} />
-                <Slider label="Logo size" value={settings.logoSize} unit="px" min={20} max={200} step={4}
-                  onChange={v => patchSettings({ logoSize: v })} />
-                <Slider label="Logo padding" value={settings.logoPadding} unit="px" min={4} max={100} step={4}
-                  onChange={v => patchSettings({ logoPadding: v })} />
-              </div>
-            </Section>
-
             {/* Content */}
             <Section title="Content" icon={<EditIcon />} defaultOpen>
               <div className="space-y-3">
@@ -1444,6 +1311,359 @@ export default function DesignWorkspace() {
                     ))}
                   </div>
                 )}
+              </div>
+            </Section>
+
+            {/* Images — local upload + Canto library + photo composition */}
+            <Section title="Images" icon={<ImagesIcon />} defaultOpen>
+              <div className="space-y-4">
+
+                {/* Local upload */}
+                <AssetUploader
+                  assets={activeBlock?.assets ?? []}
+                  onAdd={handleAddAsset}
+                  onRemove={handleRemoveAsset}
+                  slotLabels={assetSlotLabels}
+                />
+
+                {/* Canto library pickers */}
+                <div className="space-y-3">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Canto Library</p>
+                  {/* Product Photo */}
+                  <div>
+                    <p className="text-[10px] text-gray-400 mb-1.5">Product Photo</p>
+                    {(() => {
+                      const asset = activeBlock?.assets[0]
+                      return asset ? (
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-12 h-8 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden shrink-0">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
+                          </div>
+                          <button
+                            onClick={() => setPhotoPickerOpen(true)}
+                            className="flex-1 text-left text-[10px] text-gray-500 hover:text-gray-700 truncate"
+                            title={asset.name}
+                          >
+                            {asset.name}
+                          </button>
+                          <button
+                            onClick={() => handleRemoveAsset(asset.id)}
+                            className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
+                            title="Remove photo"
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setPhotoPickerOpen(true)}
+                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-gray-300 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
+                        >
+                          <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                          </svg>
+                          Pick from library
+                        </button>
+                      )
+                    })()}
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 mb-1.5">Background Texture</p>
+                    <CantoAssetPicker
+                      albumId={folderConfig.texturesAlbumId}
+                      value={activeBlock?.assets[1] ? { id: activeBlock.assets[1].id, name: activeBlock.assets[1].name, previewUrl: activeBlock.assets[1].url } : null}
+                      onChange={pick => {
+                        if (pick) handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 1)
+                        else if (activeBlock?.assets[1]) handleRemoveAsset(activeBlock.assets[1].id)
+                      }}
+                      placeholder="Pick texture from Canto"
+                      thumbnailFit="cover"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-gray-400 mb-1.5">Brand Logo</p>
+                    <CantoAssetPicker
+                      albumId={folderConfig.logosAlbumId}
+                      value={activeBlock?.assets[2] ? { id: activeBlock.assets[2].id, name: activeBlock.assets[2].name, previewUrl: activeBlock.assets[2].url } : null}
+                      onChange={pick => {
+                        if (pick) handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 2)
+                        else if (activeBlock?.assets[2]) handleRemoveAsset(activeBlock.assets[2].id)
+                      }}
+                      placeholder="Pick logo from Canto"
+                      thumbnailFit="contain"
+                    />
+                  </div>
+                  {/* Icon images — for icon templates */}
+                  {(design.activeTemplate === 'aplus-icons' || !isGallery) && (
+                    <div>
+                      <p className="text-[10px] text-gray-400 mb-1.5">Icons</p>
+                      <div className="space-y-1.5">
+                        {Array.from({ length: design.iconCount }, (_, i) => {
+                          const slot = 3 + i
+                          const asset = activeBlock?.assets[slot]
+                          return (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className="text-[9px] font-semibold text-gray-400 w-10 shrink-0">Icon {i + 1}</span>
+                              <div className="flex-1 flex items-center gap-1.5">
+                                {asset ? (
+                                  <>
+                                    <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={asset.url} alt={asset.name} className="max-w-full max-h-full object-contain p-0.5" />
+                                    </div>
+                                    <button
+                                      onClick={() => setIconPickerSlot(slot)}
+                                      className="flex-1 text-left text-[10px] text-gray-500 hover:text-gray-700 truncate"
+                                      title={asset.name}
+                                    >
+                                      {asset.name}
+                                    </button>
+                                    <button
+                                      onClick={() => handleRemoveAsset(asset.id)}
+                                      className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
+                                      title="Remove icon"
+                                    >
+                                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                      </svg>
+                                    </button>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => setIconPickerSlot(slot)}
+                                    disabled={!folderConfig.iconsAlbumId}
+                                    className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-gray-300 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                  >
+                                    <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Pick icon
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {(!folderConfig.texturesAlbumId && !folderConfig.logosAlbumId && !folderConfig.iconsAlbumId) && (
+                    <p className="text-[10px] text-gray-400 text-center py-1">
+                      Configure folders in Bulk Mode → Image Library ⚙
+                    </p>
+                  )}
+                </div>
+
+                {/* Photo composition */}
+                <div className="space-y-2.5">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Photo Composition</p>
+                  <button
+                    onClick={() => setPhotoEditMode(m => !m)}
+                    className={`w-full h-9 flex items-center justify-center gap-2 rounded-xl border-2 text-[11px] font-bold uppercase tracking-widest transition-all ${
+                      photoEditMode
+                        ? 'border-gray-900 bg-gray-900 text-white'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700'
+                    }`}
+                  >
+                    <MoveIcon />
+                    {photoEditMode ? 'Drag enabled · click photo' : 'Drag to reposition'}
+                  </button>
+                  <div className="rounded-xl bg-gray-50 px-3 pt-2.5 pb-3 space-y-2.5">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-500">Scale</span>
+                        <span className="text-xs text-gray-400 tabular-nums font-mono">
+                          {((settings.photoComposition ?? DEFAULT_PHOTO_COMP).scale).toFixed(2)}×
+                        </span>
+                      </div>
+                      <input type="range" min={1} max={4} step={0.01}
+                        value={(settings.photoComposition ?? DEFAULT_PHOTO_COMP).scale}
+                        onChange={e => patchPhotoComp(p => ({ ...p, scale: Number(e.target.value) }))}
+                        className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {([['x', 'Pan X'], ['y', 'Pan Y']] as const).map(([axis, label]) => (
+                        <div key={axis}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-gray-500">{label}</span>
+                            <span className="text-xs text-gray-400 tabular-nums font-mono">
+                              {Math.round((settings.photoComposition ?? DEFAULT_PHOTO_COMP)[axis] * 100)}%
+                            </span>
+                          </div>
+                          <input type="range" min={-100} max={100} step={1}
+                            value={Math.round((settings.photoComposition ?? DEFAULT_PHOTO_COMP)[axis] * 100)}
+                            onChange={e => patchPhotoComp(p => ({ ...p, [axis]: Number(e.target.value) / 100 }))}
+                            className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-500">Rotation</span>
+                        <span className="text-xs text-gray-400 tabular-nums font-mono">
+                          {(settings.photoComposition ?? DEFAULT_PHOTO_COMP).rotation}°
+                        </span>
+                      </div>
+                      <input type="range" min={-180} max={180} step={1}
+                        value={(settings.photoComposition ?? DEFAULT_PHOTO_COMP).rotation}
+                        onChange={e => patchPhotoComp(p => ({ ...p, rotation: Number(e.target.value) }))}
+                        className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => patchPhotoComp(p => ({ ...p, flipH: !p.flipH }))}
+                      className={`flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg border text-[10px] font-semibold transition-all ${
+                        (settings.photoComposition ?? DEFAULT_PHOTO_COMP).flipH
+                          ? 'border-gray-900 bg-gray-900 text-white'
+                          : 'border-gray-200 text-gray-500 hover:border-gray-400'
+                      }`}
+                    >
+                      <FlipHIcon /> Flip H
+                    </button>
+                    <button
+                      onClick={() => patchPhotoComp(() => DEFAULT_PHOTO_COMP)}
+                      className="flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 text-[10px] font-semibold text-gray-500 hover:border-gray-400 transition-all"
+                    >
+                      <ResetIcon /> Reset
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </Section>
+
+            {/* Layout */}
+            <Section title="Layout" icon={<LayoutGridIcon />}>
+              <div className="space-y-4">
+                {/* Panel order — not applicable for gallery */}
+                {!isGallery && (
+                  <div>
+                    <p className="label-xs mb-2">Panel order</p>
+                    <div className="flex gap-2">
+                      {[false, true].map(flipped => (
+                        <button
+                          key={String(flipped)}
+                          onClick={() => patchSettings({ layoutFlipped: flipped })}
+                          title={flipped ? 'Text left · Photo right' : 'Photo left · Text right'}
+                          className={`flex-1 h-9 rounded-lg border-2 flex items-center justify-center transition-all ${
+                            settings.layoutFlipped === flipped
+                              ? 'border-gray-900 bg-gray-900 text-white'
+                              : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                          }`}
+                        >
+                          <PanelIcon photoLeft={!flipped} active={settings.layoutFlipped === flipped} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <p className="label-xs mb-2">Logo corner</p>
+                  <div className="grid grid-cols-2 gap-1 w-16">
+                    {(['tl', 'tr', 'bl', 'br'] as const).map(c => (
+                      <button
+                        key={c}
+                        onClick={() => patchSettings({ logoCorner: c })}
+                        className={`h-7 rounded text-sm border-2 flex items-center justify-center transition-all ${
+                          settings.logoCorner === c
+                            ? 'border-gray-900 bg-gray-900 text-white'
+                            : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                        }`}
+                      >
+                        {c === 'tl' ? '↖' : c === 'tr' ? '↗' : c === 'bl' ? '↙' : '↘'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Slider label="Logo size" value={settings.logoSize} unit="px" min={20} max={200} step={4}
+                  onChange={v => patchSettings({ logoSize: v })} />
+                <Slider label="Logo padding" value={settings.logoPadding} unit="px" min={4} max={100} step={4}
+                  onChange={v => patchSettings({ logoPadding: v })} />
+              </div>
+            </Section>
+
+            {/* Icons — count, size, label styling; only for icon templates */}
+            {((!isGallery && design.activeTemplate === 'aplus-icons') || (isGallery && design.activeGalleryTemplate === 'gallery-icons')) && (
+              <Section title="Icons" icon={<CantoSidebarIcon />}>
+                <div className="space-y-3">
+                  <div className="rounded-xl bg-gray-50 px-3 pt-2.5 pb-3 space-y-2.5">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Count</p>
+                      <div className="flex gap-1">
+                        {([2, 3, 4] as const).map(n => (
+                          <button
+                            key={n}
+                            onClick={() => patchDesign({ iconCount: n })}
+                            className={`flex-1 h-7 rounded-md text-xs font-bold border-2 transition-all ${
+                              design.iconCount === n
+                                ? 'border-gray-900 bg-gray-900 text-white'
+                                : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600'
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <Slider label="Icon size" value={settings.iconSize} unit="px" min={24} max={120} step={4}
+                      onChange={v => patchSettings({ iconSize: v })} />
+                    <Slider label="Label size" value={settings.iconLabelFontSize} unit="px" min={10} max={32} step={1}
+                      onChange={v => patchSettings({ iconLabelFontSize: v })} />
+                    <Slider label="Label leading" value={settings.iconLabelLineHeight} unit="px" min={10} max={50} step={1}
+                      onChange={v => patchSettings({ iconLabelLineHeight: v })} />
+                  </div>
+                </div>
+              </Section>
+            )}
+
+            {/* Typography */}
+            <Section title="Typography" icon={<TypoIcon />}>
+              <div className="space-y-3">
+
+                {/* Title card */}
+                <div className="rounded-xl bg-gray-50 px-3 pt-2.5 pb-3 space-y-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Title</p>
+                  <Slider label="Size" value={settings.titleFontSize} unit="px" min={24} max={200} step={2}
+                    onChange={v => patchSettings({ titleFontSize: v })} />
+                  <Slider label="Line height" value={Math.round(settings.titleLineHeight * 100)} unit="%" min={70} max={150} step={5}
+                    onChange={v => patchSettings({ titleLineHeight: v / 100 })} />
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Transform</p>
+                    <TransformBtns value={settings.titleTextTransform} onChange={v => patchSettings({ titleTextTransform: v })} />
+                  </div>
+                  <Slider label="Max width" value={settings.titleWidth} unit="%" min={20} max={100} step={5}
+                    onChange={v => patchSettings({ titleWidth: v })} />
+                </div>
+
+                {/* Description card */}
+                <div className="rounded-xl bg-gray-50 px-3 pt-2.5 pb-3 space-y-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Description</p>
+                  <Slider label="Size" value={settings.subtitleFontSize} unit="px" min={10} max={80} step={1}
+                    onChange={v => patchSettings({ subtitleFontSize: v })} />
+                  <Slider label="Line height" value={settings.subtitleLineHeight} unit="px" min={10} max={120} step={1}
+                    onChange={v => patchSettings({ subtitleLineHeight: v })} />
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Transform</p>
+                    <TransformBtns value={settings.subtitleTextTransform} onChange={v => patchSettings({ subtitleTextTransform: v })} />
+                  </div>
+                  <Slider label="Max width" value={settings.subtitleWidth} unit="%" min={20} max={100} step={5}
+                    onChange={v => patchSettings({ subtitleWidth: v })} />
+                </div>
+
+              </div>
+            </Section>
+
+            {/* Spacing */}
+            <Section title="Spacing" icon={<SpacingIcon />}>
+              <div className="space-y-2">
+                <Slider label="Padding H" value={settings.contentPaddingX} unit="px" min={8} max={120} step={4}
+                  onChange={v => patchSettings({ contentPaddingX: v })} />
+                <Slider label="Padding V" value={settings.contentPaddingV} unit="px" min={8} max={120} step={4}
+                  onChange={v => patchSettings({ contentPaddingV: v })} />
               </div>
             </Section>
 
@@ -1726,7 +1946,47 @@ export default function DesignWorkspace() {
       </>)}
 
       <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+      <PreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} design={design} />
+      <CantoIconPickerModal
+        albumId={folderConfig.iconsAlbumId}
+        open={iconPickerSlot !== null}
+        onClose={() => setIconPickerSlot(null)}
+        slotLabel={iconPickerSlot !== null ? `Icon ${iconPickerSlot - 2}` : undefined}
+        onSelect={pick => {
+          if (iconPickerSlot !== null)
+            handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, iconPickerSlot)
+        }}
+      />
+      <CantoPhotoPickerModal
+        open={photoPickerOpen}
+        onClose={() => setPhotoPickerOpen(false)}
+        initialQuery={design.productName}
+        onSelect={pick => handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 0)}
+      />
     </div>
+  )
+}
+
+// ─── Button component ─────────────────────────────────────────────────────────
+
+type BtnVariant = 'primary' | 'secondary' | 'ghost'
+type BtnSize = 'sm' | 'md'
+
+function Btn({ variant = 'primary', size = 'md', className = '', children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant; size?: BtnSize }) {
+  const base = 'inline-flex items-center justify-center gap-1.5 font-bold uppercase tracking-widest rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed'
+  const sizes: Record<BtnSize, string> = {
+    sm: 'h-7 px-3 text-[10px]',
+    md: 'h-8 px-4 text-[11px]',
+  }
+  const variants: Record<BtnVariant, string> = {
+    primary:   'bg-gray-900 text-white hover:bg-gray-700',
+    secondary: 'border border-gray-200 text-gray-600 bg-white hover:border-gray-400 hover:text-gray-900',
+    ghost:     'text-gray-500 hover:bg-gray-100 hover:text-gray-800',
+  }
+  return (
+    <button className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...props}>
+      {children}
+    </button>
   )
 }
 

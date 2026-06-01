@@ -89,11 +89,88 @@ export async function loadProductHistory(db: Client, userId: string, limit = 10)
   return data ?? []
 }
 
+// ── Projects ──────────────────────────────────────────────────────────────────
+
+export interface DbProject {
+  id: string
+  user_id: string
+  name: string
+  state: DesignState
+  thumbnail_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export async function listProjects(db: Client, userId: string): Promise<Omit<DbProject, 'state'>[]> {
+  const { data } = await db
+    .from('projects')
+    .select('id, user_id, name, thumbnail_url, created_at, updated_at')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+  return (data ?? []) as Omit<DbProject, 'state'>[]
+}
+
+export async function createProject(db: Client, userId: string, name: string, state: DesignState): Promise<string | null> {
+  const { data, error } = await db
+    .from('projects')
+    .insert({ user_id: userId, name, state: stripProjectBlobUrls(state) })
+    .select('id')
+    .single()
+  if (error) { console.error('createProject:', error.message); return null }
+  return data.id
+}
+
+export async function loadProject(db: Client, id: string): Promise<DbProject | null> {
+  const { data } = await db
+    .from('projects')
+    .select('id, user_id, name, state, thumbnail_url, created_at, updated_at')
+    .eq('id', id)
+    .single()
+  if (!data) return null
+  return { ...data, state: data.state as unknown as DesignState }
+}
+
+export async function saveProject(db: Client, id: string, state: DesignState): Promise<void> {
+  await db
+    .from('projects')
+    .update({ state: stripProjectBlobUrls(state), updated_at: new Date().toISOString() })
+    .eq('id', id)
+}
+
+export async function renameProject(db: Client, id: string, name: string): Promise<void> {
+  await db
+    .from('projects')
+    .update({ name, updated_at: new Date().toISOString() })
+    .eq('id', id)
+}
+
+export async function deleteProject(db: Client, id: string): Promise<void> {
+  await db.from('projects').delete().eq('id', id)
+}
+
+export async function saveProjectThumbnail(db: Client, id: string, thumbnailUrl: string): Promise<void> {
+  await db
+    .from('projects')
+    .update({ thumbnail_url: thumbnailUrl, updated_at: new Date().toISOString() })
+    .eq('id', id)
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function stripBlobUrls(state: DesignState): DesignState {
   return {
     ...state,
     assets: state.assets.map(a => a ? { ...a, url: '' } : a),
+  }
+}
+
+function stripProjectBlobUrls(state: DesignState): DesignState {
+  return {
+    ...state,
+    assets: (state.assets ?? []).map(a => a ? { ...a, url: '' } : a),
+    blocks: (state.blocks ?? []).map(b => ({
+      ...b,
+      assets: (b.assets ?? []).map(a => a ? { ...a, url: '' } : a),
+    })),
   }
 }

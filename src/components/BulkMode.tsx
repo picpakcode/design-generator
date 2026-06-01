@@ -143,7 +143,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
       productPhotoCache.current.clear()
 
       const saved = loadFolderConfig()
-      const hasAnySaved = saved.iconsAlbumId || saved.texturesAlbumId || saved.logosAlbumId
+      const hasAnySaved = saved.iconsAlbumId || saved.texturesAlbumId || saved.logosAlbumId || saved.photosAlbumId
       if (!hasAnySaved) {
         // First time: auto-match by album name
         const matched = { ...EMPTY_CONFIG, ...autoMatchFolders(data) }
@@ -633,6 +633,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
               <div className="mt-1 pt-3 border-t border-gray-100 space-y-2">
                 <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Asset Folders</p>
                 {([
+                  { key: 'photosAlbumId',   label: 'Photos' },
                   { key: 'iconsAlbumId',    label: 'Icons' },
                   { key: 'texturesAlbumId', label: 'Textures' },
                   { key: 'logosAlbumId',    label: 'Logos' },

@@ -22,6 +22,11 @@ export type Database = {
         Insert: { id: string; user_id: string; name: string; storage_path: string }
         Update: { name?: string; storage_path?: string }
       }
+      projects: {
+        Row:    { id: string; user_id: string; name: string; state: unknown; thumbnail_url: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; user_id: string; name: string; state: unknown; thumbnail_url?: string | null }
+        Update: { name?: string; state?: unknown; thumbnail_url?: string | null; updated_at?: string }
+      }
     }
   }
 }

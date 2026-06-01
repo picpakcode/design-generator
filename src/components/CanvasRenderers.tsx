@@ -309,13 +309,8 @@ export function CanvasContent({ design, settings, onPhotoMouseDown }: { design: 
   const textureImg = design.assets[1]
   const logoImg    = design.assets[2]
 
-  const accentBar: React.CSSProperties = settings.layoutFlipped
-    ? { position: 'absolute', top: 0, right: 0, bottom: 0, width: 8, backgroundColor: design.accentColor }
-    : { position: 'absolute', top: 0, left: 0, bottom: 0, width: 8, backgroundColor: design.accentColor }
-
-  const contentPad = settings.layoutFlipped
-    ? `${settings.contentPaddingV}px ${settings.contentPaddingX + 8}px ${settings.contentPaddingV}px ${settings.contentPaddingX}px`
-    : `${settings.contentPaddingV}px ${settings.contentPaddingX}px ${settings.contentPaddingV}px ${settings.contentPaddingX + 8}px`
+  // Accent bar sits at the center seam (not inside a panel) so it stays aligned regardless of flip
+  const contentPad = `${settings.contentPaddingV}px ${settings.contentPaddingX}px ${settings.contentPaddingV}px ${settings.contentPaddingX}px`
 
   const logoPos: React.CSSProperties = {
     position: 'absolute',
@@ -345,7 +340,6 @@ export function CanvasContent({ design, settings, onPhotoMouseDown }: { design: 
         <div style={{ position: 'absolute', inset: 0, backgroundColor: design.primaryColor }} />
       )}
       <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.35)' }} />
-      <div style={accentBar} />
       <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: contentPad }}>
         {logoImg && (
           <div style={logoPos}>
@@ -381,8 +375,10 @@ export function CanvasContent({ design, settings, onPhotoMouseDown }: { design: 
   )
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden' }}>
+    <div style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden', position: 'relative' }}>
       {settings.layoutFlipped ? <>{ContentPanel}{PhotoPanel}</> : <>{PhotoPanel}{ContentPanel}</>}
+      {/* Bar centered on the seam — same position regardless of flip */}
+      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 'calc(50% - 4px)', width: 8, backgroundColor: design.accentColor, zIndex: 2 }} />
     </div>
   )
 }
@@ -409,11 +405,7 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
     </div>
   )
 
-  // Default (not flipped): content LEFT, photo RIGHT → accent bar on RIGHT edge of content panel
-  // Flipped: content RIGHT, photo LEFT → accent bar on LEFT edge of content panel
-  const accentBarStyle: React.CSSProperties = settings.layoutFlipped
-    ? { position: 'absolute', top: 0, left: 0, bottom: 0, width: 8, backgroundColor: design.accentColor }
-    : { position: 'absolute', top: 0, right: 0, bottom: 0, width: 8, backgroundColor: design.accentColor }
+  // Accent bar is placed on the outer wrapper centered on the seam — keeps it aligned regardless of flip
 
   const iconFilter2 = iconColorToFilter(design.iconColor ?? '#ffffff')
 
@@ -479,10 +471,11 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
     const botH = template.height - topH
     return (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ height: topH, display: 'flex', flexShrink: 0 }}>
+        <div style={{ height: topH, display: 'flex', flexShrink: 0, position: 'relative' }}>
+          {/* Bar centered on the seam */}
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: 'calc(50% - 4px)', width: 8, backgroundColor: design.accentColor, zIndex: 2 }} />
           <div style={{ width: '50%', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
             {bgPanel}
-            <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 8, backgroundColor: design.accentColor }} />
             <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: `${settings.contentPaddingV}px ${settings.contentPaddingX}px` }}>
               {logoImg && (
                 <div style={logoPos}>
@@ -524,16 +517,12 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
     )
   }
 
-  // Default (not flipped): content LEFT, photo RIGHT → extra 8px pad on RIGHT (next to accent bar)
-  // Flipped: content RIGHT, photo LEFT → extra 8px pad on LEFT (next to accent bar)
-  const iconsPanelPad = settings.layoutFlipped
-    ? `${settings.contentPaddingV}px ${settings.contentPaddingX}px ${settings.contentPaddingV * 0.75}px ${settings.contentPaddingX + 8}px`
-    : `${settings.contentPaddingV}px ${settings.contentPaddingX + 8}px ${settings.contentPaddingV * 0.75}px ${settings.contentPaddingX}px`
+  // Bar is now on the outer wrapper (not inside content panel), uniform padding on all sides
+  const iconsPanelPad = `${settings.contentPaddingV}px ${settings.contentPaddingX}px ${settings.contentPaddingV * 0.75}px ${settings.contentPaddingX}px`
 
   const ContentPanel = (
     <div style={{ width: '50%', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
       {bgPanel}
-      <div style={accentBarStyle} />
       <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', padding: iconsPanelPad, boxSizing: 'border-box' }}>
         {/* Logo as a flow item so it never overlaps the title — left/right corner controls alignment */}
         {logoImg && (
@@ -588,8 +577,10 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
 
   // Default (not flipped): content LEFT, photo RIGHT
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden' }}>
+    <div style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden', position: 'relative' }}>
       {settings.layoutFlipped ? <>{PhotoPanel}{ContentPanel}</> : <>{ContentPanel}{PhotoPanel}</>}
+      {/* Bar centered on the seam — same position regardless of flip */}
+      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 'calc(50% - 4px)', width: 8, backgroundColor: design.accentColor, zIndex: 2 }} />
     </div>
   )
 }

@@ -1,5 +1,5 @@
-import DesignWorkspace from '@/components/DesignWorkspace'
+import { redirect } from 'next/navigation'
 
 export default function Home() {
-  return <DesignWorkspace />
+  redirect('/dashboard')
 }
