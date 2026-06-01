@@ -6,7 +6,7 @@ import { BulkProduct, ParseResult, downloadTemplate, parseCSV } from '@/lib/csv'
 import { DesignState, UploadedAsset } from '@/types'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import CantoAssetPicker, { CantoPick } from './CantoAssetPicker'
-import { CantoAlbum, FolderConfig, EMPTY_CONFIG, loadFolderConfig, saveFolderConfig, autoMatchFolders } from '@/lib/canto-folders'
+import { CantoAlbum, FolderConfig, EMPTY_CONFIG, autoMatchFolders } from '@/lib/canto-folders'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,9 +54,11 @@ interface BulkModeProps {
   designState: DesignState
   exportFnRef: React.MutableRefObject<() => void>
   onCanExportChange: (can: boolean) => void
+  folderConfig: FolderConfig
+  onFolderConfigChange: (patch: Partial<FolderConfig>) => void
 }
 
-export default function BulkMode({ designState, exportFnRef, onCanExportChange }: BulkModeProps) {
+export default function BulkMode({ designState, exportFnRef, onCanExportChange, folderConfig, onFolderConfigChange }: BulkModeProps) {
   // CSV
   const [parseResult, setParseResult] = useState<ParseResult | null>(null)
   const [csvFilename, setCsvFilename] = useState('')
@@ -69,7 +71,6 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
 
   // Canto folder config
   const [albums, setAlbums]           = useState<CantoAlbum[]>([])
-  const [folderConfig, setFolderConfig] = useState<FolderConfig>(EMPTY_CONFIG)
   const [folderConfigOpen, setFolderConfigOpen] = useState(false)
   const folderConfigRef = useRef<FolderConfig>(EMPTY_CONFIG)
 
@@ -142,15 +143,12 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
       iconCacheRef.current = null
       productPhotoCache.current.clear()
 
-      const saved = loadFolderConfig()
-      const hasAnySaved = saved.iconsAlbumId || saved.texturesAlbumId || saved.logosAlbumId || saved.photosAlbumId
+      const current = folderConfigRef.current
+      const hasAnySaved = current.iconsAlbumId || current.texturesAlbumId || current.logosAlbumId || current.photosAlbumId
       if (!hasAnySaved) {
-        // First time: auto-match by album name
+        // First time: auto-match by album name; parent hook persists to localStorage + Supabase
         const matched = { ...EMPTY_CONFIG, ...autoMatchFolders(data) }
-        saveFolderConfig(matched)
-        setFolderConfig(matched)
-      } else {
-        setFolderConfig(saved)
+        onFolderConfigChange(matched)
       }
     } catch { /* non-critical */ }
   }
@@ -192,9 +190,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
   // ── Folder config ─────────────────────────────────────────────────────────────
 
   const updateFolderConfig = (patch: Partial<FolderConfig>) => {
-    const next = { ...folderConfig, ...patch }
-    setFolderConfig(next)
-    saveFolderConfig(next)
+    onFolderConfigChange(patch)
     iconCacheRef.current = null
     productPhotoCache.current.clear()
   }

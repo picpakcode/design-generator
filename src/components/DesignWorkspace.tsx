@@ -14,7 +14,7 @@ import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentG
 import CantoAssetPicker from './CantoAssetPicker'
 import CantoIconPickerModal from './CantoIconPickerModal'
 import CantoPhotoPickerModal from './CantoPhotoPickerModal'
-import { FolderConfig, EMPTY_CONFIG, loadFolderConfig } from '@/lib/canto-folders'
+import { FolderConfig } from '@/lib/canto-folders'
 import { storeBlob, getBlob, deleteBlob } from '@/lib/idb'
 import { useAuth } from '@/hooks/useAuth'
 import { useAppSettings } from '@/hooks/useAppSettings'
@@ -204,7 +204,7 @@ interface Props { projectId?: string }
 
 export default function DesignWorkspace({ projectId }: Props) {
   const { user, signOut, loading: authLoading } = useAuth()
-  const { settings: appSettings, update: updateAppSettings } = useAppSettings()
+  const { settings: appSettings, update: updateAppSettings, folderConfig, updateFolderConfig } = useAppSettings()
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen]   = useState(false)
   const [iconPickerSlot, setIconPickerSlot] = useState<number | null>(null)
@@ -219,8 +219,6 @@ export default function DesignWorkspace({ projectId }: Props) {
   const [bulkCanExport, setBulkCanExport] = useState(false)
   const bulkExportFnRef = useRef<() => void>(() => {})
 
-  // Canto folder-based asset pickers
-  const [folderConfig, setFolderConfig] = useState<FolderConfig>(EMPTY_CONFIG)
   const canvasRef        = useRef<HTMLDivElement>(null)
   const altCanvasRef     = useRef<HTMLDivElement>(null)
   const wrapperRef       = useRef<HTMLDivElement>(null)
@@ -351,10 +349,9 @@ export default function DesignWorkspace({ projectId }: Props) {
   const canUndo = histIdxRef.current > 0
   const canRedo = histIdxRef.current < histRef.current.length - 1
 
-  // Always load presets and folder config on mount
+  // Load presets on mount
   useEffect(() => {
     try { const raw = localStorage.getItem('dg:presets'); if (raw) setPresets(JSON.parse(raw)) } catch {}
-    try { setFolderConfig(loadFolderConfig()) } catch {}
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync canvas bg default with theme — only when it's still a theme default (preserve custom colors)
@@ -1063,7 +1060,7 @@ export default function DesignWorkspace({ projectId }: Props) {
               </Btn>
             )}
 
-            <div className="w-px h-5 bg-gray-200 mx-1.5" />
+            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
 
             {/* Preview — only for A+ content mode */}
             {!isGallery && (
@@ -1247,7 +1244,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                     {/* Export All Blocks — only shown in A+ mode */}
                     {!isGallery && (
                       <>
-                        <div className="my-3 h-px bg-gray-100" />
+                        <div className="my-3 h-px bg-gray-100 dark:bg-gray-800" />
                         <div>
                           <p className="text-[9px] text-gray-400 mb-2 px-0.5">
                             {design.blocks.length} block{design.blocks.length !== 1 ? 's' : ''} · {design.blocks.length * 2} files
@@ -1289,7 +1286,7 @@ export default function DesignWorkspace({ projectId }: Props) {
 
       {/* ── Body ── */}
       {appMode === 'bulk' ? (
-        <BulkMode designState={design} exportFnRef={bulkExportFnRef} onCanExportChange={setBulkCanExport} />
+        <BulkMode designState={design} exportFnRef={bulkExportFnRef} onCanExportChange={setBulkCanExport} folderConfig={folderConfig} onFolderConfigChange={updateFolderConfig} />
       ) : (<>
       <div className="flex flex-1 min-h-0">
 
@@ -1314,7 +1311,7 @@ export default function DesignWorkspace({ projectId }: Props) {
           <div className="flex-1 min-h-0 overflow-y-auto">
 
             {/* Product — sets the constant prefix for all export filenames */}
-            <Section title="Product" icon={<ProductIcon />} defaultOpen>
+            <Section title="Product" icon={<ProductIcon />}>
               <div className="space-y-2">
                 <div>
                   <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
@@ -1326,7 +1323,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                     onChange={e => setDesign(d => ({ ...d, productName: e.target.value }))}
                     placeholder="e.g. CCV Filter D3932C"
                     spellCheck={false}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 transition-all"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
                   />
                 </div>
                 {design.productName.trim() && (
@@ -1352,7 +1349,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                     onChange={e => setPresetName(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') savePreset() }}
                     placeholder="Name this preset…"
-                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 transition-all min-w-0"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all min-w-0"
                   />
                   <button
                     onClick={savePreset}
@@ -1390,7 +1387,7 @@ export default function DesignWorkspace({ projectId }: Props) {
             </Section>
 
             {/* Content */}
-            <Section title="Content" icon={<EditIcon />} defaultOpen>
+            <Section title="Content" icon={<EditIcon />}>
               <div className="space-y-3">
                 <div>
                   <label className="label-xs mb-1.5 block">Title</label>
@@ -1451,9 +1448,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                             patchDesign({ iconLabels: next })
                           }}
                           placeholder={`Icon ${i + 1} label…`}
-                          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white
-                                     focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400
-                                     placeholder:text-gray-300 transition-all"
+                          className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
                         />
                       </div>
                     ))}
@@ -1463,7 +1458,7 @@ export default function DesignWorkspace({ projectId }: Props) {
             </Section>
 
             {/* Images — local upload + Canto library + photo composition */}
-            <Section title="Images" icon={<ImagesIcon />} defaultOpen>
+            <Section title="Images" icon={<ImagesIcon />}>
               <div className="space-y-4">
 
                 {/* Local upload */}
@@ -1484,7 +1479,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                       const asset = activeBlock?.assets[0]
                       return asset ? (
                         <div className="flex items-center gap-1.5">
-                          <div className="w-12 h-8 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden shrink-0">
+                          <div className="w-12 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
                           </div>
@@ -1508,7 +1503,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                       ) : (
                         <button
                           onClick={() => setPhotoPickerOpen(true)}
-                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-gray-300 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
+                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                         >
                           <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -1544,8 +1539,8 @@ export default function DesignWorkspace({ projectId }: Props) {
                       thumbnailFit="contain"
                     />
                   </div>
-                  {/* Icon images — for icon templates */}
-                  {(design.activeTemplate === 'aplus-icons' || !isGallery) && (
+                  {/* Icon images — only for icon templates */}
+                  {((!isGallery && design.activeTemplate === 'aplus-icons') || (isGallery && design.activeGalleryTemplate === 'gallery-icons')) && (
                     <div>
                       <p className="text-[10px] text-gray-400 mb-1.5">Icons</p>
                       <div className="space-y-1.5">
@@ -1558,7 +1553,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                               <div className="flex-1 flex items-center gap-1.5">
                                 {asset ? (
                                   <>
-                                    <div className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center overflow-hidden shrink-0">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img src={asset.url} alt={asset.name} className="max-w-full max-h-full object-contain p-0.5" />
                                     </div>
@@ -1583,7 +1578,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                                   <button
                                     onClick={() => setIconPickerSlot(slot)}
                                     disabled={!folderConfig.iconsAlbumId}
-                                    className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-gray-300 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                    className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                                   >
                                     <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -1619,7 +1614,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                     <MoveIcon />
                     {photoEditMode ? 'Drag enabled · click photo' : 'Drag to reposition'}
                   </button>
-                  <div className="rounded-xl bg-gray-50 px-3 pt-2.5 pb-3 space-y-2.5">
+                  <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs text-gray-500">Scale</span>
@@ -1727,10 +1722,12 @@ export default function DesignWorkspace({ projectId }: Props) {
                     ))}
                   </div>
                 </div>
-                <Slider label="Logo size" value={settings.logoSize} unit="px" min={20} max={200} step={4}
-                  onChange={v => patchSettings({ logoSize: v })} />
-                <Slider label="Logo padding" value={settings.logoPadding} unit="px" min={4} max={100} step={4}
-                  onChange={v => patchSettings({ logoPadding: v })} />
+                <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
+                  <Slider label="Logo size" value={settings.logoSize} unit="px" min={20} max={200} step={4}
+                    onChange={v => patchSettings({ logoSize: v })} />
+                  <Slider label="Logo padding" value={settings.logoPadding} unit="px" min={4} max={100} step={4}
+                    onChange={v => patchSettings({ logoPadding: v })} />
+                </div>
               </div>
             </Section>
 
@@ -1738,7 +1735,7 @@ export default function DesignWorkspace({ projectId }: Props) {
             {((!isGallery && design.activeTemplate === 'aplus-icons') || (isGallery && design.activeGalleryTemplate === 'gallery-icons')) && (
               <Section title="Icons" icon={<CantoSidebarIcon />}>
                 <div className="space-y-3">
-                  <div className="rounded-xl bg-gray-50 px-3 pt-2.5 pb-3 space-y-2.5">
+                  <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Count</p>
                       <div className="flex gap-1">
@@ -1773,8 +1770,8 @@ export default function DesignWorkspace({ projectId }: Props) {
               <div className="space-y-3">
 
                 {/* Title card */}
-                <div className="rounded-xl bg-gray-50 px-3 pt-2.5 pb-3 space-y-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Title</p>
+                <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Title</p>
                   <Slider label="Size" value={settings.titleFontSize} unit="px" min={24} max={200} step={2}
                     onChange={v => patchSettings({ titleFontSize: v })} />
                   <Slider label="Line height" value={Math.round(settings.titleLineHeight * 100)} unit="%" min={70} max={150} step={5}
@@ -1788,8 +1785,8 @@ export default function DesignWorkspace({ projectId }: Props) {
                 </div>
 
                 {/* Description card */}
-                <div className="rounded-xl bg-gray-50 px-3 pt-2.5 pb-3 space-y-2.5">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Description</p>
+                <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Description</p>
                   <Slider label="Size" value={settings.subtitleFontSize} unit="px" min={10} max={80} step={1}
                     onChange={v => patchSettings({ subtitleFontSize: v })} />
                   <Slider label="Line height" value={settings.subtitleLineHeight} unit="px" min={10} max={120} step={1}
@@ -1807,7 +1804,7 @@ export default function DesignWorkspace({ projectId }: Props) {
 
             {/* Spacing */}
             <Section title="Spacing" icon={<SpacingIcon />}>
-              <div className="space-y-2">
+              <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
                 <Slider label="Padding H" value={settings.contentPaddingX} unit="px" min={8} max={120} step={4}
                   onChange={v => patchSettings({ contentPaddingX: v })} />
                 <Slider label="Padding V" value={settings.contentPaddingV} unit="px" min={8} max={120} step={4}
@@ -1858,7 +1855,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                 {/* Section label */}
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Gallery Images</span>
-                  <div className="flex-1 h-px bg-gray-200" />
+                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
                 </div>
                 {/* Frames row */}
                 <div className="flex items-start" style={{ gap: FRAME_GAP }}>
@@ -1950,26 +1947,26 @@ export default function DesignWorkspace({ projectId }: Props) {
                             placeholder={`block-${blockIdx + 1}`}
                             spellCheck={false}
                             title="Block label — used in export filename"
-                            className="text-[10px] font-semibold text-gray-600 bg-transparent border-b border-transparent group-hover:border-gray-200 focus:border-gray-400 focus:outline-none w-28 placeholder-gray-300 transition-colors"
+                            className="text-[10px] font-semibold text-gray-600 dark:text-gray-400 bg-transparent border-b border-transparent group-hover:border-gray-200 dark:group-hover:border-gray-600 focus:border-gray-400 dark:focus:border-gray-500 focus:outline-none w-28 placeholder-gray-300 dark:placeholder-gray-600 transition-colors"
                           />
                         </div>
                         {/* Template switcher */}
-                        <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5">
+                        <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-800 rounded-md p-0.5">
                           {(['aplus-5050', 'aplus-icons'] as TemplateId[]).map(tid => (
                             <button
                               key={tid}
                               onClick={e => { e.stopPropagation(); changeBlockTemplate(block.id, tid) }}
                               className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all ${
                                 block.templateId === tid
-                                  ? 'bg-white shadow-sm text-gray-900'
-                                  : 'text-gray-500 hover:text-gray-700'
+                                  ? 'bg-white dark:bg-gray-600 shadow-sm text-gray-900 dark:text-white'
+                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                               }`}
                             >
                               {tid === 'aplus-5050' ? '50/50' : 'Icons'}
                             </button>
                           ))}
                         </div>
-                        <div className="flex-1 h-px bg-gray-200" />
+                        <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
                         {design.blocks.length > 1 && (
                           <button
                             onClick={e => { e.stopPropagation(); deleteBlock(block.id) }}
@@ -2079,7 +2076,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                 {/* Add block button */}
                 <button
                   onClick={addBlock}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-gray-700 border-2 border-dashed border-gray-200 hover:border-gray-400 rounded-lg transition-all"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 rounded-lg transition-all"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />

@@ -1,5 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { FolderConfig } from './canto-folders'
+import { EMPTY_CONFIG } from './canto-folders'
 
 export interface AppSettings {
   theme: 'light' | 'dark'
@@ -47,3 +49,31 @@ export async function saveDbSettings(db: Client, userId: string, s: AppSettings)
     updated_at:        new Date().toISOString(),
   }, { onConflict: 'user_id' })
 }
+
+// ── Canto folder config (synced to user_settings.canto_config jsonb) ──────────
+
+export async function loadDbFolderConfig(db: Client, userId: string): Promise<FolderConfig | null> {
+  const { data } = await db
+    .from('user_settings')
+    .select('canto_config')
+    .eq('user_id', userId)
+    .single()
+  if (!data?.canto_config) return null
+  const c = data.canto_config as Partial<FolderConfig>
+  return {
+    iconsAlbumId:    c.iconsAlbumId    ?? null,
+    texturesAlbumId: c.texturesAlbumId ?? null,
+    logosAlbumId:    c.logosAlbumId    ?? null,
+    photosAlbumId:   c.photosAlbumId   ?? null,
+  }
+}
+
+export async function saveDbFolderConfig(db: Client, userId: string, c: FolderConfig): Promise<void> {
+  await db.from('user_settings').upsert({
+    user_id:      userId,
+    canto_config: c,
+    updated_at:   new Date().toISOString(),
+  }, { onConflict: 'user_id' })
+}
+
+export { EMPTY_CONFIG }
