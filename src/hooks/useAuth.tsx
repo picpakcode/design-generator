@@ -22,9 +22,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser]       = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   useEffect(() => {
+    const supabase = createClient()
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setUser(data.session?.user ?? null)
@@ -37,9 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
-  const signOut = async () => { await supabase.auth.signOut() }
+  const signOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+  }
 
   return (
     <AuthCtx.Provider value={{ user, session, loading, signOut }}>
