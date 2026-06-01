@@ -2201,9 +2201,10 @@ function TransformBtns({ value, onChange }: { value: TextTransform; onChange: (v
 function ColorRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="flex items-center gap-3 cursor-pointer group">
-      <div className="relative w-9 h-9 rounded-xl overflow-hidden shrink-0 ring-2 ring-gray-200 dark:ring-gray-600 group-hover:ring-gray-400 transition-all">
-        <input type="color" value={value} onChange={e => onChange(e.target.value)} className="cursor-pointer border-none"
-          style={{ position: 'absolute', top: '-4px', left: '-4px', width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', padding: 0 }} />
+      <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0 ring-2 ring-gray-200 dark:ring-gray-600 group-hover:ring-gray-400 dark:group-hover:ring-gray-500 transition-all">
+        <div className="w-full h-full" style={{ backgroundColor: value }} />
+        <input type="color" value={value} onChange={e => onChange(e.target.value)}
+          style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs text-gray-600 dark:text-gray-400 leading-none mb-0.5">{label}</p>
