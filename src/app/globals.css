@@ -45,3 +45,36 @@
 .rich-subtitle ul,
 .rich-subtitle ol { padding-left: 1.2em; margin: 0.3em 0; }
 .rich-subtitle li { margin-bottom: 0.2em; }
+
+/* ── Dark mode: sidebar text inputs ─────────────────────── */
+.dark .dg-sidebar input:not([type="color"]):not([type="range"]):not([type="checkbox"]) {
+  background-color: rgb(31 41 55);
+  border-color: rgb(55 65 81);
+  color: rgb(229 231 235);
+}
+.dark .dg-sidebar input:not([type="color"]):not([type="range"])::placeholder {
+  color: rgb(107 114 128);
+}
+
+/* ── Dark mode: rich-text editor ────────────────────────── */
+.dark .rte-prosemirror {
+  color: rgb(209 213 219);
+  background-color: rgb(31 41 55);
+}
+.dark .rte-prosemirror p.is-editor-empty:first-child::before {
+  color: rgb(107 114 128);
+}
+
+/* ── Dark mode: dropdown popup panels ───────────────────── */
+.dark .dg-dropdown {
+  background-color: rgb(17 24 39);
+  border-color: rgb(55 65 81);
+}
+.dark .dg-dropdown * {
+  border-color: inherit;
+}
+
+/* ── Dark mode: range inputs ────────────────────────────── */
+.dark input[type="range"] {
+  accent-color: rgb(209 213 219);
+}

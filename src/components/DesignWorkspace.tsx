@@ -17,6 +17,7 @@ import CantoPhotoPickerModal from './CantoPhotoPickerModal'
 import { FolderConfig, EMPTY_CONFIG, loadFolderConfig } from '@/lib/canto-folders'
 import { storeBlob, getBlob, deleteBlob } from '@/lib/idb'
 import { useAuth } from '@/hooks/useAuth'
+import { useAppSettings } from '@/hooks/useAppSettings'
 import AuthModal from './AuthModal'
 import PreviewModal from './PreviewModal'
 
@@ -203,6 +204,7 @@ interface Props { projectId?: string }
 
 export default function DesignWorkspace({ projectId }: Props) {
   const { user, signOut } = useAuth()
+  const { settings: appSettings, update: updateAppSettings } = useAppSettings()
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen]   = useState(false)
   const [iconPickerSlot, setIconPickerSlot] = useState<number | null>(null)
@@ -417,9 +419,10 @@ export default function DesignWorkspace({ projectId }: Props) {
     return () => clearTimeout(t)
   }, [design])
 
-  // Auto-save project to Supabase (debounced 2s) — runs alongside localStorage save
+  // Auto-save project to Supabase — debounce interval from app settings; 0 = off
   useEffect(() => {
     if (!projectId || !user) return
+    if (!appSettings.autosaveInterval) return
     const supabase = createClient()
     const t = setTimeout(async () => {
       try {
@@ -446,9 +449,9 @@ export default function DesignWorkspace({ projectId }: Props) {
       } catch (err) {
         console.error('Supabase project save failed:', err)
       }
-    }, 2000)
+    }, appSettings.autosaveInterval)
     return () => clearTimeout(t)
-  }, [design, projectId, user]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [design, projectId, user, appSettings.autosaveInterval]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const savePreset = () => {
     const name = presetName.trim() || `Preset ${presets.length + 1}`
@@ -782,19 +785,19 @@ export default function DesignWorkspace({ projectId }: Props) {
     <div className="flex flex-col h-screen overflow-hidden">
 
       {/* ── App header ── */}
-      <header className="shrink-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3 z-20 shadow-sm">
+      <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3 z-20 shadow-sm">
         {projectId ? (
           <>
             <a
               href="/dashboard"
-              className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-500 hover:border-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-all shrink-0"
+              className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-lg border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shrink-0"
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
               Projects
             </a>
-            <div className="w-px h-5 bg-gray-200 shrink-0" />
+            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 shrink-0" />
             {isRenamingProject ? (
               <input
                 ref={projectNameInputRef}
@@ -808,14 +811,14 @@ export default function DesignWorkspace({ projectId }: Props) {
                 }}
                 spellCheck={false}
                 autoFocus
-                className="text-sm font-semibold text-gray-900 bg-transparent border-b-2 border-gray-400 outline-none px-0.5 min-w-0 shrink"
+                className="text-sm font-semibold text-gray-900 dark:text-gray-100 bg-transparent border-b-2 border-gray-400 dark:border-gray-500 outline-none px-0.5 min-w-0 shrink"
                 style={{ width: `${Math.max((projectNameDraft || '').length, 6)}ch` }}
               />
             ) : (
               <span
                 onDoubleClick={() => { setProjectNameDraft(projectName); setIsRenamingProject(true) }}
                 title="Double-click to rename"
-                className="text-sm font-semibold text-gray-700 hover:text-gray-900 cursor-default select-none truncate max-w-xs shrink"
+                className="text-sm font-semibold text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white cursor-default select-none truncate max-w-xs shrink"
               >
                 {projectName || 'Untitled Project'}
               </span>
@@ -823,25 +826,25 @@ export default function DesignWorkspace({ projectId }: Props) {
           </>
         ) : (
           <>
-            <div className="w-7 h-7 rounded-lg bg-gray-900 flex items-center justify-center shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-gray-900 dark:bg-gray-700 flex items-center justify-center shrink-0">
               <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <span className="font-bold text-gray-900 text-base tracking-tight shrink-0">Design Generator</span>
+            <span className="font-bold text-gray-900 dark:text-white text-base tracking-tight shrink-0">Design Generator</span>
           </>
         )}
 
         {/* Mode tabs */}
-        <div className="flex items-center bg-gray-100 rounded-lg p-0.5 shrink-0">
+        <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 shrink-0">
           {(['design', 'bulk'] as const).map(mode => (
             <button
               key={mode}
               onClick={() => setAppMode(mode)}
               className={`h-6 px-3 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
                 appMode === mode
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
               }`}
             >
               {mode === 'design' ? 'Design' : 'Bulk'}
@@ -861,8 +864,8 @@ export default function DesignWorkspace({ projectId }: Props) {
             {bulkExportOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setBulkExportOpen(false)} />
-                <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 z-50 animate-slide-down">
-                  <p className="text-[10px] text-gray-400 tabular-nums mb-3 px-1">
+                <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 p-3 z-50 animate-slide-down">
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums mb-3 px-1">
                     {bulkCanExport ? 'Generation complete' : 'Run bulk generation first'}
                   </p>
                   <button
@@ -883,12 +886,12 @@ export default function DesignWorkspace({ projectId }: Props) {
 
         {appMode === 'design' && (
           <>
-            <span className="text-gray-200 select-none shrink-0">|</span>
+            <span className="text-gray-200 dark:text-gray-700 select-none shrink-0">|</span>
             {/* Category dropdown */}
         <div className="relative">
           <button
             onClick={() => setCategoryDropdownOpen(o => !o)}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+            className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
           >
             <span className="font-medium">{categoryLabel}</span>
             <svg
@@ -903,7 +906,7 @@ export default function DesignWorkspace({ projectId }: Props) {
             <>
               {/* Backdrop — closes dropdown, sits below the menu */}
               <div className="fixed inset-0 z-40" onClick={() => setCategoryDropdownOpen(false)} />
-              <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 animate-slide-down">
+              <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 py-1.5 z-50 animate-slide-down">
                 {(['aplus', 'gallery'] as Category[]).map(id => {
                   const label = id === 'aplus' ? 'Amazon A+ Content' : 'Amazon Gallery Images'
                   const sub   = id === 'aplus' ? 'Rich banners below the fold' : 'Main product carousel · 1500×1500'
@@ -911,11 +914,11 @@ export default function DesignWorkspace({ projectId }: Props) {
                     <button
                       key={id}
                       onClick={() => { setDesign(d => ({ ...d, activeCategory: id })); setCategoryDropdownOpen(false) }}
-                      className={`w-full px-4 py-2.5 text-left flex items-center justify-between hover:bg-gray-50 transition-colors ${design.activeCategory === id ? 'bg-gray-50' : ''}`}
+                      className={`w-full px-4 py-2.5 text-left flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${design.activeCategory === id ? 'bg-gray-50 dark:bg-gray-800' : ''}`}
                     >
                       <div>
-                        <p className={`text-xs font-semibold ${design.activeCategory === id ? 'text-gray-900' : 'text-gray-500'}`}>{label}</p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>
+                        <p className={`text-xs font-semibold ${design.activeCategory === id ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{label}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{sub}</p>
                       </div>
                       {design.activeCategory === id && (
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 ml-2" />
@@ -933,15 +936,15 @@ export default function DesignWorkspace({ projectId }: Props) {
 
             {/* Undo / Redo */}
             <button onClick={undo} disabled={!canUndo} title="Undo (⌘Z)"
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <UndoIcon />
             </button>
             <button onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)"
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <RedoIcon />
             </button>
 
-            <div className="w-px h-5 bg-gray-200 mx-1.5" />
+            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
 
             {/* Auth button / user menu */}
             {user ? (
@@ -949,7 +952,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                 <button
                   onClick={() => setUserMenuOpen(o => !o)}
                   title={user.email ?? 'Account'}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-white text-[10px] font-bold">
                     {(user.email ?? '?')[0].toUpperCase()}
@@ -958,15 +961,15 @@ export default function DesignWorkspace({ projectId }: Props) {
                 {userMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                    <div className="absolute top-full right-0 mt-2 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 p-2 z-50 animate-slide-down">
+                    <div className="absolute top-full right-0 mt-2 w-52 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 p-2 z-50 animate-slide-down">
                       <div className="px-3 py-2 mb-1">
-                        <p className="text-xs font-semibold text-gray-800 truncate">{user.user_metadata?.full_name ?? user.email}</p>
-                        <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
+                        <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{user.user_metadata?.full_name ?? user.email}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{user.email}</p>
                       </div>
-                      <div className="h-px bg-gray-100 mb-1" />
+                      <div className="h-px bg-gray-100 dark:bg-gray-700 mb-1" />
                       <button
                         onClick={() => { setUserMenuOpen(false); signOut() }}
-                        className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-red-500 rounded-lg transition-colors"
+                        className="w-full text-left px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-500 rounded-lg transition-colors"
                       >
                         Sign out
                       </button>
@@ -987,7 +990,7 @@ export default function DesignWorkspace({ projectId }: Props) {
               <button
                 onClick={() => setPreviewOpen(true)}
                 title="Preview all blocks"
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1001,7 +1004,7 @@ export default function DesignWorkspace({ projectId }: Props) {
               <button
                 onClick={() => setSettingsMenuOpen(o => !o)}
                 title="Settings"
-                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${settingsMenuOpen ? 'bg-gray-100 text-gray-800' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'}`}
+                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${settingsMenuOpen ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300'}`}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -1011,35 +1014,97 @@ export default function DesignWorkspace({ projectId }: Props) {
               {settingsMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setSettingsMenuOpen(false)} />
-                  <div className="absolute top-full right-0 mt-2 w-60 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 z-50 animate-slide-down">
-                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-3">Preview background</p>
+                  <div className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 p-4 z-50 animate-slide-down">
+
+                    {/* Appearance */}
+                    <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Appearance</p>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-gray-600 dark:text-gray-400">Theme</span>
+                      <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+                        {(['light', 'dark'] as const).map(t => (
+                          <button key={t} onClick={() => updateAppSettings({ theme: t })}
+                            className={`h-6 px-3 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.theme === t ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                            {t === 'light' ? 'Light' : 'Dark'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-xs text-gray-600 dark:text-gray-400">Density</span>
+                      <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+                        {(['comfortable', 'compact'] as const).map(d => (
+                          <button key={d} onClick={() => updateAppSettings({ uiDensity: d })}
+                            className={`h-6 px-3 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.uiDensity === d ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                            {d === 'comfortable' ? 'Cozy' : 'Compact'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-gray-100 dark:bg-gray-800 mb-4" />
+
+                    {/* Canvas background */}
+                    <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Preview background</p>
                     <div className="flex items-center gap-2 mb-1">
                       {(['#FFFFFF', '#F0F0F0', '#E0E0E0', '#1a1a1a'] as const).map(color => (
-                        <button
-                          key={color}
-                          onClick={() => setCanvasBg(color)}
-                          title={color}
-                          className={`w-8 h-8 rounded-lg ring-2 transition-all ${canvasBg === color ? 'ring-gray-900 ring-offset-1' : 'ring-gray-200 hover:ring-gray-400'}`}
-                          style={{ backgroundColor: color }}
-                        />
+                        <button key={color} onClick={() => setCanvasBg(color)} title={color}
+                          className={`w-8 h-8 rounded-lg ring-2 transition-all ${canvasBg === color ? 'ring-gray-900 dark:ring-white ring-offset-1 dark:ring-offset-gray-900' : 'ring-gray-200 dark:ring-gray-600 hover:ring-gray-400'}`}
+                          style={{ backgroundColor: color }} />
                       ))}
-                      <label title="Custom color" className="relative w-8 h-8 flex items-center justify-center rounded-lg ring-2 ring-gray-200 hover:ring-gray-400 transition-all cursor-pointer overflow-hidden shrink-0">
+                      <label title="Custom color" className="relative w-8 h-8 flex items-center justify-center rounded-lg ring-2 ring-gray-200 dark:ring-gray-600 hover:ring-gray-400 transition-all cursor-pointer overflow-hidden shrink-0">
                         <div className="w-full h-full rounded-lg" style={{ background: 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />
-                        <input
-                          type="color"
-                          value={canvasBg}
-                          onChange={e => setCanvasBg(e.target.value)}
-                          style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }}
-                        />
+                        <input type="color" value={canvasBg} onChange={e => setCanvasBg(e.target.value)}
+                          style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }} />
                       </label>
                     </div>
-                    <p className="text-[9px] text-gray-400 mt-2">Current: <span className="font-mono">{canvasBg}</span></p>
+                    <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1 mb-4">Current: <span className="font-mono">{canvasBg}</span></p>
+
+                    <div className="h-px bg-gray-100 dark:bg-gray-800 mb-4" />
+
+                    {/* Export defaults */}
+                    <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Export defaults</p>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs text-gray-600 dark:text-gray-400">Format</span>
+                      <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+                        {(['png', 'jpeg'] as const).map(f => (
+                          <button key={f} onClick={() => updateAppSettings({ exportFormat: f })}
+                            className={`h-6 px-3 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.exportFormat === f ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                            {f.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {appSettings.exportFormat === 'jpeg' && (
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">JPEG quality</span>
+                          <span className="text-xs font-mono text-gray-400 dark:text-gray-500">{appSettings.exportQuality}%</span>
+                        </div>
+                        <input type="range" min={60} max={100} step={5}
+                          value={appSettings.exportQuality}
+                          onChange={e => updateAppSettings({ exportQuality: Number(e.target.value) })}
+                          className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
+                      </div>
+                    )}
+
+                    <div className="h-px bg-gray-100 dark:bg-gray-800 mb-4" />
+
+                    {/* Auto-save */}
+                    <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Auto-save interval</p>
+                    <div className="flex gap-1">
+                      {([0, 1000, 2000, 5000] as const).map(ms => (
+                        <button key={ms} onClick={() => updateAppSettings({ autosaveInterval: ms })}
+                          className={`flex-1 h-7 rounded-lg text-[10px] font-bold border-2 transition-all ${appSettings.autosaveInterval === ms ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
+                          {ms === 0 ? 'Off' : `${ms / 1000}s`}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}
             </div>
 
-            <div className="w-px h-5 bg-gray-200 mx-1.5" />
+            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
 
             {/* Export dropdown */}
             <div className="relative">
@@ -1053,8 +1118,8 @@ export default function DesignWorkspace({ projectId }: Props) {
               {exportMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setExportMenuOpen(false)} />
-                  <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 z-50 animate-slide-down">
-                    <p className="text-[10px] text-gray-400 tabular-nums mb-3 px-1">
+                  <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 p-3 z-50 animate-slide-down">
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums mb-3 px-1">
                       {template.width} × {template.height} px
                       <span className="mx-1 text-gray-300">·</span>
                       {templateLabel}
@@ -1146,20 +1211,20 @@ export default function DesignWorkspace({ projectId }: Props) {
       <div className="flex flex-1 min-h-0">
 
         {/* ══ Sidebar ══ */}
-        <aside className="w-72 shrink-0 flex flex-col border-r border-gray-100 bg-white shadow-sm z-10">
+        <aside className="dg-sidebar w-72 shrink-0 flex flex-col border-r border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm z-10">
 
           {/* Template bar — pinned */}
-          <div className="shrink-0 px-4 py-2.5 border-b border-gray-100 bg-white">
+          <div className="shrink-0 px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-              <span className="text-[11px] font-semibold text-gray-700 truncate">
+              <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 truncate">
                 {templateLabel}
                 {!isGallery && (
-                  <span className="font-normal text-gray-400"> · {fmt === 'desktop' ? 'Desktop' : 'Mobile'}</span>
+                  <span className="font-normal text-gray-400 dark:text-gray-500"> · {fmt === 'desktop' ? 'Desktop' : 'Mobile'}</span>
                 )}
               </span>
             </div>
-            <p className="text-[9px] text-gray-400 mt-0.5 ml-3.5">Click a frame to select</p>
+            <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5 ml-3.5">Click a frame to select</p>
           </div>
 
           {/* Scrollable settings sections */}
@@ -1979,9 +2044,9 @@ function Btn({ variant = 'primary', size = 'md', className = '', children, ...pr
     md: 'h-8 px-4 text-[11px]',
   }
   const variants: Record<BtnVariant, string> = {
-    primary:   'bg-gray-900 text-white hover:bg-gray-700',
-    secondary: 'border border-gray-200 text-gray-600 bg-white hover:border-gray-400 hover:text-gray-900',
-    ghost:     'text-gray-500 hover:bg-gray-100 hover:text-gray-800',
+    primary:   'bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600',
+    secondary: 'border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 bg-white dark:bg-transparent hover:border-gray-400 hover:text-gray-900 dark:hover:border-gray-400 dark:hover:text-gray-200',
+    ghost:     'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200',
   }
   return (
     <button className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...props}>
@@ -1995,13 +2060,13 @@ function Btn({ variant = 'primary', size = 'md', className = '', children, ...pr
 function Section({ title, icon, defaultOpen = false, children }: { title: string; icon?: React.ReactNode; defaultOpen?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="border-b border-gray-100 last:border-b-0">
-      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left group">
+    <div className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left group">
         <div className="flex items-center gap-2">
-          {icon && <span className="text-gray-400 group-hover:text-gray-500 transition-colors">{icon}</span>}
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 group-hover:text-gray-700 transition-colors">{title}</span>
+          {icon && <span className="text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors">{icon}</span>}
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">{title}</span>
         </div>
-        <svg className={`w-3 h-3 text-gray-300 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <svg className={`w-3 h-3 text-gray-300 dark:text-gray-600 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
@@ -2021,10 +2086,10 @@ function Slider({ label, value, unit, min, max, step, onChange }: { label: strin
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-gray-500">{label}</span>
-        <span className="text-xs text-gray-400 tabular-nums font-mono">{value}{unit}</span>
+        <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
+        <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums font-mono">{value}{unit}</span>
       </div>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
+      <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800 dark:accent-gray-400" />
     </div>
   )
 }
@@ -2043,7 +2108,7 @@ function TransformBtns({ value, onChange }: { value: TextTransform; onChange: (v
     <div className="flex gap-1">
       {TRANSFORMS.map(t => (
         <button key={t.value} title={t.title} onClick={() => onChange(t.value)}
-          className={`flex-1 py-1.5 text-xs rounded-md border font-mono font-semibold transition-all ${value === t.value ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600'}`}>
+          className={`flex-1 py-1.5 text-xs rounded-md border font-mono font-semibold transition-all ${value === t.value ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
           {t.label}
         </button>
       ))}
@@ -2056,13 +2121,13 @@ function TransformBtns({ value, onChange }: { value: TextTransform; onChange: (v
 function ColorRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="flex items-center gap-3 cursor-pointer group">
-      <div className="relative w-9 h-9 rounded-xl overflow-hidden shrink-0 ring-2 ring-gray-200 group-hover:ring-gray-400 transition-all">
+      <div className="relative w-9 h-9 rounded-xl overflow-hidden shrink-0 ring-2 ring-gray-200 dark:ring-gray-600 group-hover:ring-gray-400 transition-all">
         <input type="color" value={value} onChange={e => onChange(e.target.value)} className="cursor-pointer border-none"
           style={{ position: 'absolute', top: '-4px', left: '-4px', width: 'calc(100% + 8px)', height: 'calc(100% + 8px)', padding: 0 }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-gray-600 leading-none mb-0.5">{label}</p>
-        <p className="text-[10px] text-gray-400 font-mono uppercase">{value}</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400 leading-none mb-0.5">{label}</p>
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono uppercase">{value}</p>
       </div>
     </label>
   )
