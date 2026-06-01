@@ -203,7 +203,7 @@ function migrateLoadedState(raw: unknown): DesignState {
 interface Props { projectId?: string }
 
 export default function DesignWorkspace({ projectId }: Props) {
-  const { user, signOut } = useAuth()
+  const { user, signOut, loading: authLoading } = useAuth()
   const { settings: appSettings, update: updateAppSettings } = useAppSettings()
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen]   = useState(false)
@@ -228,7 +228,9 @@ export default function DesignWorkspace({ projectId }: Props) {
   // Tracks all rendered block-frame inner divs: key = "{blockId}-{format}"
   const allFrameRefs     = useRef<Map<string, HTMLDivElement | null>>(new Map())
   const [scale, setScale]           = useState(1)
-  const [canvasBg, setCanvasBg]     = useState('#F0F0F0')
+  const CANVAS_BG_LIGHT = '#F0F0F0'
+  const CANVAS_BG_DARK  = '#1a1a1a'
+  const [canvasBg, setCanvasBg] = useState(CANVAS_BG_LIGHT)
   const [draggingIcon, setDraggingIcon] = useState<number | null>(null)
   const [customBase, setCustomBase] = useState<string | null>(null)
   const [isExportingAll, setIsExportingAll] = useState(false)
@@ -248,6 +250,7 @@ export default function DesignWorkspace({ projectId }: Props) {
 
   const [presets, setPresets]       = useState<Preset[]>([])
   const [presetName, setPresetName] = useState('')
+  const [projectLoading, setProjectLoading] = useState(false)
 
   const isGallery = design.activeCategory === 'gallery'
   const fmt = design.activeFormat
@@ -354,6 +357,16 @@ export default function DesignWorkspace({ projectId }: Props) {
     try { setFolderConfig(loadFolderConfig()) } catch {}
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sync canvas bg default with theme — only when it's still a theme default (preserve custom colors)
+  useEffect(() => {
+    setCanvasBg(prev => {
+      if (prev === CANVAS_BG_LIGHT || prev === CANVAS_BG_DARK) {
+        return appSettings.theme === 'dark' ? CANVAS_BG_DARK : CANVAS_BG_LIGHT
+      }
+      return prev
+    })
+  }, [appSettings.theme]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Restore last session from localStorage — only in non-project mode
   useEffect(() => {
     if (projectId) return
@@ -392,6 +405,7 @@ export default function DesignWorkspace({ projectId }: Props) {
   // Load project from Supabase when projectId + user are available
   useEffect(() => {
     if (!projectId || !user) return
+    setProjectLoading(true)
     const supabase = createClient()
     loadProject(supabase, projectId).then(async project => {
       if (!project) return
@@ -417,7 +431,7 @@ export default function DesignWorkspace({ projectId }: Props) {
       histRef.current = [loaded]
       histIdxRef.current = 0
       skipHistRef.current = true
-    }).catch(console.error)
+    }).catch(console.error).finally(() => setProjectLoading(false))
   }, [projectId, user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-save last session (debounced) — blob: URLs stripped, external CDN URLs kept
@@ -802,6 +816,45 @@ export default function DesignWorkspace({ projectId }: Props) {
     document.addEventListener('mouseup', onUp)
   }, [photoEditMode, patchPhotoComp]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Project page: show gate when auth is loading or user is not signed in
+  if (projectId && authLoading) {
+    return (
+      <div className="flex flex-col h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
+        <svg className="animate-spin h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+      </div>
+    )
+  }
+
+  if (projectId && !authLoading && !user) {
+    return (
+      <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
+        <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3 shadow-sm">
+          <a href="/dashboard" className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-lg border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all shrink-0">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Projects
+          </a>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Sign in to view this project.</p>
+            <button
+              onClick={() => setAuthModalOpen(true)}
+              className="h-9 px-5 rounded-lg bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+            >
+              Sign in
+            </button>
+          </div>
+        </div>
+        <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
 
@@ -839,8 +892,14 @@ export default function DesignWorkspace({ projectId }: Props) {
               <span
                 onDoubleClick={() => { setProjectNameDraft(projectName); setIsRenamingProject(true) }}
                 title="Double-click to rename"
-                className="text-sm font-semibold text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white cursor-default select-none truncate max-w-xs shrink"
+                className="text-sm font-semibold text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white cursor-default select-none truncate max-w-xs shrink flex items-center gap-2"
               >
+                {projectLoading
+                  ? <svg className="animate-spin h-3.5 w-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  : null}
                 {projectName || 'Untitled Project'}
               </span>
             )}
@@ -1067,7 +1126,10 @@ export default function DesignWorkspace({ projectId }: Props) {
                     {/* Canvas background */}
                     <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Preview background</p>
                     <div className="flex items-center gap-2 mb-1">
-                      {(['#FFFFFF', '#F0F0F0', '#E0E0E0', '#1a1a1a'] as const).map(color => (
+                      {(appSettings.theme === 'dark'
+                        ? ['#1a1a1a', '#111827', '#E0E0E0', '#FFFFFF'] as const
+                        : ['#FFFFFF', '#F0F0F0', '#E0E0E0', '#1a1a1a'] as const
+                      ).map(color => (
                         <button key={color} onClick={() => setCanvasBg(color)} title={color}
                           className={`w-8 h-8 rounded-lg ring-2 transition-all ${canvasBg === color ? 'ring-gray-900 dark:ring-white ring-offset-1 dark:ring-offset-gray-900' : 'ring-gray-200 dark:ring-gray-600 hover:ring-gray-400'}`}
                           style={{ backgroundColor: color }} />

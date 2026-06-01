@@ -522,7 +522,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-1 min-h-0 bg-gray-50">
+    <div className="flex flex-1 min-h-0 bg-gray-50 dark:bg-gray-950">
 
       {/* ── Hidden capture target ── */}
       <div style={{ position: 'fixed', top: -99999, left: -99999, pointerEvents: 'none' }}>
@@ -540,7 +540,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
       </div>
 
       {/* ══ Left config panel ══ */}
-      <aside className="w-72 shrink-0 flex flex-col border-r border-gray-100 bg-white shadow-sm z-10">
+      <aside className="w-72 shrink-0 flex flex-col border-r border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm z-10">
         <div className="flex-1 min-h-0 overflow-y-auto">
 
           {/* DATA SOURCE */}
@@ -553,15 +553,15 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                   onDragLeave={() => setIsDragging(false)}
                   onClick={() => fileInputRef.current?.click()}
                   className={`flex flex-col items-center justify-center gap-2 h-24 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${
-                    isDragging ? 'border-gray-400 bg-gray-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                    isDragging ? 'border-gray-400 bg-gray-50 dark:bg-gray-800' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:bg-gray-50/50 dark:hover:bg-gray-800/50'
                   }`}
                 >
                   <input ref={fileInputRef} type="file" accept=".csv" className="hidden"
                     onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
                   <CsvIcon />
                   <div className="text-center">
-                    <p className="text-[11px] font-semibold text-gray-600">Drop CSV or click to browse</p>
-                    <p className="text-[9px] text-gray-400 mt-0.5">File → Download → CSV in Google Sheets</p>
+                    <p className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Drop CSV or click to browse</p>
+                    <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">File → Download → CSV in Google Sheets</p>
                   </div>
                 </div>
                 {fileErrors.length > 0 && (
@@ -570,7 +570,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                   </div>
                 )}
                 <button onClick={downloadTemplate}
-                  className="w-full h-7 flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 text-gray-500 text-[10px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 transition-colors">
+                  className="w-full h-7 flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                   <DownloadIcon className="w-3 h-3" /> Download Template
                 </button>
               </div>
@@ -579,14 +579,14 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                    <p className="text-[11px] font-semibold text-gray-700 truncate">{csvFilename}</p>
+                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 truncate">{csvFilename}</p>
                   </div>
-                  <p className="text-[10px] text-gray-500 pl-3">
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 pl-3">
                     {products.length} products
                     {productWarnings > 0 && <span className="ml-1.5 text-amber-600">· {productWarnings} warnings</span>}
                   </p>
                 </div>
-                <button onClick={handleClear} className="shrink-0 text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2">Remove</button>
+                <button onClick={handleClear} className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 underline underline-offset-2">Remove</button>
               </div>
             )}
           </Section>
@@ -597,7 +597,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 {cantoStatus === 'connecting' && <SpinnerIcon className="text-gray-400" />}
-                <span className="text-[11px] text-gray-600 font-medium truncate">
+                <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium truncate">
                   {cantoStatus === 'connected' ? 'docsdiesel.canto.com' :
                    cantoStatus === 'connecting' ? 'Connecting…' : cantoError || 'Connection failed'}
                 </span>
@@ -608,7 +608,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                   <button
                     onClick={() => setFolderConfigOpen(o => !o)}
                     title="Configure asset folders"
-                    className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${folderConfigOpen ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-700'}`}
+                    className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${folderConfigOpen ? 'bg-gray-900 dark:bg-gray-700 text-white' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}
                   >
                     <GearIcon />
                   </button>
@@ -623,15 +623,15 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                   if (d.connected) { setCantoStatus('connected'); loadAlbumsAndConfig() }
                   else { setCantoStatus('error'); setCantoError(d.error ?? '') }
                 })
-              }} className="text-[10px] text-gray-400 hover:text-gray-600 underline underline-offset-2 mt-1 block">
+              }} className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 underline underline-offset-2 mt-1 block">
                 Retry
               </button>
             )}
 
             {/* Folder config panel */}
             {folderConfigOpen && cantoStatus === 'connected' && (
-              <div className="mt-1 pt-3 border-t border-gray-100 space-y-2">
-                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Asset Folders</p>
+              <div className="mt-1 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
+                <p className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Asset Folders</p>
                 {([
                   { key: 'photosAlbumId',   label: 'Photos' },
                   { key: 'iconsAlbumId',    label: 'Icons' },
@@ -639,11 +639,11 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                   { key: 'logosAlbumId',    label: 'Logos' },
                 ] as const).map(({ key, label }) => (
                   <div key={key} className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-500 font-medium w-16 shrink-0">{label}</span>
+                    <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium w-16 shrink-0">{label}</span>
                     <select
                       value={folderConfig[key] ?? ''}
                       onChange={e => updateFolderConfig({ [key]: e.target.value || null })}
-                      className="flex-1 h-7 px-2 rounded-lg border border-gray-200 text-[10px] text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-gray-400 truncate"
+                      className="flex-1 h-7 px-2 rounded-lg border border-gray-200 dark:border-gray-600 text-[10px] text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500 truncate"
                     >
                       <option value="">— not set —</option>
                       {albums.map(a => (
@@ -652,7 +652,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                     </select>
                   </div>
                 ))}
-                <p className="text-[9px] text-gray-400 leading-relaxed">
+                <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-relaxed">
                   Saved automatically. Bulk run uses these folders to find icons, textures, and logos.
                 </p>
               </div>
@@ -666,20 +666,20 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
               {/* Logo */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Logo</p>
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Logo</p>
                   {isLogoSet && (
-                    <button onClick={() => clearBranding('logo')} className="text-[9px] text-gray-400 hover:text-red-500 transition-colors">Clear</button>
+                    <button onClick={() => clearBranding('logo')} className="text-[9px] text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors">Clear</button>
                   )}
                 </div>
                 {isLogoSet ? (
                   <div className="flex items-center gap-2">
-                    <div className="w-14 h-10 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden shrink-0 flex items-center justify-center">
+                    <div className="w-14 h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 overflow-hidden shrink-0 flex items-center justify-center">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={(cantoLogo?.previewUrl ?? fileLogo?.url)!} alt="logo" className="max-w-full max-h-full object-contain" crossOrigin="anonymous" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-gray-600 truncate font-medium">{cantoLogo?.name ?? fileLogo?.name}</p>
-                      <p className="text-[9px] text-gray-400">{cantoLogo ? 'From Canto' : 'Uploaded file'}</p>
+                      <p className="text-[10px] text-gray-600 dark:text-gray-400 truncate font-medium">{cantoLogo?.name ?? fileLogo?.name}</p>
+                      <p className="text-[9px] text-gray-400 dark:text-gray-500">{cantoLogo ? 'From Canto' : 'Uploaded file'}</p>
                     </div>
                   </div>
                 ) : (
@@ -692,14 +692,14 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                       thumbnailFit="contain"
                     />
                     <div className="relative">
-                      <div className="absolute inset-x-0 top-1/2 border-t border-gray-100" />
-                      <span className="relative flex justify-center text-[9px] text-gray-400 bg-white px-2 w-fit mx-auto">or upload</span>
+                      <div className="absolute inset-x-0 top-1/2 border-t border-gray-100 dark:border-gray-700" />
+                      <span className="relative flex justify-center text-[9px] text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-900 px-2 w-fit mx-auto">or upload</span>
                     </div>
                     <button onClick={() => logoInputRef.current?.click()}
-                      className="w-full h-7 rounded-lg border border-dashed border-gray-200 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1.5">
+                      className="w-full h-7 rounded-lg border border-dashed border-gray-200 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center justify-center gap-1.5">
                       <UploadIcon /> Browse file
                     </button>
-                    {designState.assets[2] && <p className="text-[9px] text-gray-400 text-center">Design tab logo used as fallback</p>}
+                    {designState.assets[2] && <p className="text-[9px] text-gray-400 dark:text-gray-500 text-center">Design tab logo used as fallback</p>}
                   </div>
                 )}
                 <input ref={logoInputRef} type="file" accept="image/*" className="hidden"
@@ -709,20 +709,20 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
               {/* Texture */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Background Texture</p>
+                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Background Texture</p>
                   {isTextureSet && (
-                    <button onClick={() => clearBranding('texture')} className="text-[9px] text-gray-400 hover:text-red-500 transition-colors">Clear</button>
+                    <button onClick={() => clearBranding('texture')} className="text-[9px] text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors">Clear</button>
                   )}
                 </div>
                 {isTextureSet ? (
                   <div className="flex items-center gap-2">
-                    <div className="w-14 h-10 rounded-lg border border-gray-200 bg-gray-50 overflow-hidden shrink-0">
+                    <div className="w-14 h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 overflow-hidden shrink-0">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={(cantoTexture?.previewUrl ?? fileTexture?.url)!} alt="texture" className="w-full h-full object-cover" crossOrigin="anonymous" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-gray-600 truncate font-medium">{cantoTexture?.name ?? fileTexture?.name}</p>
-                      <p className="text-[9px] text-gray-400">{cantoTexture ? 'From Canto' : 'Uploaded file'}</p>
+                      <p className="text-[10px] text-gray-600 dark:text-gray-400 truncate font-medium">{cantoTexture?.name ?? fileTexture?.name}</p>
+                      <p className="text-[9px] text-gray-400 dark:text-gray-500">{cantoTexture ? 'From Canto' : 'Uploaded file'}</p>
                     </div>
                   </div>
                 ) : (
@@ -735,14 +735,14 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
                       thumbnailFit="cover"
                     />
                     <div className="relative">
-                      <div className="absolute inset-x-0 top-1/2 border-t border-gray-100" />
-                      <span className="relative flex justify-center text-[9px] text-gray-400 bg-white px-2 w-fit mx-auto">or upload</span>
+                      <div className="absolute inset-x-0 top-1/2 border-t border-gray-100 dark:border-gray-700" />
+                      <span className="relative flex justify-center text-[9px] text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-900 px-2 w-fit mx-auto">or upload</span>
                     </div>
                     <button onClick={() => textureInputRef.current?.click()}
-                      className="w-full h-7 rounded-lg border border-dashed border-gray-200 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors flex items-center justify-center gap-1.5">
+                      className="w-full h-7 rounded-lg border border-dashed border-gray-200 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center justify-center gap-1.5">
                       <UploadIcon /> Browse file
                     </button>
-                    {designState.assets[1] && <p className="text-[9px] text-gray-400 text-center">Design tab texture used as fallback</p>}
+                    {designState.assets[1] && <p className="text-[9px] text-gray-400 dark:text-gray-500 text-center">Design tab texture used as fallback</p>}
                   </div>
                 )}
                 <input ref={textureInputRef} type="file" accept="image/*" className="hidden"
@@ -750,12 +750,12 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
               </div>
 
               {/* Auto-matching note */}
-              <div className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 space-y-1">
-                <p className="text-[10px] text-gray-500 leading-relaxed">
-                  <span className="font-semibold text-gray-700">Photos</span> are searched automatically by SKU — unique lifestyle images are assigned to each block. Tag photos in Canto with their SKU for best results.
+              <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 space-y-1">
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">Photos</span> are searched automatically by SKU — unique lifestyle images are assigned to each block. Tag photos in Canto with their SKU for best results.
                 </p>
-                <p className="text-[10px] text-gray-500 leading-relaxed">
-                  <span className="font-semibold text-gray-700">Icons</span> are matched from the icons folder using callout text.{' '}
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">Icons</span> are matched from the icons folder using callout text.{' '}
                   {!folderConfig.iconsAlbumId && <span className="text-amber-600">No icons folder set ↑</span>}
                   {folderConfig.iconsAlbumId && <span className="text-emerald-600">Icons folder configured ✓</span>}
                 </p>
@@ -769,19 +769,19 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
               {slotConfigs.map((cfg, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <span className={`w-6 h-5 rounded text-[9px] font-bold uppercase flex items-center justify-center shrink-0 ${
-                    i === 1 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+                    i === 1 ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
                   }`}>{slotName(i)}</span>
-                  <div className="flex flex-1 rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="flex flex-1 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
                     {(['5050-right', '5050-left', 'icons'] as SlotTemplate[]).map(t => (
                       <button key={t} onClick={() => setSlotTemplate(i, t)}
                         className={`flex-1 h-6 text-[9px] font-bold uppercase tracking-wide transition-colors ${
-                          cfg.template === t ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-700'
+                          cfg.template === t ? 'bg-gray-900 dark:bg-gray-700 text-white' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'
                         }`} title={TEMPLATE_LABELS[t]}>
                         {t === '5050-right' ? '▷|' : t === '5050-left' ? '|◁' : '✦'}
                       </button>
                     ))}
                   </div>
-                  <span className="text-[9px] text-gray-400 w-16 shrink-0">{TEMPLATE_LABELS[cfg.template]}</span>
+                  <span className="text-[9px] text-gray-400 dark:text-gray-500 w-16 shrink-0">{TEMPLATE_LABELS[cfg.template]}</span>
                 </div>
               ))}
             </div>
@@ -792,34 +792,34 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
             <SettingRow label="A+ Slots">
               <div className="flex items-center gap-1.5">
                 <button onClick={() => setAplusSlots(n => Math.max(2, n - 1))}
-                  className="w-6 h-6 rounded-md border border-gray-200 text-gray-500 hover:border-gray-400 transition-colors text-sm flex items-center justify-center">−</button>
-                <span className="w-4 text-center text-[12px] font-semibold text-gray-800 tabular-nums">{aplusSlots}</span>
+                  className="w-6 h-6 rounded-md border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 transition-colors text-sm flex items-center justify-center">−</button>
+                <span className="w-4 text-center text-[12px] font-semibold text-gray-800 dark:text-gray-200 tabular-nums">{aplusSlots}</span>
                 <button onClick={() => setAplusSlots(n => Math.min(8, n + 1))}
-                  className="w-6 h-6 rounded-md border border-gray-200 text-gray-500 hover:border-gray-400 transition-colors text-sm flex items-center justify-center">+</button>
+                  className="w-6 h-6 rounded-md border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 transition-colors text-sm flex items-center justify-center">+</button>
               </div>
             </SettingRow>
             <SettingRow label="Gallery Images">
               <button onClick={() => setIncludeGallery(v => !v)}
-                className={`w-9 h-5 rounded-full transition-colors relative ${includeGallery ? 'bg-gray-900' : 'bg-gray-200'}`}>
+                className={`w-9 h-5 rounded-full transition-colors relative ${includeGallery ? 'bg-gray-900 dark:bg-gray-700' : 'bg-gray-200 dark:bg-gray-700'}`}>
                 <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all ${includeGallery ? 'left-4' : 'left-0.5'}`} />
               </button>
             </SettingRow>
             <SettingRow label="Output Format">
-              <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+              <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
                 {(['png', 'jpeg'] as const).map(f => (
                   <button key={f} onClick={() => setOutputFormat(f)}
                     className={`h-6 px-2.5 text-[10px] font-bold uppercase tracking-wide transition-colors ${
-                      outputFormat === f ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-800'
+                      outputFormat === f ? 'bg-gray-900 dark:bg-gray-700 text-white' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
                     }`}>{f === 'jpeg' ? 'JPG' : 'PNG'}</button>
                 ))}
               </div>
             </SettingRow>
             {hasProducts && (
-              <div className="mt-1 p-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                <p className="text-[10px] text-gray-500">
-                  <span className="font-semibold text-gray-700">{jobs.length} products</span>
-                  {' × '}<span className="font-semibold text-gray-700">{imagesPerProduct} images</span>
-                  {' = '}<span className="font-semibold text-gray-900">{jobs.length * imagesPerProduct} files</span>
+              <div className="mt-1 p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">{jobs.length} products</span>
+                  {' × '}<span className="font-semibold text-gray-700 dark:text-gray-300">{imagesPerProduct} images</span>
+                  {' = '}<span className="font-semibold text-gray-900 dark:text-white">{jobs.length * imagesPerProduct} files</span>
                 </p>
               </div>
             )}
@@ -831,24 +831,24 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
               <input type="text" placeholder="Preset name…" value={presetName}
                 onChange={e => setPresetName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSavePreset()}
-                className="flex-1 h-7 px-2.5 rounded-lg border border-gray-200 text-[11px] text-gray-700 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400" />
+                className="flex-1 h-7 px-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 placeholder:text-gray-300 dark:placeholder:text-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500" />
               <button onClick={handleSavePreset} disabled={!presetName.trim()}
-                className="h-7 px-2.5 rounded-lg bg-gray-900 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
+                className="h-7 px-2.5 rounded-lg bg-gray-900 dark:bg-gray-700 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
                 Save
               </button>
             </div>
             {presets.length === 0 ? (
-              <p className="text-[10px] text-gray-400 text-center py-1">No presets saved yet</p>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center py-1">No presets saved yet</p>
             ) : (
               <div className="space-y-1">
                 {presets.map(p => (
-                  <div key={p.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors">
+                  <div key={p.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 transition-colors">
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-semibold text-gray-700 truncate">{p.name}</p>
-                      <p className="text-[9px] text-gray-400">{p.aplusSlots} slots · {p.outputFormat.toUpperCase()}</p>
+                      <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 truncate">{p.name}</p>
+                      <p className="text-[9px] text-gray-400 dark:text-gray-500">{p.aplusSlots} slots · {p.outputFormat.toUpperCase()}</p>
                     </div>
-                    <button onClick={() => handleLoadPreset(p)} className="text-[10px] text-gray-500 hover:text-gray-800 font-semibold transition-colors shrink-0">Load</button>
-                    <button onClick={() => handleDeletePreset(p.id)} className="text-[10px] text-gray-400 hover:text-red-500 transition-colors shrink-0">×</button>
+                    <button onClick={() => handleLoadPreset(p)} className="text-[10px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-semibold transition-colors shrink-0">Load</button>
+                    <button onClick={() => handleDeletePreset(p.id)} className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors shrink-0">×</button>
                   </div>
                 ))}
               </div>
@@ -857,14 +857,14 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
         </div>
 
         {/* ── Bottom run panel ── */}
-        <div className="shrink-0 border-t border-gray-100 p-3 space-y-2.5 bg-white">
+        <div className="shrink-0 border-t border-gray-100 dark:border-gray-700 p-3 space-y-2.5 bg-white dark:bg-gray-900">
           {(isRunning || doneJobs > 0) && (
             <div className="space-y-1">
-              <div className="flex justify-between text-[10px] text-gray-500 tabular-nums">
+              <div className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400 tabular-nums">
                 <span>{isRunning ? 'Rendering…' : allDone ? 'Complete — export from top right' : 'Stopped'}</span>
                 <span>{doneJobs} / {totalJobs}</span>
               </div>
-              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                 <div className={`h-full rounded-full transition-all duration-200 ${allDone ? 'bg-emerald-400' : 'bg-gray-700'}`}
                   style={{ width: `${progressPct}%` }} />
               </div>
@@ -878,18 +878,18 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
               </button>
             ) : allDone ? (
               <button onClick={handleReset}
-                className="flex-1 h-9 rounded-lg border border-gray-200 text-gray-500 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 transition-colors">
+                className="flex-1 h-9 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                 Reset & Run Again
               </button>
             ) : (
               <button onClick={handleRun} disabled={!canRun}
-                className="flex-1 h-9 rounded-lg bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5">
+                className="flex-1 h-9 rounded-lg bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5">
                 <PlayIcon /> Run Bulk Generate
               </button>
             )}
           </div>
           {!canRun && !isRunning && !allDone && (
-            <p className="text-[9px] text-gray-400 text-center">
+            <p className="text-[9px] text-gray-400 dark:text-gray-500 text-center">
               {cantoStatus === 'error' ? 'Canto connection failed' :
                cantoStatus === 'connecting' ? 'Connecting to Canto…' :
                !hasProducts ? 'Upload a CSV to continue' : 'Ready'}
@@ -906,13 +906,13 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
           <>
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-semibold text-gray-800">{jobs.length} Products</h2>
-                <p className="text-[11px] text-gray-400 mt-0.5">{imagesPerProduct} images each · {outputFormat.toUpperCase()}</p>
+                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">{jobs.length} Products</h2>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{imagesPerProduct} images each · {outputFormat.toUpperCase()}</p>
               </div>
               {(isRunning || doneJobs > 0) && (
                 <div className={`flex items-center gap-1.5 px-3 h-7 rounded-full text-[11px] font-semibold ${
-                  allDone ? 'bg-emerald-50 text-emerald-700' :
-                  isRunning ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-600'
+                  allDone ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' :
+                  isRunning ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                 }`}>
                   {isRunning && <SpinnerIcon />}
                   {allDone ? `All done · ${doneJobs} images` : `${doneJobs} / ${totalJobs}`}
@@ -921,25 +921,25 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
             </div>
 
             {productWarnings > 0 && (
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-100">
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/40">
                 <span className="text-amber-500 shrink-0 mt-0.5">⚠</span>
-                <p className="text-[11px] text-amber-700">
+                <p className="text-[11px] text-amber-700 dark:text-amber-400">
                   {productWarnings} product{productWarnings !== 1 ? 's have' : ' has'} warnings — hover the ⚠ to see details. Generation will still run.
                 </p>
               </div>
             )}
 
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/50">
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider w-24">SKU</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Product</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider w-24">Photos</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider w-44">Status</th>
+                  <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider w-24">SKU</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Product</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider w-24">Photos</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider w-44">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                   {jobs.map(job => <ProductRow key={job.id} job={job} imagesPerProduct={imagesPerProduct} />)}
                 </tbody>
               </table>
@@ -966,13 +966,13 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange }
 function Section({ label, icon, defaultOpen = false, children }: { label: string; icon?: React.ReactNode; defaultOpen?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="border-b border-gray-100 last:border-b-0">
-      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left group">
+    <div className="border-b border-gray-100 dark:border-gray-700 last:border-b-0">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left group">
         <div className="flex items-center gap-2">
-          {icon && <span className="text-gray-400 group-hover:text-gray-500 transition-colors">{icon}</span>}
-          <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 group-hover:text-gray-700 transition-colors">{label}</span>
+          {icon && <span className="text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors">{icon}</span>}
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">{label}</span>
         </div>
-        <svg className={`w-3 h-3 text-gray-300 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <svg className={`w-3 h-3 text-gray-300 dark:text-gray-600 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
@@ -984,7 +984,7 @@ function Section({ label, icon, defaultOpen = false, children }: { label: string
 function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-[11px] text-gray-600 font-medium">{label}</span>
+      <span className="text-[11px] text-gray-600 dark:text-gray-400 font-medium">{label}</span>
       {children}
     </div>
   )
@@ -1010,13 +1010,13 @@ function ProductRow({ job, imagesPerProduct }: { job: JobProduct; imagesPerProdu
   }[job.status]
 
   return (
-    <tr className="hover:bg-gray-50/50 transition-colors">
-      <td className="px-4 py-3"><span className="text-[11px] font-mono font-semibold text-gray-700">{job.sku}</span></td>
+    <tr className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
+      <td className="px-4 py-3"><span className="text-[11px] font-mono font-semibold text-gray-700 dark:text-gray-300">{job.sku}</span></td>
       <td className="px-4 py-3">
-        <span className="text-[12px] text-gray-700">{job.productName}</span>
+        <span className="text-[12px] text-gray-700 dark:text-gray-300">{job.productName}</span>
         {job.warnings.length > 0 && <span className="ml-2 text-[9px] text-amber-500" title={job.warnings.join(', ')}>⚠</span>}
       </td>
-      <td className="px-4 py-3"><span className="text-[10px] text-gray-500 tabular-nums">{job.photos.length}p · {job.slots.length}s</span></td>
+      <td className="px-4 py-3"><span className="text-[10px] text-gray-500 dark:text-gray-400 tabular-nums">{job.photos.length}p · {job.slots.length}s</span></td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1.5">
           {job.status === 'rendering' ? <SpinnerIcon className="text-blue-500" /> : <div className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
@@ -1039,20 +1039,20 @@ function OutputPreview({ jobs, aplusSlots, includeGallery, capturedImages, outpu
   const ext = outputFormat === 'jpeg' ? 'jpg' : 'png'
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
-        <h3 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">Output Preview</h3>
-        <span className="text-[10px] text-gray-400">{jobs.length} done</span>
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
+        <h3 className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Output Preview</h3>
+        <span className="text-[10px] text-gray-400 dark:text-gray-500">{jobs.length} done</span>
       </div>
       {jobs.map(job => (
-        <div key={job.id} className="border-b border-gray-50 last:border-0">
+        <div key={job.id} className="border-b border-gray-50 dark:border-gray-800 last:border-0">
           <button onClick={() => setExpanded(expanded === job.id ? null : job.id)}
-            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50/50 transition-colors">
+            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono font-semibold text-gray-500">{job.sku}</span>
-              <span className="text-[11px] text-gray-700">{job.productName}</span>
+              <span className="text-[10px] font-mono font-semibold text-gray-500 dark:text-gray-400">{job.sku}</span>
+              <span className="text-[11px] text-gray-700 dark:text-gray-300">{job.productName}</span>
             </div>
-            <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${expanded === job.id ? 'rotate-180' : ''}`}
+            <svg className={`w-3.5 h-3.5 text-gray-400 dark:text-gray-500 transition-transform ${expanded === job.id ? 'rotate-180' : ''}`}
               fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
@@ -1060,19 +1060,19 @@ function OutputPreview({ jobs, aplusSlots, includeGallery, capturedImages, outpu
           {expanded === job.id && (
             <div className="px-4 pb-4 space-y-3">
               <div>
-                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">A+ Content</p>
+                <p className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">A+ Content</p>
                 <div className="flex gap-2 flex-wrap">
                   {Array.from({ length: aplusSlots }, (_, i) => {
                     const key = `${job.sku}/${slotName(i)}`
                     const url = capturedImages.get(key)
                     return (
                       <a key={i} href={url} download={`${job.sku}-${slotName(i)}.${ext}`}
-                        className="group relative block rounded overflow-hidden border border-gray-200 hover:border-gray-400 transition-colors"
+                        className="group relative block rounded overflow-hidden border border-gray-200 dark:border-gray-600 hover:border-gray-400 transition-colors"
                         style={{ width: 120, height: 50 }}>
                         {url
                           ? <img src={url} alt={slotName(i)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                              <span className="text-[8px] text-gray-400 uppercase font-bold">{slotName(i)}</span>
+                          : <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                              <span className="text-[8px] text-gray-400 dark:text-gray-500 uppercase font-bold">{slotName(i)}</span>
                             </div>
                         }
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -1085,19 +1085,19 @@ function OutputPreview({ jobs, aplusSlots, includeGallery, capturedImages, outpu
               </div>
               {includeGallery && (
                 <div>
-                  <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Gallery</p>
+                  <p className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">Gallery</p>
                   <div className="flex gap-2 flex-wrap">
                     {Array.from({ length: aplusSlots }, (_, i) => {
                       const key = `${job.sku}/gallery-${i + 1}`
                       const url = capturedImages.get(key)
                       return (
                         <a key={i} href={url} download={`${job.sku}-gallery-${i + 1}.${ext}`}
-                          className="group relative block rounded overflow-hidden border border-gray-200 hover:border-gray-400 transition-colors"
+                          className="group relative block rounded overflow-hidden border border-gray-200 dark:border-gray-600 hover:border-gray-400 transition-colors"
                           style={{ width: 50, height: 50 }}>
                           {url
                             ? <img src={url} alt={`gallery-${i+1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            : <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                                <span className="text-[8px] text-gray-400 font-bold">G{i+1}</span>
+                            : <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                <span className="text-[8px] text-gray-400 dark:text-gray-500 font-bold">G{i+1}</span>
                               </div>
                           }
                         </a>
@@ -1117,13 +1117,13 @@ function OutputPreview({ jobs, aplusSlots, includeGallery, capturedImages, outpu
 function EmptyState({ onDownloadTemplate }: { onDownloadTemplate: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
-      <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-        <svg className="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+        <svg className="w-7 h-7 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
         </svg>
       </div>
-      <h3 className="text-sm font-semibold text-gray-700 mb-1">No products loaded</h3>
-      <p className="text-[12px] text-gray-400 max-w-xs leading-relaxed mb-4">
+      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">No products loaded</h3>
+      <p className="text-[12px] text-gray-400 dark:text-gray-500 max-w-xs leading-relaxed mb-4">
         Export your Google Sheet as CSV and drop it in the panel on the left.
       </p>
       <div className="grid grid-cols-3 gap-3 text-left mb-5">
@@ -1132,15 +1132,15 @@ function EmptyState({ onDownloadTemplate }: { onDownloadTemplate: () => void }) 
           { step: '2', label: 'Export CSV', desc: 'File → Download → CSV in Google Sheets' },
           { step: '3', label: 'Drop & Run', desc: 'Upload the file and click Run' },
         ].map(item => (
-          <div key={item.step} className="bg-white rounded-xl border border-gray-100 p-3 shadow-sm">
-            <div className="w-5 h-5 rounded-full bg-gray-900 text-white text-[9px] font-bold flex items-center justify-center mb-2">{item.step}</div>
-            <p className="text-[11px] font-semibold text-gray-700">{item.label}</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">{item.desc}</p>
+          <div key={item.step} className="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700 p-3 shadow-sm">
+            <div className="w-5 h-5 rounded-full bg-gray-900 dark:bg-gray-700 text-white text-[9px] font-bold flex items-center justify-center mb-2">{item.step}</div>
+            <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{item.label}</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{item.desc}</p>
           </div>
         ))}
       </div>
       <button onClick={onDownloadTemplate}
-        className="flex items-center gap-1.5 h-8 px-4 rounded-lg border border-gray-200 text-gray-500 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 transition-colors">
+        className="flex items-center gap-1.5 h-8 px-4 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
         <DownloadIcon className="w-3.5 h-3.5" /> Download Sheet Template
       </button>
     </div>
@@ -1175,7 +1175,7 @@ function GearIcon() {
   </svg>
 }
 function CsvIcon() {
-  return <svg className="w-7 h-7 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+  return <svg className="w-7 h-7 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
   </svg>
 }
