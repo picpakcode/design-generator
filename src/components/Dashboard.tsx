@@ -281,8 +281,12 @@ export default function Dashboard() {
               </button>
 
               {/* Project cards */}
-              {projects.map(project => (
-                <div key={project.id} className="group relative flex flex-col bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all overflow-hidden">
+              {projects.map((project, idx) => (
+                <div
+                  key={project.id}
+                  className="group relative flex flex-col bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all overflow-hidden animate-fade-in"
+                  style={{ animationDelay: `${idx * 40}ms` }}
+                >
                   {/* Thumbnail */}
                   <a
                     href={`/project/${project.id}`}
@@ -350,7 +354,7 @@ export default function Dashboard() {
                             className="fixed inset-0 z-40"
                             onClick={() => setMenuOpenId(null)}
                           />
-                          <div className="absolute bottom-full right-0 mb-1 w-36 bg-white rounded-xl shadow-2xl border border-gray-100 py-1 z-50">
+                          <div className="absolute bottom-full right-0 mb-1 w-36 bg-white rounded-xl shadow-2xl border border-gray-100 py-1 z-50 animate-slide-down" style={{ transformOrigin: 'bottom right' }}>
                             <button
                               onClick={e => { e.stopPropagation(); startRename(project) }}
                               className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"

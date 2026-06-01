@@ -861,7 +861,7 @@ export default function DesignWorkspace({ projectId }: Props) {
             {bulkExportOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setBulkExportOpen(false)} />
-                <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 z-50">
+                <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 z-50 animate-slide-down">
                   <p className="text-[10px] text-gray-400 tabular-nums mb-3 px-1">
                     {bulkCanExport ? 'Generation complete' : 'Run bulk generation first'}
                   </p>
@@ -903,7 +903,7 @@ export default function DesignWorkspace({ projectId }: Props) {
             <>
               {/* Backdrop — closes dropdown, sits below the menu */}
               <div className="fixed inset-0 z-40" onClick={() => setCategoryDropdownOpen(false)} />
-              <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50">
+              <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 animate-slide-down">
                 {(['aplus', 'gallery'] as Category[]).map(id => {
                   const label = id === 'aplus' ? 'Amazon A+ Content' : 'Amazon Gallery Images'
                   const sub   = id === 'aplus' ? 'Rich banners below the fold' : 'Main product carousel · 1500×1500'
@@ -958,7 +958,7 @@ export default function DesignWorkspace({ projectId }: Props) {
                 {userMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                    <div className="absolute top-full right-0 mt-2 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 p-2 z-50">
+                    <div className="absolute top-full right-0 mt-2 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 p-2 z-50 animate-slide-down">
                       <div className="px-3 py-2 mb-1">
                         <p className="text-xs font-semibold text-gray-800 truncate">{user.user_metadata?.full_name ?? user.email}</p>
                         <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
@@ -1011,7 +1011,7 @@ export default function DesignWorkspace({ projectId }: Props) {
               {settingsMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setSettingsMenuOpen(false)} />
-                  <div className="absolute top-full right-0 mt-2 w-60 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 z-50">
+                  <div className="absolute top-full right-0 mt-2 w-60 bg-white rounded-xl shadow-2xl border border-gray-100 p-4 z-50 animate-slide-down">
                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-3">Preview background</p>
                     <div className="flex items-center gap-2 mb-1">
                       {(['#FFFFFF', '#F0F0F0', '#E0E0E0', '#1a1a1a'] as const).map(color => (
@@ -1053,7 +1053,7 @@ export default function DesignWorkspace({ projectId }: Props) {
               {exportMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setExportMenuOpen(false)} />
-                  <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 z-50">
+                  <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-100 p-3 z-50 animate-slide-down">
                     <p className="text-[10px] text-gray-400 tabular-nums mb-3 px-1">
                       {template.width} × {template.height} px
                       <span className="mx-1 text-gray-300">·</span>
@@ -1973,7 +1973,7 @@ type BtnVariant = 'primary' | 'secondary' | 'ghost'
 type BtnSize = 'sm' | 'md'
 
 function Btn({ variant = 'primary', size = 'md', className = '', children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant; size?: BtnSize }) {
-  const base = 'inline-flex items-center justify-center gap-1.5 font-bold uppercase tracking-widest rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed'
+  const base = 'inline-flex items-center justify-center gap-1.5 font-bold uppercase tracking-widest rounded-lg transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed'
   const sizes: Record<BtnSize, string> = {
     sm: 'h-7 px-3 text-[10px]',
     md: 'h-8 px-4 text-[11px]',
@@ -2005,7 +2005,12 @@ function Section({ title, icon, defaultOpen = false, children }: { title: string
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
-      {open && <div className="px-4 pb-4 pt-1">{children}</div>}
+      {/* grid-rows transition gives smooth open/close without JS height measurement */}
+      <div style={{ display: 'grid', gridTemplateRows: open ? '1fr' : '0fr', transition: 'grid-template-rows 200ms ease' }}>
+        <div style={{ overflow: 'hidden' }}>
+          <div className="px-4 pb-4 pt-1">{children}</div>
+        </div>
+      </div>
     </div>
   )
 }

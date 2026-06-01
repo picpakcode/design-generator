@@ -71,11 +71,11 @@ export default function AuthModal({ open, onClose }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm animate-fade-in" onClick={onClose} />
 
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div
-          className="pointer-events-auto w-full max-w-xs bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
+          className="pointer-events-auto w-full max-w-xs bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-slide-up"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}

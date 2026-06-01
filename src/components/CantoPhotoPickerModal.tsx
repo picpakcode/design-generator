@@ -79,10 +79,10 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
         <div
-          className="pointer-events-auto w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden"
+          className="pointer-events-auto w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden animate-slide-up"
           style={{ maxHeight: '85vh' }}
           onClick={e => e.stopPropagation()}
         >

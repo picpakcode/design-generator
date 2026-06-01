@@ -47,10 +47,10 @@ export default function PreviewModal({ open, onClose, design }: Props) {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm animate-fade-in" onClick={onClose} />
 
       {/* Modal panel */}
-      <div className="fixed inset-3 z-50 flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-gray-950">
+      <div className="fixed inset-3 z-50 flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-gray-950 animate-scale-in">
 
         {/* ── Header bar ── */}
         <div className="shrink-0 flex items-center justify-between px-5 py-3 bg-gray-900 border-b border-white/10">
