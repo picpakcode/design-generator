@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, Anton } from 'next/font/google'
 import './globals.css'
+import { AuthProvider } from '@/hooks/useAuth'
 
 const inter = Inter({ subsets: ['latin'] })
 const anton = Anton({ weight: '400', subsets: ['latin'], variable: '--font-anton' })
@@ -18,7 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} ${anton.variable} bg-gray-50 min-h-screen`}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   )

@@ -9,9 +9,11 @@ import ExportButton from './ExportButton'
 import { exportAllAsZip } from '@/lib/export'
 import BulkMode from './BulkMode'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
-import CantoAssetPicker, { CantoPick } from './CantoAssetPicker'
+import CantoAssetPicker from './CantoAssetPicker'
 import { FolderConfig, EMPTY_CONFIG, loadFolderConfig } from '@/lib/canto-folders'
 import { storeBlob, getBlob, deleteBlob } from '@/lib/idb'
+import { useAuth } from '@/hooks/useAuth'
+import AuthModal from './AuthModal'
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
 
@@ -100,6 +102,7 @@ const INITIAL_BLOCK_1: DesignBlock = {
   iconCount: 3,
   iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
   layoutFlipped: false,
+  assets: [],
 }
 
 const INITIAL_BLOCK_2: DesignBlock = {
@@ -110,6 +113,7 @@ const INITIAL_BLOCK_2: DesignBlock = {
   iconCount: 3,
   iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
   layoutFlipped: false,
+  assets: [],
 }
 
 const DEFAULT_STATE: DesignState = {
@@ -149,7 +153,7 @@ function migrateLoadedState(raw: unknown): DesignState {
   while (labels.length < 4) labels.push(`Feature ${labels.length + 1}`)
   const safeLabels = labels.slice(0, 4) as [string, string, string, string]
 
-  const blocks: DesignBlock[] = s.blocks ?? [
+  const rawBlocks: DesignBlock[] = s.blocks ?? [
     {
       id: 'block-1',
       templateId: (s.activeTemplate ?? DEFAULT_STATE.activeTemplate) as TemplateId,
@@ -158,6 +162,7 @@ function migrateLoadedState(raw: unknown): DesignState {
       iconCount: s.iconCount ?? DEFAULT_STATE.iconCount,
       iconLabels: safeLabels,
       layoutFlipped: false,
+      assets: [],
     },
     {
       id: 'block-2',
@@ -167,8 +172,11 @@ function migrateLoadedState(raw: unknown): DesignState {
       iconCount: s.iconCount ?? DEFAULT_STATE.iconCount,
       iconLabels: safeLabels,
       layoutFlipped: false,
+      assets: [],
     },
   ]
+  // Backfill assets for blocks saved before per-block assets were added
+  const blocks = rawBlocks.map(b => ({ ...b, assets: b.assets ?? [] }))
 
   return {
     ...DEFAULT_STATE,
@@ -187,6 +195,10 @@ function migrateLoadedState(raw: unknown): DesignState {
 // ─── Main workspace ───────────────────────────────────────────────────────────
 
 export default function DesignWorkspace() {
+  const { user, signOut } = useAuth()
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen]   = useState(false)
+
   const [appMode, setAppMode] = useState<'design' | 'bulk'>('design')
   const [design, setDesign] = useState<DesignState>(DEFAULT_STATE)
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
@@ -198,7 +210,6 @@ export default function DesignWorkspace() {
 
   // Canto folder-based asset pickers
   const [folderConfig, setFolderConfig] = useState<FolderConfig>(EMPTY_CONFIG)
-  const [cantoPicks, setCantoPicks] = useState<Record<number, CantoPick>>({})
   const canvasRef        = useRef<HTMLDivElement>(null)
   const altCanvasRef     = useRef<HTMLDivElement>(null)
   const wrapperRef       = useRef<HTMLDivElement>(null)
@@ -316,16 +327,20 @@ export default function DesignWorkspace() {
         if (raw) {
           const saved = JSON.parse(raw)
           const state = migrateLoadedState(saved)
-          // Restore assets: fetch each blob from IDB and recreate blob URL
-          const restoredAssets = await Promise.all(
-            ((saved.assets ?? []) as (UploadedAsset | undefined)[]).map(async a => {
-              if (!a?.id) return undefined
-              const blob = await getBlob(a.id).catch(() => undefined)
-              if (!blob) return undefined
-              return { ...a, url: URL.createObjectURL(blob) }
+          // Restore per-block assets from IDB
+          state.blocks = await Promise.all(
+            (state.blocks ?? []).map(async block => {
+              const restoredAssets = await Promise.all(
+                ((block.assets ?? []) as (UploadedAsset | undefined)[]).map(async a => {
+                  if (!a?.id) return undefined
+                  const blob = await getBlob(a.id).catch(() => undefined)
+                  if (!blob) return undefined
+                  return { ...a, url: URL.createObjectURL(blob) }
+                })
+              )
+              return { ...block, assets: restoredAssets as UploadedAsset[] }
             })
           )
-          state.assets = restoredAssets as UploadedAsset[]
           setDesign(state)
           histRef.current = [state]
           histIdxRef.current = 0
@@ -345,7 +360,14 @@ export default function DesignWorkspace() {
   useEffect(() => {
     const t = setTimeout(() => {
       try {
-        const stripped = { ...design, assets: design.assets.map(a => a ? { ...a, url: '' } : a) }
+        const stripped = {
+          ...design,
+          assets: design.assets.map(a => a ? { ...a, url: '' } : a),
+          blocks: design.blocks.map(b => ({
+            ...b,
+            assets: (b.assets ?? []).map(a => a ? { ...a, url: '' } : a),
+          })),
+        }
         localStorage.setItem('dg:last', JSON.stringify(stripped))
       } catch {}
     }, 1000)
@@ -355,11 +377,14 @@ export default function DesignWorkspace() {
   const savePreset = () => {
     const name = presetName.trim() || `Preset ${presets.length + 1}`
     // Clear ephemeral blob URLs; asset IDs act as IDB keys
-    const assetsForSave = design.assets.map(a => a ? { ...a, url: '' } : a)
     const next = [...presets, {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       name,
-      state: { ...design, assets: assetsForSave },
+      state: {
+        ...design,
+        assets: design.assets.map(a => a ? { ...a, url: '' } : a),
+        blocks: design.blocks.map(b => ({ ...b, assets: (b.assets ?? []).map(a => a ? { ...a, url: '' } : a) })),
+      },
       createdAt: Date.now(),
     }]
     setPresets(next)
@@ -369,15 +394,20 @@ export default function DesignWorkspace() {
 
   const loadPreset = async (p: Preset) => {
     const base = migrateLoadedState(p.state)
-    const restoredAssets = await Promise.all(
-      ((p.state.assets ?? []) as (UploadedAsset | undefined)[]).map(async a => {
-        if (!a?.id) return undefined
-        const blob = await getBlob(a.id).catch(() => undefined)
-        if (!blob) return undefined
-        return { ...a, url: URL.createObjectURL(blob) }
+    const restoredBlocks = await Promise.all(
+      base.blocks.map(async block => {
+        const restoredAssets = await Promise.all(
+          ((block.assets ?? []) as (UploadedAsset | undefined)[]).map(async a => {
+            if (!a?.id) return undefined
+            const blob = await getBlob(a.id).catch(() => undefined)
+            if (!blob) return undefined
+            return { ...a, url: URL.createObjectURL(blob) }
+          })
+        )
+        return { ...block, assets: restoredAssets as UploadedAsset[] }
       })
     )
-    setDesign({ ...base, assets: restoredAssets as UploadedAsset[] })
+    setDesign({ ...base, blocks: restoredBlocks })
   }
 
   const deletePreset = (id: string) => {
@@ -424,6 +454,7 @@ export default function DesignWorkspace() {
       iconCount: 3,
       iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
       layoutFlipped: false,
+      assets: [],
     }
     setDesign(d => {
       const updated = { ...d, blocks: [...d.blocks, newBlock] }
@@ -536,26 +567,41 @@ export default function DesignWorkspace() {
 
 
   const handleAddAsset = (asset: UploadedAsset, slotIndex?: number) => {
-    // Persist blob to IDB so it survives page reloads (fire-and-forget)
     fetch(asset.url).then(r => r.blob()).then(blob => storeBlob(asset.id, blob)).catch(console.error)
     setDesign(d => {
-      if (slotIndex === undefined) return { ...d, assets: [...d.assets, asset] }
-      const next = [...d.assets] as (UploadedAsset | undefined)[]
-      if (next[slotIndex]) URL.revokeObjectURL(next[slotIndex]!.url)
-      next[slotIndex] = asset
-      return { ...d, assets: next as UploadedAsset[] }
+      const blockIdx = d.blocks.findIndex(b => b.id === d.activeBlockId)
+      if (blockIdx === -1) return d
+      const block = d.blocks[blockIdx]
+      const prev = (block.assets ?? []) as (UploadedAsset | undefined)[]
+      let next: (UploadedAsset | undefined)[]
+      if (slotIndex === undefined) {
+        next = [...prev, asset]
+      } else {
+        next = [...prev]
+        if (next[slotIndex]) URL.revokeObjectURL(next[slotIndex]!.url)
+        next[slotIndex] = asset
+      }
+      const blocks = [...d.blocks]
+      blocks[blockIdx] = { ...block, assets: next as UploadedAsset[] }
+      return { ...d, blocks }
     })
   }
 
   const handleRemoveAsset = (id: string) => {
     deleteBlob(id).catch(console.error)
     setDesign(d => {
-      const idx = d.assets.findIndex(a => a?.id === id)
+      const blockIdx = d.blocks.findIndex(b => b.id === d.activeBlockId)
+      if (blockIdx === -1) return d
+      const block = d.blocks[blockIdx]
+      const prev = (block.assets ?? []) as (UploadedAsset | undefined)[]
+      const idx = prev.findIndex(a => a?.id === id)
       if (idx === -1) return d
-      URL.revokeObjectURL(d.assets[idx].url)
-      const next = [...d.assets] as (UploadedAsset | undefined)[]
+      URL.revokeObjectURL(prev[idx]!.url)
+      const next = [...prev]
       next[idx] = undefined
-      return { ...d, assets: next as UploadedAsset[] }
+      const blocks = [...d.blocks]
+      blocks[blockIdx] = { ...block, assets: next as UploadedAsset[] }
+      return { ...d, blocks }
     })
   }
 
@@ -782,6 +828,48 @@ export default function DesignWorkspace() {
 
             <div className="w-px h-5 bg-gray-200 mx-1.5" />
 
+            {/* Auth button / user menu */}
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(o => !o)}
+                  title={user.email ?? 'Account'}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-white text-[10px] font-bold">
+                    {(user.email ?? '?')[0].toUpperCase()}
+                  </div>
+                </button>
+                {userMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                    <div className="absolute top-full right-0 mt-2 w-52 bg-white rounded-xl shadow-2xl border border-gray-100 p-2 z-50">
+                      <div className="px-3 py-2 mb-1">
+                        <p className="text-xs font-semibold text-gray-800 truncate">{user.user_metadata?.full_name ?? user.email}</p>
+                        <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
+                      </div>
+                      <div className="h-px bg-gray-100 mb-1" />
+                      <button
+                        onClick={() => { setUserMenuOpen(false); signOut() }}
+                        className="w-full text-left px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 hover:text-red-500 rounded-lg transition-colors"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setAuthModalOpen(true)}
+                className="h-7 px-3 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-600 hover:border-gray-400 hover:text-gray-900 transition-all"
+              >
+                Sign in
+              </button>
+            )}
+
+            <div className="w-px h-5 bg-gray-200 mx-1.5" />
+
             {/* Canvas background color */}
             <label title="Preview background" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors cursor-pointer relative">
               <div className="w-4 h-4 rounded-sm ring-1 ring-black/10 shadow-sm" style={{ backgroundColor: canvasBg }} />
@@ -1001,7 +1089,7 @@ export default function DesignWorkspace() {
             {/* Images */}
             <Section title="Images" icon={<ImagesIcon />} defaultOpen>
               <AssetUploader
-                assets={design.assets}
+                assets={activeBlock?.assets ?? []}
                 onAdd={handleAddAsset}
                 onRemove={handleRemoveAsset}
                 slotLabels={assetSlotLabels}
@@ -1101,15 +1189,10 @@ export default function DesignWorkspace() {
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Background Texture</p>
                   <CantoAssetPicker
                     albumId={folderConfig.texturesAlbumId}
-                    value={cantoPicks[1] ?? null}
+                    value={activeBlock?.assets[1] ? { id: activeBlock.assets[1].id, name: activeBlock.assets[1].name, previewUrl: activeBlock.assets[1].url } : null}
                     onChange={pick => {
-                      if (pick) {
-                        handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 1)
-                        setCantoPicks(p => ({ ...p, 1: pick }))
-                      } else {
-                        if (design.assets[1]) handleRemoveAsset(design.assets[1].id)
-                        setCantoPicks(p => { const n = { ...p }; delete n[1]; return n })
-                      }
+                      if (pick) handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 1)
+                      else if (activeBlock?.assets[1]) handleRemoveAsset(activeBlock.assets[1].id)
                     }}
                     placeholder="Pick texture from Canto"
                     thumbnailFit="cover"
@@ -1120,15 +1203,10 @@ export default function DesignWorkspace() {
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Brand Logo</p>
                   <CantoAssetPicker
                     albumId={folderConfig.logosAlbumId}
-                    value={cantoPicks[2] ?? null}
+                    value={activeBlock?.assets[2] ? { id: activeBlock.assets[2].id, name: activeBlock.assets[2].name, previewUrl: activeBlock.assets[2].url } : null}
                     onChange={pick => {
-                      if (pick) {
-                        handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 2)
-                        setCantoPicks(p => ({ ...p, 2: pick }))
-                      } else {
-                        if (design.assets[2]) handleRemoveAsset(design.assets[2].id)
-                        setCantoPicks(p => { const n = { ...p }; delete n[2]; return n })
-                      }
+                      if (pick) handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 2)
+                      else if (activeBlock?.assets[2]) handleRemoveAsset(activeBlock.assets[2].id)
                     }}
                     placeholder="Pick logo from Canto"
                     thumbnailFit="contain"
@@ -1145,16 +1223,11 @@ export default function DesignWorkspace() {
                           <div className="flex-1">
                             <CantoAssetPicker
                               albumId={folderConfig.iconsAlbumId}
-                              value={cantoPicks[3 + i] ?? null}
+                              value={activeBlock?.assets[3 + i] ? { id: activeBlock.assets[3 + i].id, name: activeBlock.assets[3 + i].name, previewUrl: activeBlock.assets[3 + i].url } : null}
                               onChange={pick => {
                                 const slot = 3 + i
-                                if (pick) {
-                                  handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, slot)
-                                  setCantoPicks(p => ({ ...p, [slot]: pick }))
-                                } else {
-                                  if (design.assets[slot]) handleRemoveAsset(design.assets[slot].id)
-                                  setCantoPicks(p => { const n = { ...p }; delete n[slot]; return n })
-                                }
+                                if (pick) handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, slot)
+                                else if (activeBlock?.assets[slot]) handleRemoveAsset(activeBlock.assets[slot].id)
                               }}
                               placeholder={`Icon ${i + 1}`}
                               thumbnailFit="contain"
@@ -1337,9 +1410,14 @@ export default function DesignWorkspace() {
                           const next = [...design.iconLabels] as [string, string, string, string]
                           ;[next[from], next[i]] = [next[i], next[from]]
                           setDesign(d => {
-                            const nextAssets = [...d.assets]
+                            const bIdx = d.blocks.findIndex(b => b.id === d.activeBlockId)
+                            if (bIdx === -1) return { ...d, iconLabels: next }
+                            const bl = d.blocks[bIdx]
+                            const nextAssets = [...(bl.assets ?? [])] as (UploadedAsset | undefined)[]
                             ;[nextAssets[3 + from], nextAssets[3 + i]] = [nextAssets[3 + i], nextAssets[3 + from]]
-                            return { ...d, iconLabels: next, assets: nextAssets }
+                            const blocks = [...d.blocks]
+                            blocks[bIdx] = { ...bl, iconLabels: next, assets: nextAssets as UploadedAsset[] }
+                            return { ...d, blocks }
                           })
                           setDraggingIcon(null)
                         }}
@@ -1548,6 +1626,7 @@ export default function DesignWorkspace() {
                           // Build render design: merge block content + global settings
                           const renderDesign: DesignState = {
                             ...design,
+                            assets: block.assets ?? [],
                             activeTemplate: block.templateId,
                             activeFormat: frameFmt,
                             title: block.title,
@@ -1645,6 +1724,8 @@ export default function DesignWorkspace() {
         </main>
       </div>
       </>)}
+
+      <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </div>
   )
 }

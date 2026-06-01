@@ -77,6 +77,7 @@ export interface DesignBlock {
   iconLabels: [string, string, string, string]
   layoutFlipped: boolean  // applies to both desktop and mobile for this block
   slug?: string           // optional label used in export filenames
+  assets: UploadedAsset[] // per-block photo / texture / logo / icons
 }
 
 export interface DesignState {
