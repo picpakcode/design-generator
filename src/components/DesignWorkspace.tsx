@@ -23,6 +23,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAppSettings } from '@/hooks/useAppSettings'
 import AuthModal from './AuthModal'
 import PreviewModal from './PreviewModal'
+import GalleryPreviewModal from './GalleryPreviewModal'
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
 
@@ -295,6 +296,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const projectNameInputRef = useRef<HTMLInputElement>(null)
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [galleryPreviewOpen, setGalleryPreviewOpen] = useState(false)
   const [albums, setAlbums] = useState<{ id: string; namePath: string; name: string }[]>([])
   const [albumSearch, setAlbumSearch] = useState<Record<string, string>>({})
   const [localUploadOpen, setLocalUploadOpen] = useState(false)
@@ -627,6 +629,23 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       })
       .catch(() => {})
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Whenever a gallery block is added without a logo, backfill it automatically
+  useEffect(() => {
+    if (!defaultLogoRef.current) return
+    if (!(design.galleryBlocks ?? []).some(b => !b.assets?.[2])) return
+    const logo = defaultLogoRef.current
+    skipHistRef.current = true
+    setDesign(d => ({
+      ...d,
+      galleryBlocks: (d.galleryBlocks ?? []).map(b => {
+        if (b.assets?.[2]) return b
+        const assets = [...(b.assets ?? [])] as (UploadedAsset | undefined)[]
+        assets[2] = logo
+        return { ...b, assets: assets as UploadedAsset[] }
+      }),
+    }))
+  }, [(design.galleryBlocks ?? []).length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function saveAndShare() {
     if (!user) return
@@ -1460,19 +1479,17 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               </div>
             )}
 
-            {/* Preview — only for A+ content mode */}
-            {!isGallery && (
-              <button
-                onClick={() => setPreviewOpen(true)}
-                title="Preview all blocks"
-                className="w-8 h-8 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </button>
-            )}
+            {/* Preview */}
+            <button
+              onClick={() => isGallery ? setGalleryPreviewOpen(true) : setPreviewOpen(true)}
+              title={isGallery ? 'Preview all slides' : 'Preview all blocks'}
+              className="w-8 h-8 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
 
             {/* Settings menu */}
             <div className="relative">
@@ -2371,7 +2388,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 80 }}>
             {isGallery ? (
               /* ── Gallery mode: one row of gallery blocks, add button on right ── */
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: FRAME_GAP }}>
                 {(design.galleryBlocks ?? []).map((block, blockIdx) => {
                   const tpl = getGalleryTemplate(block.templateId)
                   const isSelected = design.activeGalleryBlockId === block.id
@@ -2387,7 +2404,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   return (
                     <div key={block.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       {/* Block header - scale compensated so it stays fixed screen size at any zoom */}
-                      <div style={{ height: `${24/zoom}px`, width: tpl.width, position: 'relative', marginBottom: `${4/zoom}px` }}>
+                      <div style={{ height: `${32/zoom}px`, width: tpl.width, position: 'relative', marginBottom: `${24/zoom}px` }}>
                         {/* Left: slug only — no underline */}
                         <div style={{ position: 'absolute', top: 0, left: 0, display: 'flex', alignItems: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top left' }}>
                           <input
@@ -2473,18 +2490,30 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 {/* Add slide button — vertical strip to the right of the last frame */}
                 <button
                   onClick={addGalleryBlock}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = '#E0E7FF'
+                    e.currentTarget.style.borderColor = '#A5B4FC'
+                    e.currentTarget.style.color = '#4338CA'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = '#EEF2FF'
+                    e.currentTarget.style.borderColor = '#C7D2FE'
+                    e.currentTarget.style.color = '#4F46E5'
+                  }}
                   style={{
-                    width: 120, height: 1500,
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
-                    fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                    color: '#9CA3AF', background: 'transparent',
-                    border: '2px dashed #E5E7EB', borderRadius: 8, cursor: 'pointer',
-                    flexShrink: 0,
+                    width: 160, height: 1500,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24,
+                    fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
+                    color: '#4F46E5', background: '#EEF2FF',
+                    border: '2px solid #C7D2FE', borderRadius: 16, cursor: 'pointer',
+                    flexShrink: 0, transition: 'background 0.15s, border-color 0.15s, color 0.15s',
                   }}
                 >
-                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
+                  <div style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#4F46E5', borderRadius: 14, flexShrink: 0 }}>
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
                   <span style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}>Add Slide</span>
                 </button>
               </div>
@@ -2645,17 +2674,30 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 {/* Add block button */}
                 <button
                   onClick={addBlock}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = '#E0E7FF'
+                    e.currentTarget.style.borderColor = '#A5B4FC'
+                    e.currentTarget.style.color = '#4338CA'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = '#EEF2FF'
+                    e.currentTarget.style.borderColor = '#C7D2FE'
+                    e.currentTarget.style.color = '#4F46E5'
+                  }}
                   style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    width: 1464 + FRAME_GAP + 600, padding: '20px 0',
-                    fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                    color: '#9CA3AF', background: 'transparent',
-                    border: '2px dashed #E5E7EB', borderRadius: 8, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
+                    width: 1464 + FRAME_GAP + 600, padding: '28px 0',
+                    fontSize: 11, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase',
+                    color: '#4F46E5', background: '#EEF2FF',
+                    border: '2px solid #C7D2FE', borderRadius: 16, cursor: 'pointer',
+                    transition: 'background 0.15s, border-color 0.15s, color 0.15s',
                   }}
                 >
-                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
+                  <div style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#4F46E5', borderRadius: 10, flexShrink: 0 }}>
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
                   Add Block
                 </button>
               </>
@@ -2687,6 +2729,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
       <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <PreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} design={design} />
+      <GalleryPreviewModal open={galleryPreviewOpen} onClose={() => setGalleryPreviewOpen(false)} design={design} />
 
       {/* Share modal */}
       {shareModalOpen && projectId && user && (
