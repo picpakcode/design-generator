@@ -224,6 +224,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const canvasRef        = useRef<HTMLDivElement>(null)
   const altCanvasRef     = useRef<HTMLDivElement>(null)
   const wrapperRef       = useRef<HTMLDivElement>(null)
+  const sizeRef          = useRef<HTMLDivElement>(null)
   const frameContainerRef = useRef<HTMLDivElement>(null)
   // Tracks all rendered block-frame inner divs: key = "{blockId}-{format}"
   const allFrameRefs     = useRef<Map<string, HTMLDivElement | null>>(new Map())
@@ -708,10 +709,12 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
   useEffect(() => {
     const compute = () => {
-      if (!wrapperRef.current) return
-      const w = wrapperRef.current.clientWidth - 48
+      // sizeRef is a w-full div inside the px-6 padding wrapper — its clientWidth
+      // is the exact inner content width with no manual offset needed.
+      const w = sizeRef.current?.clientWidth ?? 0
+      if (!w) return
       if (isGallery) {
-        const h = wrapperRef.current.clientHeight - 96
+        const h = (wrapperRef.current?.clientHeight ?? 600) - 96
         setScale(Math.min((w - FRAME_GAP) / (1500 * 2), h / 1500))
       } else {
         setScale((w - FRAME_GAP) / (1464 + 600))
@@ -719,7 +722,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     }
     compute()
     const ro = new ResizeObserver(compute)
-    if (wrapperRef.current) ro.observe(wrapperRef.current)
+    if (sizeRef.current) ro.observe(sizeRef.current)
     return () => ro.disconnect()
   }, [isGallery])
 
@@ -1944,6 +1947,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           style={{ backgroundColor: canvasBg }}
         >
           <div className="px-6 py-6 space-y-10">
+            {/* Invisible full-width sentinel — measures the inner content width after padding */}
+            <div ref={sizeRef} className="w-full" style={{ height: 0, margin: 0, padding: 0 }} />
             {isGallery ? (
               /* ── Gallery mode: one row of two gallery frames ── */
               <div>
