@@ -160,7 +160,7 @@ export default function Dashboard() {
       <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
         {/* Navbar */}
         <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3 shadow-sm">
-          <div className="w-7 h-7 rounded-lg bg-gray-900 dark:bg-gray-700 flex items-center justify-center shrink-0">
+          <div className="w-7 h-7 rounded bg-gray-900 dark:bg-gray-700 flex items-center justify-center shrink-0">
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
@@ -173,7 +173,7 @@ export default function Dashboard() {
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Sign in to manage your projects.</p>
             <button
               onClick={() => setAuthModalOpen(true)}
-              className="h-9 px-5 rounded-lg bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+              className="h-9 px-5 rounded bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
             >
               Sign in
             </button>
@@ -190,7 +190,7 @@ export default function Dashboard() {
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
       {/* Navbar */}
       <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3 shadow-sm">
-        <div className="w-7 h-7 rounded-lg bg-gray-900 dark:bg-gray-700 flex items-center justify-center shrink-0">
+        <div className="w-7 h-7 rounded bg-gray-900 dark:bg-gray-700 flex items-center justify-center shrink-0">
           <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
@@ -209,7 +209,7 @@ export default function Dashboard() {
               </div>
               <button
                 onClick={signOut}
-                className="h-7 px-3 rounded-lg border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"
+                className="h-7 px-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"
               >
                 Sign out
               </button>
@@ -227,7 +227,7 @@ export default function Dashboard() {
             <button
               onClick={handleNewProject}
               disabled={creating || !user}
-              className="flex items-center gap-1.5 h-9 px-4 rounded-lg bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-1.5 h-9 px-4 rounded bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -238,7 +238,7 @@ export default function Dashboard() {
 
           {/* Error banner */}
           {createError && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
+            <div className="mb-4 px-4 py-3 rounded bg-red-50 border border-red-200 flex items-start gap-3">
               <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
@@ -272,7 +272,7 @@ export default function Dashboard() {
               <button
                 onClick={handleNewProject}
                 disabled={creating || !user}
-                className="group flex flex-col items-center justify-center aspect-video rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-gray-500 dark:hover:border-gray-500 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group flex flex-col items-center justify-center aspect-video rounded border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-gray-500 dark:hover:border-gray-500 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -284,7 +284,7 @@ export default function Dashboard() {
               {projects.map((project, idx) => (
                 <div
                   key={project.id}
-                  className="group relative flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md transition-all overflow-hidden animate-fade-in"
+                  className="group relative flex flex-col bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md transition-all overflow-hidden animate-fade-in"
                   style={{ animationDelay: `${idx * 40}ms` }}
                 >
                   {/* Thumbnail */}
@@ -301,7 +301,7 @@ export default function Dashboard() {
                       />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                        <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
                           <span className="text-lg font-bold text-gray-400 dark:text-gray-500">
                             {(project.name || 'U')[0].toUpperCase()}
                           </span>
@@ -321,7 +321,7 @@ export default function Dashboard() {
                           onChange={e => setRenameValue(e.target.value)}
                           onBlur={() => commitRename(project.id)}
                           onKeyDown={e => handleRenameKeyDown(e, project.id)}
-                          className="w-full text-sm font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                          className="w-full text-sm font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-gray-400"
                           onClick={e => e.stopPropagation()}
                         />
                       ) : (
@@ -338,7 +338,7 @@ export default function Dashboard() {
                     <div className="relative shrink-0">
                       <button
                         onClick={e => { e.stopPropagation(); setMenuOpenId(menuOpenId === project.id ? null : project.id) }}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        className="w-7 h-7 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                         title="Project options"
                       >
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -354,7 +354,7 @@ export default function Dashboard() {
                             className="fixed inset-0 z-40"
                             onClick={() => setMenuOpenId(null)}
                           />
-                          <div className="absolute bottom-full right-0 mb-1 w-36 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 py-1 z-50 animate-slide-down" style={{ transformOrigin: 'bottom right' }}>
+                          <div className="absolute bottom-full right-0 mb-1 w-36 bg-white dark:bg-gray-900 rounded shadow-2xl border border-gray-100 dark:border-gray-700 py-1 z-50 animate-slide-down" style={{ transformOrigin: 'bottom right' }}>
                             <button
                               onClick={e => { e.stopPropagation(); startRename(project) }}
                               className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"

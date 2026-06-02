@@ -109,19 +109,19 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
   }
 
   return (
-    <>
-      <div className={`fixed inset-0 z-50 ${t.backdrop} backdrop-blur-sm`} onClick={onClose} />
-      <div className={`fixed z-50 w-full max-w-md top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl shadow-2xl overflow-hidden ${t.panel} animate-scale-in`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className={`absolute inset-0 ${t.backdrop} backdrop-blur-sm`} onClick={onClose} />
+      <div className={`relative z-10 w-full max-w-md mx-4 rounded-2xl shadow-2xl overflow-hidden ${t.panel} animate-scale-in`}>
 
         {/* Header */}
         <div className={`flex items-center justify-between px-5 py-3.5 ${t.header}`}>
           <div className="flex items-center gap-2.5">
             <svg className={`w-4 h-4 ${t.subText}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
             <span className={`font-semibold text-sm ${t.headerText}`}>Share Project</span>
           </div>
-          <button onClick={onClose} className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${t.closeBtn}`}>
+          <button onClick={onClose} className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${t.closeBtn}`}>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -169,9 +169,9 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
                 </div>
                 <button
                   onClick={() => setIsPublic(v => !v)}
-                  className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${isPublic ? t.toggleActive : t.toggle}`}
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isPublic ? t.toggleActive : t.toggle}`}
                 >
-                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${isPublic ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${isPublic ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
 
@@ -183,7 +183,7 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
                     <span className="flex-1 text-[11px] font-mono truncate">{shareUrl}</span>
                     <button
                       onClick={copyLink}
-                      className={`shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all ${
+                      className={`shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded transition-all ${
                         copied
                           ? 'bg-emerald-500 text-white'
                           : isDark
@@ -210,7 +210,7 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
                   <button
                     onClick={handleRevoke}
                     disabled={revoking}
-                    className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 ${t.revoke}`}
+                    className={`text-xs font-medium px-3 py-1.5 rounded transition-colors disabled:opacity-40 ${t.revoke}`}
                   >
                     {revoking ? 'Revoking…' : 'Revoke link'}
                   </button>
@@ -219,7 +219,7 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
                 <button
                   onClick={handleCreateOrUpdate}
                   disabled={saving}
-                  className="h-8 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="h-8 px-4 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {saving && (
                     <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
@@ -234,6 +234,6 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
           )}
         </div>
       </div>
-    </>
+    </div>
   )
 }

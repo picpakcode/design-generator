@@ -93,7 +93,7 @@ export default function AuthModal({ open, onClose }: Props) {
             </div>
             <button
               onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -103,12 +103,12 @@ export default function AuthModal({ open, onClose }: Props) {
 
           {/* Mode tabs */}
           <div className="px-5 mb-4">
-            <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-0.5 gap-0.5">
+            <div className="flex bg-gray-100 dark:bg-gray-800 rounded p-0.5 gap-0.5">
               {(['signin', 'signup'] as const).map(m => (
                 <button
                   key={m}
                   onClick={() => switchMode(m)}
-                  className={`flex-1 h-7 rounded-[10px] text-[11px] font-bold transition-all ${
+                  className={`flex-1 h-7 rounded-sm text-[11px] font-bold transition-all ${
                     mode === m
                       ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -134,7 +134,7 @@ export default function AuthModal({ open, onClose }: Props) {
                 required
                 autoComplete="email"
                 placeholder="you@docsdiesel.com"
-                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/15 dark:focus:ring-gray-100/10 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/15 dark:focus:ring-gray-100/10 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
               />
             </div>
 
@@ -150,13 +150,13 @@ export default function AuthModal({ open, onClose }: Props) {
                   required
                   autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                   placeholder="••••••••"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/15 dark:focus:ring-gray-100/10 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/15 dark:focus:ring-gray-100/10 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
                 />
               </div>
             )}
 
             {error && (
-              <div className="flex items-start gap-2 bg-red-50 border border-red-100 px-3 py-2 rounded-xl">
+              <div className="flex items-start gap-2 bg-red-50 border border-red-100 px-3 py-2 rounded">
                 <svg className="w-3.5 h-3.5 text-red-400 mt-px shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -164,7 +164,7 @@ export default function AuthModal({ open, onClose }: Props) {
               </div>
             )}
             {info && (
-              <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-100 px-3 py-2 rounded-xl">
+              <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-100 px-3 py-2 rounded">
                 <svg className="w-3.5 h-3.5 text-emerald-500 mt-px shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -175,7 +175,7 @@ export default function AuthModal({ open, onClose }: Props) {
             <button
               type="submit"
               disabled={busy || !!info}
-              className="w-full h-9 rounded-xl bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="w-full h-9 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {busy
                 ? 'Please wait…'

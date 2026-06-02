@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { loadProject, saveProject, saveProjectThumbnail, renameProject, createProject, loadProjectShare } from '@/lib/db'
 import { usePresence, presenceColor } from '@/hooks/usePresence'
 import ShareModal from './ShareModal'
+import Btn from './ui/Btn'
 import { getGalleryTemplate, getTemplate } from '@/lib/templates'
 import AssetUploader from './AssetUploader'
 import ExportButton from './ExportButton'
@@ -221,14 +222,24 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const [bulkCanExport, setBulkCanExport] = useState(false)
   const bulkExportFnRef = useRef<() => void>(() => {})
 
-  const canvasRef        = useRef<HTMLDivElement>(null)
-  const altCanvasRef     = useRef<HTMLDivElement>(null)
-  const wrapperRef       = useRef<HTMLDivElement>(null)
-  const sizeRef          = useRef<HTMLDivElement>(null)
+  const canvasRef         = useRef<HTMLDivElement>(null)
+  const altCanvasRef      = useRef<HTMLDivElement>(null)
+  const wrapperRef        = useRef<HTMLDivElement | null>(null)
   const frameContainerRef = useRef<HTMLDivElement>(null)
+  const panOriginRef      = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
+  // canvasEl tracks the mounted viewport element — triggers re-registration of wheel handler
+  const [canvasEl, setCanvasEl] = useState<HTMLDivElement | null>(null)
+  const wrapperRefCallback = useCallback((el: HTMLDivElement | null) => {
+    wrapperRef.current = el
+    setCanvasEl(el)
+  }, [])
   // Tracks all rendered block-frame inner divs: key = "{blockId}-{format}"
-  const allFrameRefs     = useRef<Map<string, HTMLDivElement | null>>(new Map())
-  const [scale, setScale]           = useState(1)
+  const allFrameRefs      = useRef<Map<string, HTMLDivElement | null>>(new Map())
+  const [zoom, setZoom]             = useState(0.35)
+  const zoomRef                     = useRef(0.35)   // synchronous read for wheel handler
+  const [pan,  setPan]              = useState({ x: 40, y: 40 })
+  const [spaceDown, setSpaceDown]   = useState(false)
+  const [isPanDragging, setIsPanDragging] = useState(false)
   const CANVAS_BG_LIGHT = '#F0F0F0'
   const CANVAS_BG_DARK  = '#1a1a1a'
   const [canvasBg, setCanvasBg] = useState(CANVAS_BG_LIGHT)
@@ -707,24 +718,88 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     }
   }
 
+  // Fit canvas to viewport — called on mount and when template mode changes
+  const fitView = useCallback(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    const vw = el.clientWidth
+    const vh = el.clientHeight
+    const PADDING = 56
+    const contentW = isGallery ? (1500 + FRAME_GAP + 1500) : (1464 + FRAME_GAP + 600)
+    const blockH   = isGallery ? 1500 : 600
+    const numBlocks = isGallery ? 1 : design.blocks.length
+    const contentH = numBlocks * blockH + (numBlocks - 1) * 80
+    const z = Math.min(
+      (vw - PADDING * 2) / contentW,
+      (vh - PADDING * 2) / contentH,
+      1
+    )
+    const px = Math.max(PADDING, (vw - contentW * z) / 2)
+    const py = Math.max(PADDING, (vh - contentH * z) / 2)
+    zoomRef.current = z
+    setZoom(z)
+    setPan({ x: px, y: py })
+  }, [isGallery, design.blocks.length])
+
+  // Re-fit when the canvas element actually mounts (canvasEl) OR template mode changes.
+  // canvasEl as dep is critical: the canvas is hidden behind an auth gate on first render,
+  // so the wheel handler and fit must re-run when it appears — not just on initial mount.
   useEffect(() => {
-    const compute = () => {
-      // sizeRef is a w-full div inside the px-6 padding wrapper — its clientWidth
-      // is the exact inner content width with no manual offset needed.
-      const w = sizeRef.current?.clientWidth ?? 0
-      if (!w) return
-      if (isGallery) {
-        const h = (wrapperRef.current?.clientHeight ?? 600) - 96
-        setScale(Math.min((w - FRAME_GAP) / (1500 * 2), h / 1500))
+    if (!canvasEl) return
+    fitView()
+  }, [canvasEl, isGallery]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Wheel: pinch/ctrl+scroll → zoom centered on cursor; plain scroll → pan
+  // Uses zoomRef for atomic reads to avoid the anti-pattern of setPan inside setZoom updater.
+  useEffect(() => {
+    const el = canvasEl
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      if (e.ctrlKey || e.metaKey) {
+        // Pinch gesture or Ctrl+scroll — zoom centered on cursor
+        const rect = el.getBoundingClientRect()
+        const cx = e.clientX - rect.left
+        const cy = e.clientY - rect.top
+        const factor = Math.exp(-e.deltaY * 0.008)
+        const prevZ = zoomRef.current
+        const newZ = Math.max(0.05, Math.min(4, prevZ * factor))
+        const ratio = newZ / prevZ
+        zoomRef.current = newZ
+        setZoom(newZ)
+        setPan(p => ({
+          x: cx - (cx - p.x) * ratio,
+          y: cy - (cy - p.y) * ratio,
+        }))
       } else {
-        setScale((w - FRAME_GAP) / (1464 + 600))
+        // Two-finger scroll → pan
+        setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }))
       }
     }
-    compute()
-    const ro = new ResizeObserver(compute)
-    if (sizeRef.current) ro.observe(sizeRef.current)
-    return () => ro.disconnect()
-  }, [isGallery])
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [canvasEl]) // re-registers when the canvas element mounts/unmounts
+
+  // Spacebar → pan mode (like Figma)
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat &&
+          !(e.target instanceof HTMLInputElement) &&
+          !(e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault()
+        setSpaceDown(true)
+      }
+      if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey &&
+          !(e.target instanceof HTMLInputElement) &&
+          !(e.target instanceof HTMLTextAreaElement)) {
+        fitView()
+      }
+    }
+    const onUp = (e: KeyboardEvent) => { if (e.code === 'Space') setSpaceDown(false) }
+    window.addEventListener('keydown', onDown)
+    window.addEventListener('keyup', onUp)
+    return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp) }
+  }, [fitView])
 
 
   const handleAddAsset = (asset: UploadedAsset, slotIndex?: number) => {
@@ -811,6 +886,36 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       ? ['Product Photo', 'Background', 'Brand Logo', ...iconSlots]
       : ['Product Photo', 'Background Texture', 'Brand Logo']
 
+  const handleViewportMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button === 1 || spaceDown) {
+      e.preventDefault()
+      panOriginRef.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y }
+      setIsPanDragging(true)
+    }
+  }
+  const handleViewportMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const o = panOriginRef.current
+    if (!o) return
+    setPan({ x: o.px + (e.clientX - o.mx), y: o.py + (e.clientY - o.my) })
+  }
+  const handleViewportMouseUp = () => {
+    panOriginRef.current = null
+    setIsPanDragging(false)
+  }
+
+  const adjustZoom = (factor: number) => {
+    const el = wrapperRef.current
+    if (!el) return
+    const cx = el.clientWidth / 2
+    const cy = el.clientHeight / 2
+    const prevZ = zoomRef.current
+    const newZ = Math.max(0.05, Math.min(4, prevZ * factor))
+    const ratio = newZ / prevZ
+    zoomRef.current = newZ
+    setZoom(newZ)
+    setPan(p => ({ x: cx - (cx - p.x) * ratio, y: cy - (cy - p.y) * ratio }))
+  }
+
   const computePhotoScreenRect = (): { left: number; top: number; width: number; height: number } | null => {
     if (!frameContainerRef.current) return null
     const wRect = frameContainerRef.current.getBoundingClientRect()
@@ -879,7 +984,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     return (
       <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
         <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3 shadow-sm">
-          <a href="/dashboard" className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-lg border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all shrink-0">
+          <a href="/dashboard" className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all shrink-0">
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
@@ -891,7 +996,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Sign in to view this project.</p>
             <button
               onClick={() => setAuthModalOpen(true)}
-              className="h-9 px-5 rounded-lg bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+              className="h-9 px-5 rounded bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
             >
               Sign in
             </button>
@@ -911,7 +1016,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           <>
             <a
               href="/dashboard"
-              className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-lg border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shrink-0"
+              className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shrink-0"
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -963,12 +1068,12 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
         )}
 
         {/* Mode tabs */}
-        <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 shrink-0">
+        <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5 shrink-0">
           {(['design', 'bulk'] as const).map(mode => (
             <button
               key={mode}
               onClick={() => setAppMode(mode)}
-              className={`h-6 px-3 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${
+              className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${
                 appMode === mode
                   ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -998,7 +1103,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   <button
                     onClick={() => { bulkExportFnRef.current(); setBulkExportOpen(false) }}
                     disabled={!bulkCanExport}
-                    className="w-full h-9 flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-full h-9 flex items-center justify-center gap-2 rounded bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
@@ -1063,11 +1168,11 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
             {/* Undo / Redo */}
             <button onClick={undo} disabled={!canUndo} title="Undo (⌘Z)"
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              className="w-8 h-8 flex items-center justify-center rounded text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <UndoIcon />
             </button>
             <button onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)"
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              className="w-8 h-8 flex items-center justify-center rounded text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <RedoIcon />
             </button>
 
@@ -1079,7 +1184,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 <button
                   onClick={() => setUserMenuOpen(o => !o)}
                   title={user.email ?? 'Account'}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-white text-[10px] font-bold">
                     {(user.email ?? '?')[0].toUpperCase()}
@@ -1096,7 +1201,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                       <div className="h-px bg-gray-100 dark:bg-gray-700 mb-1" />
                       <button
                         onClick={() => { setUserMenuOpen(false); signOut() }}
-                        className="w-full text-left px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-500 rounded-lg transition-colors"
+                        className="w-full text-left px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-500 rounded transition-colors"
                       >
                         Sign out
                       </button>
@@ -1133,39 +1238,12 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               </div>
             )}
 
-            {/* Share button */}
-            {projectId && user ? (
-              <button
-                onClick={() => setShareModalOpen(true)}
-                title="Share project"
-                className="h-7 px-3 flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold transition-colors"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-                Share
-              </button>
-            ) : !projectId ? (
-              <button
-                onClick={() => { setSaveToShareName(design.productName || ''); setSaveToShareOpen(true) }}
-                title="Share project"
-                className="h-7 px-3 flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold transition-colors"
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-                Share
-              </button>
-            ) : null}
-
-            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5" />
-
             {/* Preview — only for A+ content mode */}
             {!isGallery && (
               <button
                 onClick={() => setPreviewOpen(true)}
                 title="Preview all blocks"
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1179,7 +1257,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               <button
                 onClick={() => setSettingsMenuOpen(o => !o)}
                 title="Settings"
-                className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${settingsMenuOpen ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${settingsMenuOpen ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300'}`}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -1195,10 +1273,10 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Appearance</p>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xs text-gray-600 dark:text-gray-400">Theme</span>
-                      <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+                      <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5">
                         {(['light', 'dark'] as const).map(t => (
                           <button key={t} onClick={() => updateAppSettings({ theme: t })}
-                            className={`h-6 px-3 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.theme === t ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                            className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.theme === t ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                             {t === 'light' ? 'Light' : 'Dark'}
                           </button>
                         ))}
@@ -1206,10 +1284,10 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     </div>
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-xs text-gray-600 dark:text-gray-400">Density</span>
-                      <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+                      <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5">
                         {(['comfortable', 'compact'] as const).map(d => (
                           <button key={d} onClick={() => updateAppSettings({ uiDensity: d })}
-                            className={`h-6 px-3 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.uiDensity === d ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                            className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.uiDensity === d ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                             {d === 'comfortable' ? 'Cozy' : 'Compact'}
                           </button>
                         ))}
@@ -1226,11 +1304,11 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                         : ['#FFFFFF', '#F0F0F0', '#E0E0E0', '#1a1a1a'] as const
                       ).map(color => (
                         <button key={color} onClick={() => setCanvasBg(color)} title={color}
-                          className={`w-8 h-8 rounded-lg ring-2 transition-all ${canvasBg === color ? 'ring-gray-900 dark:ring-white ring-offset-1 dark:ring-offset-gray-900' : 'ring-gray-200 dark:ring-gray-600 hover:ring-gray-400'}`}
+                          className={`w-8 h-8 rounded ring-2 transition-all ${canvasBg === color ? 'ring-gray-900 dark:ring-white ring-offset-1 dark:ring-offset-gray-900' : 'ring-gray-200 dark:ring-gray-600 hover:ring-gray-400'}`}
                           style={{ backgroundColor: color }} />
                       ))}
-                      <label title="Custom color" className="relative w-8 h-8 flex items-center justify-center rounded-lg ring-2 ring-gray-200 dark:ring-gray-600 hover:ring-gray-400 transition-all cursor-pointer overflow-hidden shrink-0">
-                        <div className="w-full h-full rounded-lg" style={{ background: 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />
+                      <label title="Custom color" className="relative w-8 h-8 flex items-center justify-center rounded ring-2 ring-gray-200 dark:ring-gray-600 hover:ring-gray-400 transition-all cursor-pointer overflow-hidden shrink-0">
+                        <div className="w-full h-full rounded" style={{ background: 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />
                         <input type="color" value={canvasBg} onChange={e => setCanvasBg(e.target.value)}
                           style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }} />
                       </label>
@@ -1243,10 +1321,10 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Export defaults</p>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xs text-gray-600 dark:text-gray-400">Format</span>
-                      <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+                      <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5">
                         {(['png', 'jpeg'] as const).map(f => (
                           <button key={f} onClick={() => updateAppSettings({ exportFormat: f })}
-                            className={`h-6 px-3 rounded-md text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.exportFormat === f ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                            className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.exportFormat === f ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                             {f.toUpperCase()}
                           </button>
                         ))}
@@ -1272,7 +1350,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     <div className="flex gap-1">
                       {([0, 1000, 2000, 5000] as const).map(ms => (
                         <button key={ms} onClick={() => updateAppSettings({ autosaveInterval: ms })}
-                          className={`flex-1 h-7 rounded-lg text-[10px] font-bold border-2 transition-all ${appSettings.autosaveInterval === ms ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
+                          className={`flex-1 h-7 rounded text-[10px] font-bold border-2 transition-all ${appSettings.autosaveInterval === ms ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
                           {ms === 0 ? 'Off' : `${ms / 1000}s`}
                         </button>
                       ))}
@@ -1283,6 +1361,23 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             </div>
 
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
+
+            {/* Share button */}
+            {projectId && user ? (
+              <Btn variant="indigo" onClick={() => setShareModalOpen(true)} title="Share project">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                Share
+              </Btn>
+            ) : !projectId ? (
+              <Btn variant="indigo" onClick={() => { setSaveToShareName(design.productName || ''); setSaveToShareOpen(true) }} title="Share project">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                Share
+              </Btn>
+            ) : null}
 
             {/* Export dropdown */}
             <div className="relative">
@@ -1312,13 +1407,13 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           value={fileBase}
                           onChange={e => setCustomBase(e.target.value || null)}
                           spellCheck={false}
-                          className="flex-1 min-w-0 px-2.5 h-8 text-[11px] font-mono text-gray-700 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-400 focus:bg-white transition-all"
+                          className="flex-1 min-w-0 px-2.5 h-8 text-[11px] font-mono text-gray-700 border border-gray-200 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-400 focus:bg-white transition-all"
                         />
                         {customBase && (
                           <button
                             onClick={() => setCustomBase(null)}
                             title="Reset to default"
-                            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+                            className="shrink-0 w-7 h-7 flex items-center justify-center rounded text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
                           >
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1350,7 +1445,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           <button
                             onClick={() => { setExportMenuOpen(false); exportAllBlocks(design) }}
                             disabled={isExportingAll}
-                            className="w-full h-9 flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="w-full h-9 flex items-center justify-center gap-2 rounded bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             {isExportingAll ? (
                               <>
@@ -1421,7 +1516,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     onChange={e => setDesign(d => ({ ...d, productName: e.target.value }))}
                     placeholder="e.g. CCV Filter D3932C"
                     spellCheck={false}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
                   />
                 </div>
                 {design.productName.trim() && (
@@ -1447,11 +1542,11 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     onChange={e => setPresetName(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') savePreset() }}
                     placeholder="Name this preset…"
-                    className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all min-w-0"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all min-w-0"
                   />
                   <button
                     onClick={savePreset}
-                    className="shrink-0 px-3 h-[38px] text-[11px] font-bold uppercase tracking-widest rounded-lg bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+                    className="shrink-0 px-3 h-[38px] text-[11px] font-bold uppercase tracking-widest rounded bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
                   >
                     Save
                   </button>
@@ -1464,14 +1559,14 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                       <div key={p.id} className="flex items-center gap-1.5 group">
                         <button
                           onClick={() => loadPreset(p)}
-                          className="flex-1 text-left px-3 py-2 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-700/60 rounded-lg transition-colors truncate font-medium"
+                          className="flex-1 text-left px-3 py-2 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-700/60 rounded transition-colors truncate font-medium"
                         >
                           {p.name}
                         </button>
                         <button
                           onClick={() => deletePreset(p.id)}
                           title="Delete preset"
-                          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                          className="shrink-0 w-7 h-7 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1546,7 +1641,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                             patchDesign({ iconLabels: next })
                           }}
                           placeholder={`Icon ${i + 1} label…`}
-                          className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                          className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
                         />
                       </div>
                     ))}
@@ -1577,7 +1672,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                       const asset = activeBlock?.assets[0]
                       return asset ? (
                         <div className="flex items-center gap-1.5">
-                          <div className="w-12 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
+                          <div className="w-12 h-8 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
                           </div>
@@ -1601,7 +1696,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                       ) : (
                         <button
                           onClick={() => setPhotoPickerOpen(true)}
-                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                         >
                           <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -1651,7 +1746,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                               <div className="flex-1 flex items-center gap-1.5">
                                 {asset ? (
                                   <>
-                                    <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center overflow-hidden shrink-0">
+                                    <div className="w-8 h-8 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center overflow-hidden shrink-0">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img src={asset.url} alt={asset.name} className="max-w-full max-h-full object-contain p-0.5" />
                                     </div>
@@ -1676,7 +1771,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                                   <button
                                     onClick={() => setIconPickerSlot(slot)}
                                     disabled={!folderConfig.iconsAlbumId}
-                                    className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                    className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                                   >
                                     <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -1703,7 +1798,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Photo Composition</p>
                   <button
                     onClick={() => setPhotoEditMode(m => !m)}
-                    className={`w-full h-9 flex items-center justify-center gap-2 rounded-xl border-2 text-[11px] font-bold uppercase tracking-widest transition-all ${
+                    className={`w-full h-9 flex items-center justify-center gap-2 rounded border-2 text-[11px] font-bold uppercase tracking-widest transition-all ${
                       photoEditMode
                         ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
                         : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
@@ -1757,7 +1852,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   <div className="flex gap-2">
                     <button
                       onClick={() => patchPhotoComp(p => ({ ...p, flipH: !p.flipH }))}
-                      className={`flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg border text-[10px] font-semibold transition-all ${
+                      className={`flex-1 h-8 flex items-center justify-center gap-1.5 rounded border text-[10px] font-semibold transition-all ${
                         (settings.photoComposition ?? DEFAULT_PHOTO_COMP).flipH
                           ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
                           : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500'
@@ -1767,7 +1862,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     </button>
                     <button
                       onClick={() => patchPhotoComp(() => DEFAULT_PHOTO_COMP)}
-                      className="flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-[10px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 transition-all"
+                      className="flex-1 h-8 flex items-center justify-center gap-1.5 rounded border border-gray-200 dark:border-gray-600 text-[10px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 transition-all"
                     >
                       <ResetIcon /> Reset
                     </button>
@@ -1790,7 +1885,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           key={String(flipped)}
                           onClick={() => patchSettings({ layoutFlipped: flipped })}
                           title={flipped ? 'Text left · Photo right' : 'Photo left · Text right'}
-                          className={`flex-1 h-9 rounded-lg border-2 flex items-center justify-center transition-all ${
+                          className={`flex-1 h-9 rounded border-2 flex items-center justify-center transition-all ${
                             settings.layoutFlipped === flipped
                               ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
                               : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-500'
@@ -1841,7 +1936,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           <button
                             key={n}
                             onClick={() => patchDesign({ iconCount: n })}
-                            className={`flex-1 h-7 rounded-md text-xs font-bold border-2 transition-all ${
+                            className={`flex-1 h-7 rounded text-xs font-bold border-2 transition-all ${
                               design.iconCount === n
                                 ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
                                 : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
@@ -1940,40 +2035,50 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
         </aside>
 
-        {/* ══ Canvas area ══ */}
+        {/* ══ Canvas viewport (pan + zoom) ══ */}
         <main
-          ref={wrapperRef}
-          className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
-          style={{ backgroundColor: canvasBg }}
+          ref={wrapperRefCallback}
+          className="flex-1 min-h-0 min-w-0 relative overflow-hidden"
+          style={{
+            backgroundColor: canvasBg,
+            cursor: spaceDown ? (isPanDragging ? 'grabbing' : 'grab') : 'default',
+          }}
+          onMouseDown={handleViewportMouseDown}
+          onMouseMove={handleViewportMouseMove}
+          onMouseUp={handleViewportMouseUp}
+          onMouseLeave={handleViewportMouseUp}
         >
-          <div className="px-6 py-6 space-y-10">
-            {/* Invisible full-width sentinel — measures the inner content width after padding */}
-            <div ref={sizeRef} className="w-full" style={{ height: 0, margin: 0, padding: 0 }} />
+          {/* Spacebar overlay — captures pointer events to pan without hitting frames */}
+          {spaceDown && (
+            <div className="absolute inset-0 z-20" style={{ cursor: isPanDragging ? 'grabbing' : 'grab' }} />
+          )}
+
+          {/* Transform layer — all content at native pixel size */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: '0 0',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 80 }}>
             {isGallery ? (
-              /* ── Gallery mode: one row of two gallery frames ── */
+              /* ── Gallery mode: two 1500×1500 frames side by side ── */
               <div>
-                {/* Section label */}
-                <div className="flex items-center gap-3 mb-3">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Gallery Images</span>
-                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-                </div>
-                {/* Frames row */}
-                <div className="flex items-start" style={{ gap: FRAME_GAP }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
                   {GALLERY_TEMPLATE_IDS.map(tplId => {
                     const tpl = getGalleryTemplate(tplId as GalleryTemplateId)
                     const isSelected = design.activeGalleryTemplate === tplId
-                    const scaledW = tpl.width * scale
-                    const scaledH = tpl.height * scale
                     const tplSettings = design.gallery
                     return (
-                      <div key={tplId} className="flex flex-col items-center gap-1.5">
+                      <div key={tplId} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                         {/* Frame label */}
-                        <div className="flex items-center gap-1">
-                          <span className={`text-[10px] font-semibold ${isSelected ? 'text-blue-500' : 'text-gray-400'}`}>
-                            {tplId === 'gallery-hero' ? 'Gallery Hero' : 'Gallery Icons'} · 1500×1500
-                          </span>
-                        </div>
-                        {/* Outer clip div — selected frame gets frameContainerRef + mouse events */}
+                        <span style={{ fontSize: 11, fontWeight: 600, color: isSelected ? '#3B82F6' : '#9CA3AF', whiteSpace: 'nowrap' }}>
+                          {tplId === 'gallery-hero' ? 'Gallery Hero' : 'Gallery Icons'} · 1500×1500
+                        </span>
+                        {/* Frame */}
                         <div
                           ref={el => {
                             if (isSelected) (frameContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
@@ -1983,8 +2088,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           onMouseMove={isSelected ? handleCanvasMouseMove : undefined}
                           onMouseLeave={isSelected ? () => setIsOverPhoto(false) : undefined}
                           style={{
-                            width: scaledW,
-                            height: scaledH,
+                            width: tpl.width,
+                            height: tpl.height,
                             position: 'relative',
                             overflow: 'hidden',
                             borderRadius: 10,
@@ -1997,30 +2102,17 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                             cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
                           }}
                         >
-                          {/* Inner full-res div, scaled down */}
                           <div
-                            style={{
-                              width: tpl.width,
-                              height: tpl.height,
-                              transform: `scale(${scale})`,
-                              transformOrigin: 'top left',
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
+                            ref={el => {
+                              if (isSelected) (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
                             }}
+                            className="design-canvas"
+                            style={{ width: tpl.width, height: tpl.height, position: 'relative' }}
                           >
-                            <div
-                              ref={el => {
-                                if (isSelected) (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
-                              }}
-                              className="design-canvas"
-                              style={{ width: tpl.width, height: tpl.height, position: 'relative' }}
-                            >
-                              {tplId === 'gallery-icons'
-                                ? <CanvasContentGalleryIcons design={{ ...design, activeGalleryTemplate: tplId }} settings={tplSettings} />
-                                : <CanvasContentGallery design={{ ...design, activeGalleryTemplate: tplId }} settings={tplSettings} />
-                              }
-                            </div>
+                            {tplId === 'gallery-icons'
+                              ? <CanvasContentGalleryIcons design={{ ...design, activeGalleryTemplate: tplId }} settings={tplSettings} />
+                              : <CanvasContentGallery design={{ ...design, activeGalleryTemplate: tplId }} settings={tplSettings} />
+                            }
                           </div>
                         </div>
                       </div>
@@ -2035,10 +2127,9 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   return (
                     <div key={block.id}>
                       {/* Block row header */}
-                      <div className="flex items-center gap-2 mb-3">
-                        {/* Editable block label / slug */}
-                        <div className="flex items-center gap-1 shrink-0 group">
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-gray-300 select-none">#</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.1em', userSelect: 'none' }}>#</span>
                           <input
                             type="text"
                             value={block.slug ?? ''}
@@ -2047,33 +2138,34 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                             placeholder={`block-${blockIdx + 1}`}
                             spellCheck={false}
                             title="Block label — used in export filename"
-                            className="text-[10px] font-semibold text-gray-600 dark:text-gray-400 bg-transparent border-b border-transparent group-hover:border-gray-200 dark:group-hover:border-gray-600 focus:border-gray-400 dark:focus:border-gray-500 focus:outline-none w-28 placeholder-gray-300 dark:placeholder-gray-600 transition-colors"
+                            style={{ fontSize: 10, fontWeight: 600, color: '#4B5563', background: 'transparent', border: 'none', borderBottom: '1px solid transparent', outline: 'none', width: 112 }}
                           />
                         </div>
                         {/* Template switcher */}
-                        <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-800 rounded-md p-0.5">
+                        <div style={{ display: 'flex', gap: 2, background: '#F3F4F6', borderRadius: 6, padding: 2 }}>
                           {(['aplus-5050', 'aplus-icons'] as TemplateId[]).map(tid => (
                             <button
                               key={tid}
                               onClick={e => { e.stopPropagation(); changeBlockTemplate(block.id, tid) }}
-                              className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all ${
-                                block.templateId === tid
-                                  ? 'bg-white dark:bg-gray-600 shadow-sm text-gray-900 dark:text-white'
-                                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                              }`}
+                              style={{
+                                padding: '2px 8px', borderRadius: 4, fontSize: 9, fontWeight: 700, border: 'none',
+                                background: block.templateId === tid ? '#fff' : 'transparent',
+                                color: block.templateId === tid ? '#111' : '#6B7280',
+                                boxShadow: block.templateId === tid ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                                cursor: 'pointer',
+                              }}
                             >
                               {tid === 'aplus-5050' ? '50/50' : 'Icons'}
                             </button>
                           ))}
                         </div>
-                        <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
                         {design.blocks.length > 1 && (
                           <button
                             onClick={e => { e.stopPropagation(); deleteBlock(block.id) }}
                             title="Remove block"
-                            className="shrink-0 w-5 h-5 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors rounded"
+                            style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: '#D1D5DB', cursor: 'pointer', borderRadius: 4 }}
                           >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                           </button>
@@ -2081,14 +2173,11 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                       </div>
 
                       {/* Frames row: desktop + mobile */}
-                      <div className="flex items-start" style={{ gap: FRAME_GAP }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
                         {FORMATS.map(frameFmt => {
                           const tpl = getTemplate(block.templateId, frameFmt)
                           const isSelected = design.activeBlockId === block.id && design.activeFormat === frameFmt
                           const isAlt = design.activeBlockId === block.id && frameFmt !== design.activeFormat
-                          const scaledW = tpl.width * scale
-                          const scaledH = tpl.height * scale
-                          // Build render design: merge block content + global settings
                           const renderDesign: DesignState = {
                             ...design,
                             assets: block.assets ?? [],
@@ -2102,33 +2191,27 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                             mobile: { ...design.mobile, layoutFlipped: block.layoutFlipped },
                           }
                           const renderSettings = frameFmt === 'desktop' ? renderDesign.desktop : renderDesign.mobile
+                          const peer = peers.find(p => p.activeBlockId === block.id)
                           return (
-                            <div key={frameFmt} className="flex flex-col items-center gap-1.5">
+                            <div key={frameFmt} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                               {/* Frame label */}
-                              <div className="flex items-center gap-1">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                 {frameFmt === 'desktop'
                                   ? <DesktopIcon className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
                                   : <MobileIcon  className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
                                 }
-                                <span className={`text-[10px] font-semibold ${isSelected ? 'text-blue-500' : 'text-gray-400'}`}>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: isSelected ? '#3B82F6' : '#9CA3AF' }}>
                                   {frameFmt === 'desktop' ? 'Desktop · 1464×600' : 'Mobile · 600×450'}
                                 </span>
                               </div>
-                              {/* Outer clip div */}
-                              {(() => {
-                                const activePeer = peers.find(p => p.activeBlockId === block.id)
-                                return activePeer ? (
-                                  <div
-                                    className="flex items-center gap-1 mb-0.5"
-                                    style={{ height: 14 }}
-                                  >
-                                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: activePeer.color }} />
-                                    <span className="text-[9px] font-medium truncate" style={{ color: activePeer.color }}>
-                                      {activePeer.email}
-                                    </span>
-                                  </div>
-                                ) : <div style={{ height: 14 }} />
-                              })()}
+                              {/* Peer indicator */}
+                              {peer ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, height: 14 }}>
+                                  <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: peer.color, flexShrink: 0 }} />
+                                  <span style={{ fontSize: 9, fontWeight: 500, color: peer.color }}>{peer.email}</span>
+                                </div>
+                              ) : <div style={{ height: 14 }} />}
+                              {/* Frame at native size */}
                               <div
                                 ref={el => {
                                   if (isSelected) (frameContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
@@ -2137,53 +2220,38 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                                 onMouseDown={isSelected ? handleCanvasMouseDown : undefined}
                                 onMouseMove={isSelected ? handleCanvasMouseMove : undefined}
                                 onMouseLeave={isSelected ? () => setIsOverPhoto(false) : undefined}
-                                style={(() => {
-                                  const peer = peers.find(p => p.activeBlockId === block.id)
-                                  return {
-                                    width: scaledW,
-                                    height: scaledH,
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    borderRadius: 8,
-                                    flexShrink: 0,
-                                    outline: isSelected
-                                      ? '2px solid #3B82F6'
-                                      : peer ? `2px solid ${peer.color}` : '2px solid transparent',
-                                    outlineOffset: 2,
-                                    boxShadow: isSelected
-                                      ? '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
-                                      : peer
-                                        ? `0 0 0 4px ${peer.color}22, 0 2px 12px rgba(0,0,0,0.10)`
-                                        : '0 2px 12px rgba(0,0,0,0.10)',
-                                    cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
-                                  }
-                                })()}
-                              >
-                                {/* Inner full-res div */}
-                                <div style={{
+                                style={{
                                   width: tpl.width,
                                   height: tpl.height,
-                                  transform: `scale(${scale})`,
-                                  transformOrigin: 'top left',
-                                  position: 'absolute',
-                                  top: 0,
-                                  left: 0,
-                                }}>
-                                  <div
-                                    ref={el => {
-                                      // Register in global map for Export All Blocks
-                                      allFrameRefs.current.set(`${block.id}-${frameFmt}`, el)
-                                      if (isSelected) (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
-                                      if (isAlt)     (altCanvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
-                                    }}
-                                    className="design-canvas"
-                                    style={{ width: tpl.width, height: tpl.height, position: 'relative' }}
-                                  >
-                                    {block.templateId === 'aplus-icons'
-                                      ? <CanvasContentIcons design={renderDesign} settings={renderSettings} />
-                                      : <CanvasContent      design={renderDesign} settings={renderSettings} />
-                                    }
-                                  </div>
+                                  position: 'relative',
+                                  overflow: 'hidden',
+                                  borderRadius: 8,
+                                  flexShrink: 0,
+                                  outline: isSelected
+                                    ? '2px solid #3B82F6'
+                                    : peer ? `2px solid ${peer.color}` : '2px solid transparent',
+                                  outlineOffset: 2,
+                                  boxShadow: isSelected
+                                    ? '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
+                                    : peer
+                                      ? `0 0 0 4px ${peer.color}22, 0 2px 12px rgba(0,0,0,0.10)`
+                                      : '0 2px 12px rgba(0,0,0,0.10)',
+                                  cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
+                                }}
+                              >
+                                <div
+                                  ref={el => {
+                                    allFrameRefs.current.set(`${block.id}-${frameFmt}`, el)
+                                    if (isSelected) (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                                    if (isAlt)     (altCanvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                                  }}
+                                  className="design-canvas"
+                                  style={{ width: tpl.width, height: tpl.height, position: 'relative' }}
+                                >
+                                  {block.templateId === 'aplus-icons'
+                                    ? <CanvasContentIcons design={renderDesign} settings={renderSettings} />
+                                    : <CanvasContent      design={renderDesign} settings={renderSettings} />
+                                  }
                                 </div>
                               </div>
                             </div>
@@ -2197,15 +2265,41 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 {/* Add block button */}
                 <button
                   onClick={addBlock}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 rounded-lg transition-all"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    width: 1464 + FRAME_GAP + 600, padding: '20px 0',
+                    fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: '#9CA3AF', background: 'transparent',
+                    border: '2px dashed #E5E7EB', borderRadius: 8, cursor: 'pointer',
+                  }}
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                   </svg>
                   Add Block
                 </button>
               </>
             )}
+            </div>
+          </div>
+
+          {/* Zoom HUD */}
+          <div className="absolute bottom-4 right-4 z-10 flex items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-sm overflow-hidden">
+            <button
+              onClick={() => adjustZoom(1 / 1.25)}
+              className="w-7 h-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold transition-colors"
+              title="Zoom out"
+            >−</button>
+            <button
+              onClick={fitView}
+              className="h-7 px-2 text-[11px] font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors tabular-nums min-w-[44px] text-center"
+              title="Reset zoom (F)"
+            >{Math.round(zoom * 100)}%</button>
+            <button
+              onClick={() => adjustZoom(1.25)}
+              className="w-7 h-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold transition-colors"
+              title="Zoom in"
+            >+</button>
           </div>
         </main>
       </div>
@@ -2238,16 +2332,16 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               onChange={e => setSaveToShareName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') saveAndShare(); if (e.key === 'Escape') setSaveToShareOpen(false) }}
               placeholder="Project name"
-              className="w-full h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
+              className="w-full h-9 px-3 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
             />
             <div className="flex items-center justify-end gap-2">
-              <button onClick={() => setSaveToShareOpen(false)} className="h-8 px-3 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <button onClick={() => setSaveToShareOpen(false)} className="h-8 px-3 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                 Cancel
               </button>
               <button
                 onClick={saveAndShare}
                 disabled={saveToShareSaving}
-                className="h-8 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="h-8 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {saveToShareSaving && (
                   <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
@@ -2278,29 +2372,6 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
         onSelect={pick => handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 0)}
       />
     </div>
-  )
-}
-
-// ─── Button component ─────────────────────────────────────────────────────────
-
-type BtnVariant = 'primary' | 'secondary' | 'ghost'
-type BtnSize = 'sm' | 'md'
-
-function Btn({ variant = 'primary', size = 'md', className = '', children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant; size?: BtnSize }) {
-  const base = 'inline-flex items-center justify-center gap-1.5 font-bold uppercase tracking-widest rounded-lg transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed'
-  const sizes: Record<BtnSize, string> = {
-    sm: 'h-7 px-3 text-[10px]',
-    md: 'h-8 px-4 text-[11px]',
-  }
-  const variants: Record<BtnVariant, string> = {
-    primary:   'bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600',
-    secondary: 'border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 bg-white dark:bg-transparent hover:border-gray-400 hover:text-gray-900 dark:hover:border-gray-400 dark:hover:text-gray-200',
-    ghost:     'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200',
-  }
-  return (
-    <button className={`${base} ${sizes[size]} ${variants[variant]} ${className}`} {...props}>
-      {children}
-    </button>
   )
 }
 
@@ -2357,7 +2428,7 @@ function TransformBtns({ value, onChange }: { value: TextTransform; onChange: (v
     <div className="flex gap-1">
       {TRANSFORMS.map(t => (
         <button key={t.value} title={t.title} onClick={() => onChange(t.value)}
-          className={`flex-1 py-1.5 text-xs rounded-md border font-mono font-semibold transition-all ${value === t.value ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
+          className={`flex-1 py-1.5 text-xs rounded border font-mono font-semibold transition-all ${value === t.value ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
           {t.label}
         </button>
       ))}
@@ -2370,7 +2441,7 @@ function TransformBtns({ value, onChange }: { value: TextTransform; onChange: (v
 function ColorRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="flex items-center gap-3 cursor-pointer group">
-      <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0 ring-2 ring-gray-200 dark:ring-gray-600 group-hover:ring-gray-400 dark:group-hover:ring-gray-500 transition-all">
+      <div className="relative w-8 h-8 rounded overflow-hidden shrink-0 ring-2 ring-gray-200 dark:ring-gray-600 group-hover:ring-gray-400 dark:group-hover:ring-gray-500 transition-all">
         <div className="w-full h-full" style={{ backgroundColor: value }} />
         <input type="color" value={value} onChange={e => onChange(e.target.value)}
           style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }} />
@@ -2746,7 +2817,7 @@ function TemplatePicker({
               {isGallery ? 'Amazon Gallery Images · 1500 × 1500 px' : 'Amazon A+ Content · 1464 × 600 desktop'}
             </p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+          <button onClick={onClose} className="w-8 h-8 rounded flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
