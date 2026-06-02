@@ -4,7 +4,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Category, DesignBlock, DesignState, Format, FormatSettings, GalleryTemplateId, PhotoComposition, DEFAULT_PHOTO_COMP, TemplateId, TextTransform, UploadedAsset } from '@/types'
 import { createClient } from '@/lib/supabase/client'
-import { loadProject, saveProject, saveProjectThumbnail, renameProject } from '@/lib/db'
+import { loadProject, saveProject, saveProjectThumbnail, renameProject, createProject, loadProjectShare } from '@/lib/db'
+import { usePresence, presenceColor } from '@/hooks/usePresence'
+import ShareModal from './ShareModal'
 import { getGalleryTemplate, getTemplate } from '@/lib/templates'
 import AssetUploader from './AssetUploader'
 import ExportButton from './ExportButton'
@@ -200,9 +202,9 @@ function migrateLoadedState(raw: unknown): DesignState {
 
 // ─── Main workspace ───────────────────────────────────────────────────────────
 
-interface Props { projectId?: string }
+interface Props { projectId?: string; defaultOpenShare?: boolean }
 
-export default function DesignWorkspace({ projectId }: Props) {
+export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) {
   const { user, signOut, loading: authLoading } = useAuth()
   const { settings: appSettings, update: updateAppSettings, folderConfig, updateFolderConfig } = useAppSettings()
   const [authModalOpen, setAuthModalOpen] = useState(false)
@@ -250,12 +252,31 @@ export default function DesignWorkspace({ projectId }: Props) {
   const [presetName, setPresetName] = useState('')
   const [projectLoading, setProjectLoading] = useState(false)
 
+  const [shareModalOpen, setShareModalOpen] = useState(false)
+  const [saveToShareOpen, setSaveToShareOpen] = useState(false)
+  const [saveToShareName, setSaveToShareName] = useState('')
+  const [saveToShareSaving, setSaveToShareSaving] = useState(false)
+  const isApplyingRemoteRef = useRef(false)
+
   const isGallery = design.activeCategory === 'gallery'
   const fmt = design.activeFormat
   const settings = isGallery ? design.gallery : design[fmt]
   const template = isGallery
     ? getGalleryTemplate(design.activeGalleryTemplate)
     : getTemplate(design.activeTemplate, fmt)
+
+  const { peers, broadcastState } = usePresence({
+    projectId,
+    userId: user?.id,
+    email: user?.email,
+    activeBlockId: design.activeBlockId ?? null,
+    onStateUpdate: (state) => {
+      isApplyingRemoteRef.current = true
+      skipHistRef.current = true
+      setDesign(state)
+      setTimeout(() => { isApplyingRemoteRef.current = false }, 0)
+    },
+  })
 
   const patchSettings = (patch: Partial<FormatSettings>) =>
     setDesign(d => {
@@ -484,6 +505,32 @@ export default function DesignWorkspace({ projectId }: Props) {
     }, appSettings.autosaveInterval)
     return () => clearTimeout(t)
   }, [design, projectId, user, appSettings.autosaveInterval]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Broadcast state to collaborators (debounced 400ms, skipped when applying remote update)
+  const broadcastTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  useEffect(() => {
+    if (!projectId || !user || isApplyingRemoteRef.current) return
+    clearTimeout(broadcastTimerRef.current)
+    broadcastTimerRef.current = setTimeout(() => { broadcastState(design) }, 400)
+    return () => clearTimeout(broadcastTimerRef.current)
+  }, [design, projectId, user]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Open share modal automatically when defaultOpenShare is set
+  useEffect(() => {
+    if (defaultOpenShare && projectId && !projectLoading) setShareModalOpen(true)
+  }, [defaultOpenShare, projectId, projectLoading])
+
+  async function saveAndShare() {
+    if (!user) return
+    setSaveToShareSaving(true)
+    const supabase = createClient()
+    const name = saveToShareName.trim() || 'Untitled Project'
+    const id = await createProject(supabase, user.id, name, design)
+    setSaveToShareSaving(false)
+    if (id) {
+      window.location.href = `/project/${id}?share=1`
+    }
+  }
 
   const savePreset = () => {
     const name = presetName.trim() || `Preset ${presets.length + 1}`
@@ -1061,6 +1108,54 @@ export default function DesignWorkspace({ projectId }: Props) {
             )}
 
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
+
+            {/* Presence avatars */}
+            {peers.length > 0 && (
+              <div className="flex items-center gap-1 mr-1">
+                {peers.slice(0, 4).map(p => (
+                  <div
+                    key={p.userId}
+                    title={p.email}
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold ring-2 ring-white dark:ring-gray-900"
+                    style={{ backgroundColor: p.color }}
+                  >
+                    {p.email[0]?.toUpperCase() ?? '?'}
+                  </div>
+                ))}
+                {peers.length > 4 && (
+                  <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-[8px] font-bold text-gray-700 dark:text-gray-200 ring-2 ring-white dark:ring-gray-900">
+                    +{peers.length - 4}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Share button */}
+            {projectId && user ? (
+              <button
+                onClick={() => setShareModalOpen(true)}
+                title="Share project"
+                className="h-7 px-3 flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold transition-colors"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Share
+              </button>
+            ) : !projectId ? (
+              <button
+                onClick={() => { setSaveToShareName(design.productName || ''); setSaveToShareOpen(true) }}
+                title="Share project"
+                className="h-7 px-3 flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-semibold transition-colors"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Share
+              </button>
+            ) : null}
+
+            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5" />
 
             {/* Preview — only for A+ content mode */}
             {!isGallery && (
@@ -2015,6 +2110,20 @@ export default function DesignWorkspace({ projectId }: Props) {
                                 </span>
                               </div>
                               {/* Outer clip div */}
+                              {(() => {
+                                const activePeer = peers.find(p => p.activeBlockId === block.id)
+                                return activePeer ? (
+                                  <div
+                                    className="flex items-center gap-1 mb-0.5"
+                                    style={{ height: 14 }}
+                                  >
+                                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: activePeer.color }} />
+                                    <span className="text-[9px] font-medium truncate" style={{ color: activePeer.color }}>
+                                      {activePeer.email}
+                                    </span>
+                                  </div>
+                                ) : <div style={{ height: 14 }} />
+                              })()}
                               <div
                                 ref={el => {
                                   if (isSelected) (frameContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
@@ -2023,20 +2132,27 @@ export default function DesignWorkspace({ projectId }: Props) {
                                 onMouseDown={isSelected ? handleCanvasMouseDown : undefined}
                                 onMouseMove={isSelected ? handleCanvasMouseMove : undefined}
                                 onMouseLeave={isSelected ? () => setIsOverPhoto(false) : undefined}
-                                style={{
-                                  width: scaledW,
-                                  height: scaledH,
-                                  position: 'relative',
-                                  overflow: 'hidden',
-                                  borderRadius: 8,
-                                  flexShrink: 0,
-                                  outline: isSelected ? '2px solid #3B82F6' : '2px solid transparent',
-                                  outlineOffset: 2,
-                                  boxShadow: isSelected
-                                    ? '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
-                                    : '0 2px 12px rgba(0,0,0,0.10)',
-                                  cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
-                                }}
+                                style={(() => {
+                                  const peer = peers.find(p => p.activeBlockId === block.id)
+                                  return {
+                                    width: scaledW,
+                                    height: scaledH,
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    borderRadius: 8,
+                                    flexShrink: 0,
+                                    outline: isSelected
+                                      ? '2px solid #3B82F6'
+                                      : peer ? `2px solid ${peer.color}` : '2px solid transparent',
+                                    outlineOffset: 2,
+                                    boxShadow: isSelected
+                                      ? '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
+                                      : peer
+                                        ? `0 0 0 4px ${peer.color}22, 0 2px 12px rgba(0,0,0,0.10)`
+                                        : '0 2px 12px rgba(0,0,0,0.10)',
+                                    cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
+                                  }
+                                })()}
                               >
                                 {/* Inner full-res div */}
                                 <div style={{
@@ -2092,6 +2208,54 @@ export default function DesignWorkspace({ projectId }: Props) {
 
       <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <PreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} design={design} />
+
+      {/* Share modal */}
+      {shareModalOpen && projectId && user && (
+        <ShareModal
+          open={shareModalOpen}
+          onClose={() => setShareModalOpen(false)}
+          projectId={projectId}
+          userId={user.id}
+        />
+      )}
+
+      {/* Save-to-share prompt */}
+      {saveToShareOpen && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={() => setSaveToShareOpen(false)} />
+          <div className="fixed z-50 w-full max-w-sm top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-950 border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl p-5 animate-scale-in">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Save project to share</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Give your project a name first — you can always rename it later.</p>
+            <input
+              type="text"
+              autoFocus
+              value={saveToShareName}
+              onChange={e => setSaveToShareName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveAndShare(); if (e.key === 'Escape') setSaveToShareOpen(false) }}
+              placeholder="Project name"
+              className="w-full h-9 px-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => setSaveToShareOpen(false)} className="h-8 px-3 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={saveAndShare}
+                disabled={saveToShareSaving}
+                className="h-8 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {saveToShareSaving && (
+                  <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                )}
+                Save & Share
+              </button>
+            </div>
+          </div>
+        </>
+      )}
       <CantoIconPickerModal
         albumId={folderConfig.iconsAlbumId}
         open={iconPickerSlot !== null}

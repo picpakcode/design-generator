@@ -27,6 +27,11 @@ export type Database = {
         Insert: { id?: string; user_id: string; name: string; state: unknown; thumbnail_url?: string | null }
         Update: { name?: string; state?: unknown; thumbnail_url?: string | null; updated_at?: string }
       }
+      project_shares: {
+        Row:    { id: string; project_id: string; created_by: string; token: string; access_level: 'view' | 'edit'; is_public: boolean; created_at: string; updated_at: string }
+        Insert: { id?: string; project_id: string; created_by: string; token?: string; access_level?: 'view' | 'edit'; is_public?: boolean }
+        Update: { access_level?: 'view' | 'edit'; is_public?: boolean; updated_at?: string }
+      }
     }
   }
 }

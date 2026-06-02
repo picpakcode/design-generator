@@ -168,7 +168,7 @@ function stripBlobUrls(state: DesignState): DesignState {
   }
 }
 
-function stripProjectBlobUrls(state: DesignState): DesignState {
+export function stripProjectBlobUrls(state: DesignState): DesignState {
   return {
     ...state,
     assets: (state.assets ?? []).map(wipeBlob) as DesignState['assets'],
@@ -177,4 +177,54 @@ function stripProjectBlobUrls(state: DesignState): DesignState {
       assets: (b.assets ?? []).map(wipeBlob) as DesignState['assets'],
     })),
   }
+}
+
+// ── Project shares ─────────────────────────────────────────────────────────────
+
+export interface DbShare {
+  id: string
+  project_id: string
+  created_by: string
+  token: string
+  access_level: 'view' | 'edit'
+  is_public: boolean
+  created_at: string
+  updated_at: string
+}
+
+export async function loadProjectShare(db: Client, projectId: string): Promise<DbShare | null> {
+  const { data } = await db
+    .from('project_shares')
+    .select('*')
+    .eq('project_id', projectId)
+    .maybeSingle()
+  return (data as DbShare | null) ?? null
+}
+
+export async function upsertProjectShare(
+  db: Client,
+  projectId: string,
+  userId: string,
+  opts: { access_level: 'view' | 'edit'; is_public: boolean }
+): Promise<DbShare | null> {
+  const existing = await loadProjectShare(db, projectId)
+  if (existing) {
+    const { data } = await db
+      .from('project_shares')
+      .update({ access_level: opts.access_level, is_public: opts.is_public, updated_at: new Date().toISOString() })
+      .eq('project_id', projectId)
+      .select('*')
+      .single()
+    return (data as DbShare | null) ?? null
+  }
+  const { data } = await db
+    .from('project_shares')
+    .insert({ project_id: projectId, created_by: userId, access_level: opts.access_level, is_public: opts.is_public })
+    .select('*')
+    .single()
+  return (data as DbShare | null) ?? null
+}
+
+export async function deleteProjectShare(db: Client, projectId: string): Promise<void> {
+  await db.from('project_shares').delete().eq('project_id', projectId)
 }
