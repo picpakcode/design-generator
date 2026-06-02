@@ -712,9 +712,9 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       const w = wrapperRef.current.clientWidth - 48
       if (isGallery) {
         const h = wrapperRef.current.clientHeight - 96
-        setScale(Math.min(w / (1500 * 2 + FRAME_GAP), h / 1500))
+        setScale(Math.min((w - FRAME_GAP) / (1500 * 2), h / 1500))
       } else {
-        setScale(w / (1464 + 600 + FRAME_GAP))
+        setScale((w - FRAME_GAP) / (1464 + 600))
       }
     }
     compute()
@@ -1383,7 +1383,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       {appMode === 'bulk' ? (
         <BulkMode designState={design} exportFnRef={bulkExportFnRef} onCanExportChange={setBulkCanExport} folderConfig={folderConfig} onFolderConfigChange={updateFolderConfig} />
       ) : (<>
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* ══ Sidebar ══ */}
         <aside className="dg-sidebar w-72 shrink-0 flex flex-col border-r border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm z-10">
