@@ -80,6 +80,18 @@ export interface DesignBlock {
   assets: UploadedAsset[] // per-block photo / texture / logo / icons
 }
 
+export interface GalleryBlock {
+  id: string
+  templateId: GalleryTemplateId
+  assets: UploadedAsset[]
+  title: string
+  subtitleHtml: string
+  iconCount: number
+  iconLabels: [string, string, string, string]
+  slug?: string
+  showDescription?: boolean
+}
+
 export interface DesignState {
   activeCategory: Category
   activeFormat: Format
@@ -100,4 +112,7 @@ export interface DesignState {
   blocks: DesignBlock[]
   activeBlockId: string
   productName: string     // used as the constant prefix in all export filenames
+  galleryBlocks: GalleryBlock[]
+  activeGalleryBlockId: string
+  galleryIconsShowDescription: boolean
 }

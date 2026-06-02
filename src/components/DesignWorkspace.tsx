@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Category, DesignBlock, DesignState, Format, FormatSettings, GalleryTemplateId, PhotoComposition, DEFAULT_PHOTO_COMP, TemplateId, TextTransform, UploadedAsset } from '@/types'
+import { Category, DesignBlock, DesignState, Format, FormatSettings, GalleryBlock, GalleryTemplateId, PhotoComposition, DEFAULT_PHOTO_COMP, TemplateId, TextTransform, UploadedAsset } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { loadProject, saveProject, saveProjectThumbnail, renameProject, createProject, loadProjectShare } from '@/lib/db'
 import { usePresence, presenceColor } from '@/hooks/usePresence'
@@ -14,7 +14,7 @@ import ExportButton from './ExportButton'
 import { exportAllAsZip } from '@/lib/export'
 import BulkMode from './BulkMode'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
-import CantoAssetPicker from './CantoAssetPicker'
+import TexturePicker from './TexturePicker'
 import CantoIconPickerModal from './CantoIconPickerModal'
 import CantoPhotoPickerModal from './CantoPhotoPickerModal'
 import { FolderConfig } from '@/lib/canto-folders'
@@ -103,6 +103,19 @@ const GALLERY_DEFAULTS: FormatSettings = {
   photoComposition: { ...DEFAULT_PHOTO_COMP },
 }
 
+// Default logo to pre-fill at slot 2 — fetched at runtime since we don't have the URL hash
+const DEFAULT_LOGO_ID   = 'gjj53olkh15rd0vdvpq29ngf75'
+const DEFAULT_LOGO_NAME = 'DocsDiesel-Logo-Wordmark-RedWhite-Vector 1'
+const DEFAULT_LOGO_ALBUM = 'QH34D'
+
+// Wall 4 textures.png — pre-populated on all new blocks as the default background texture
+const WALL4_TEXTURE: UploadedAsset = {
+  id: '0oelg29k091ep3j2g2g7rvb60i',
+  name: 'Wall 4 textures.png',
+  url: '/api/canto/proxy?url=https%3A%2F%2Fdocsdiesel.canto.com%2Fdirect%2Fimage%2F0oelg29k091ep3j2g2g7rvb60i%2Fc7gFQZu37w5ug-3Kf6RYcU5X6mA%2Fm800%2F800',
+  type: 'image',
+}
+
 const INITIAL_BLOCK_1: DesignBlock = {
   id: 'block-1',
   templateId: 'aplus-5050',
@@ -111,7 +124,7 @@ const INITIAL_BLOCK_1: DesignBlock = {
   iconCount: 3,
   iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
   layoutFlipped: false,
-  assets: [],
+  assets: Object.assign([] as UploadedAsset[], { 1: WALL4_TEXTURE }),
 }
 
 const INITIAL_BLOCK_2: DesignBlock = {
@@ -122,7 +135,7 @@ const INITIAL_BLOCK_2: DesignBlock = {
   iconCount: 3,
   iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
   layoutFlipped: false,
-  assets: [],
+  assets: Object.assign([] as UploadedAsset[], { 1: WALL4_TEXTURE }),
 }
 
 const DEFAULT_STATE: DesignState = {
@@ -145,6 +158,12 @@ const DEFAULT_STATE: DesignState = {
   blocks: [INITIAL_BLOCK_1, INITIAL_BLOCK_2],
   activeBlockId: 'block-1',
   productName: '',
+  galleryBlocks: [
+    { id: 'gblock-1', templateId: 'gallery-hero' as GalleryTemplateId, assets: Object.assign([] as UploadedAsset[], { 1: WALL4_TEXTURE }), title: '<p>Product Title</p>', subtitleHtml: '<p>Add your product description here.</p>', iconCount: 3, iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'] as [string,string,string,string], slug: 'slide-1' },
+    { id: 'gblock-2', templateId: 'gallery-icons' as GalleryTemplateId, assets: Object.assign([] as UploadedAsset[], { 1: WALL4_TEXTURE }), title: '<p>Product Title</p>', subtitleHtml: '<p>Add your product description here.</p>', iconCount: 3, iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'] as [string,string,string,string], slug: 'slide-2' },
+  ],
+  activeGalleryBlockId: 'gblock-1',
+  galleryIconsShowDescription: false,
 }
 
 // ─── Preset types & helpers ───────────────────────────────────────────────────
@@ -184,8 +203,21 @@ function migrateLoadedState(raw: unknown): DesignState {
       assets: [],
     },
   ]
-  // Backfill assets for blocks saved before per-block assets were added
-  const blocks = rawBlocks.map(b => ({ ...b, assets: b.assets ?? [] }))
+  const blocks = rawBlocks.map(b => {
+    const assets = [...(b.assets ?? [])] as (UploadedAsset | undefined)[]
+    if (!assets[1]) assets[1] = WALL4_TEXTURE
+    return { ...b, assets: assets as UploadedAsset[] }
+  })
+
+  const rawGalleryBlocks: GalleryBlock[] = s.galleryBlocks ?? [
+    { id: 'gblock-1', templateId: 'gallery-hero', assets: [], title: s.title ?? DEFAULT_STATE.title, subtitleHtml: s.subtitleHtml ?? DEFAULT_STATE.subtitleHtml, iconCount: s.iconCount ?? 3, iconLabels: safeLabels, slug: 'slide-1' },
+    { id: 'gblock-2', templateId: 'gallery-icons', assets: [], title: s.title ?? DEFAULT_STATE.title, subtitleHtml: s.subtitleHtml ?? DEFAULT_STATE.subtitleHtml, iconCount: s.iconCount ?? 3, iconLabels: safeLabels, slug: 'slide-2' },
+  ]
+  const galleryBlocks = rawGalleryBlocks.map(b => {
+    const assets = [...(b.assets ?? [])] as (UploadedAsset | undefined)[]
+    if (!assets[1]) assets[1] = WALL4_TEXTURE
+    return { ...b, assets: assets as UploadedAsset[] }
+  })
 
   return {
     ...DEFAULT_STATE,
@@ -198,6 +230,9 @@ function migrateLoadedState(raw: unknown): DesignState {
     blocks,
     activeBlockId: s.activeBlockId ?? blocks[0].id,
     productName: s.productName ?? '',
+    galleryBlocks,
+    activeGalleryBlockId: s.activeGalleryBlockId ?? galleryBlocks[0].id,
+    galleryIconsShowDescription: s.galleryIconsShowDescription ?? false,
   }
 }
 
@@ -252,6 +287,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const skipHistRef = useRef(false)
   const [histMark, setHistMark] = useState(0) // bumped to force re-render of button states
   const hasSavedThumbnailRef = useRef(false)
+  const defaultLogoRef = useRef<UploadedAsset | null>(null)
 
   const [projectName, setProjectName] = useState<string>('')
   const [isRenamingProject, setIsRenamingProject] = useState(false)
@@ -259,6 +295,15 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const projectNameInputRef = useRef<HTMLInputElement>(null)
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [albums, setAlbums] = useState<{ id: string; namePath: string; name: string }[]>([])
+  const [albumSearch, setAlbumSearch] = useState<Record<string, string>>({})
+  const [localUploadOpen, setLocalUploadOpen] = useState(false)
+  const albumSearchFor = (key: string) => (albumSearch[key] ?? '').toLowerCase()
+  const filteredAlbums = (key: string) => {
+    const q = albumSearchFor(key)
+    if (!q) return albums
+    return albums.filter(a => a.name.toLowerCase().includes(q) || a.namePath.toLowerCase().includes(q))
+  }
 
   const [presets, setPresets]       = useState<Preset[]>([])
   const [presetName, setPresetName] = useState('')
@@ -308,6 +353,20 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
   const patchDesign = (p: Partial<Pick<DesignState, 'title' | 'subtitleHtml' | 'primaryColor' | 'accentColor' | 'bodyColor' | 'iconColor' | 'iconCount' | 'iconLabels'>>) =>
     setDesign(d => {
+      if (d.activeCategory === 'gallery') {
+        const idx = (d.galleryBlocks ?? []).findIndex(b => b.id === d.activeGalleryBlockId)
+        if (idx !== -1) {
+          const galleryBlockPatch: Partial<GalleryBlock> = {}
+          if ('title' in p) galleryBlockPatch.title = p.title
+          if ('subtitleHtml' in p) galleryBlockPatch.subtitleHtml = p.subtitleHtml
+          if ('iconCount' in p) galleryBlockPatch.iconCount = p.iconCount
+          if ('iconLabels' in p) galleryBlockPatch.iconLabels = p.iconLabels
+          const gBlocks = [...d.galleryBlocks]
+          gBlocks[idx] = { ...gBlocks[idx], ...galleryBlockPatch }
+          return { ...d, ...p, galleryBlocks: gBlocks }
+        }
+        return { ...d, ...p }
+      }
       const blockPatch: Partial<DesignBlock> = {}
       if ('title'        in p) blockPatch.title        = p.title
       if ('subtitleHtml' in p) blockPatch.subtitleHtml = p.subtitleHtml
@@ -532,6 +591,43 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     if (defaultOpenShare && projectId && !projectLoading) setShareModalOpen(true)
   }, [defaultOpenShare, projectId, projectLoading])
 
+  // Load Canto album list once for use in Settings folder config
+  useEffect(() => {
+    fetch('/api/canto/albums')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setAlbums(data) })
+      .catch(() => {})
+  }, [])
+
+  // Fetch default logo once on mount — backfills slot 2 in all blocks that lack a logo
+  useEffect(() => {
+    fetch(`/api/canto/folder?albumId=${DEFAULT_LOGO_ALBUM}`)
+      .then(r => r.json())
+      .then((items: Array<{ id: string; name: string; previewUrl: string }>) => {
+        // Match by ID first; fall back to name in case the album endpoint returns a different ID format
+        const logo = items.find(i => i.id === DEFAULT_LOGO_ID)
+          ?? items.find(i => i.name === DEFAULT_LOGO_NAME)
+        if (!logo) return
+        const logoAsset: UploadedAsset = { id: logo.id, name: DEFAULT_LOGO_NAME, url: logo.previewUrl, type: 'image' }
+        defaultLogoRef.current = logoAsset
+        skipHistRef.current = true
+        setDesign(d => ({
+          ...d,
+          blocks: d.blocks.map(b => {
+            const assets = [...(b.assets ?? [])] as (UploadedAsset | undefined)[]
+            assets[2] = logoAsset
+            return { ...b, assets: assets as UploadedAsset[] }
+          }),
+          galleryBlocks: (d.galleryBlocks ?? []).map(b => {
+            const assets = [...(b.assets ?? [])] as (UploadedAsset | undefined)[]
+            assets[2] = logoAsset
+            return { ...b, assets: assets as UploadedAsset[] }
+          }),
+        }))
+      })
+      .catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function saveAndShare() {
     if (!user) return
     setSaveToShareSaving(true)
@@ -616,6 +712,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   // Add a new block at the end
   const addBlock = () => {
     const id = `block-${Date.now()}`
+    const baseAssets = Object.assign([] as UploadedAsset[], { 1: WALL4_TEXTURE })
+    if (defaultLogoRef.current) baseAssets[2] = defaultLogoRef.current
     const newBlock: DesignBlock = {
       id,
       templateId: 'aplus-5050',
@@ -624,7 +722,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       iconCount: 3,
       iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
       layoutFlipped: false,
-      assets: [],
+      assets: baseAssets,
     }
     setDesign(d => {
       const updated = { ...d, blocks: [...d.blocks, newBlock] }
@@ -841,17 +939,137 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     })
   }
 
-  // Current template display name
-  const templateLabel = isGallery
-    ? design.activeGalleryTemplate === 'gallery-icons' ? 'Gallery Icons' : 'Gallery Hero'
-    : design.activeTemplate === 'aplus-5050' ? 'A+ 50/50 Split' : 'A+ Title + Icons'
+  const handleAddGalleryAsset = (asset: UploadedAsset, slotIndex?: number) => {
+    fetch(asset.url).then(r => r.blob()).then(blob => storeBlob(asset.id, blob)).catch(console.error)
+    setDesign(d => {
+      const idx = (d.galleryBlocks ?? []).findIndex(b => b.id === d.activeGalleryBlockId)
+      if (idx === -1) return d
+      const block = d.galleryBlocks[idx]
+      const prev = (block.assets ?? []) as (UploadedAsset | undefined)[]
+      let next: (UploadedAsset | undefined)[]
+      if (slotIndex === undefined) {
+        next = [...prev, asset]
+      } else {
+        next = [...prev]
+        if (next[slotIndex]) URL.revokeObjectURL(next[slotIndex]!.url)
+        next[slotIndex] = asset
+      }
+      const blocks = [...d.galleryBlocks]
+      blocks[idx] = { ...block, assets: next as UploadedAsset[] }
+      return { ...d, galleryBlocks: blocks }
+    })
+  }
 
-  const categoryLabel = isGallery ? 'Amazon Gallery Images' : 'Amazon A+ Content'
+  const handleRemoveGalleryAsset = (id: string) => {
+    deleteBlob(id).catch(console.error)
+    setDesign(d => {
+      const idx = (d.galleryBlocks ?? []).findIndex(b => b.id === d.activeGalleryBlockId)
+      if (idx === -1) return d
+      const block = d.galleryBlocks[idx]
+      const prev = (block.assets ?? []) as (UploadedAsset | undefined)[]
+      const aIdx = prev.findIndex(a => a?.id === id)
+      if (aIdx === -1) return d
+      URL.revokeObjectURL(prev[aIdx]!.url)
+      const next = [...prev]
+      next[aIdx] = undefined
+      const blocks = [...d.galleryBlocks]
+      blocks[idx] = { ...block, assets: next as UploadedAsset[] }
+      return { ...d, galleryBlocks: blocks }
+    })
+  }
+
+  const addGalleryBlock = () => {
+    const id = crypto.randomUUID()
+    const galleryBaseAssets = Object.assign([] as UploadedAsset[], { 1: WALL4_TEXTURE })
+    if (defaultLogoRef.current) galleryBaseAssets[2] = defaultLogoRef.current
+    const newBlock: GalleryBlock = {
+      id, templateId: 'gallery-hero', assets: galleryBaseAssets,
+      title: design.title, subtitleHtml: design.subtitleHtml,
+      iconCount: 3, iconLabels: ['Feature One', 'Feature Two', 'Feature Three', 'Feature Four'],
+      slug: `slide-${(design.galleryBlocks ?? []).length + 1}`,
+    }
+    setDesign(d => ({
+      ...d,
+      galleryBlocks: [...(d.galleryBlocks ?? []), newBlock],
+      activeGalleryBlockId: id,
+    }))
+  }
+
+  const deleteGalleryBlock = (id: string) => {
+    setDesign(d => {
+      const remaining = (d.galleryBlocks ?? []).filter(b => b.id !== id)
+      if (remaining.length === 0) return d
+      const newActiveId = d.activeGalleryBlockId === id ? remaining[0].id : d.activeGalleryBlockId
+      return { ...d, galleryBlocks: remaining, activeGalleryBlockId: newActiveId }
+    })
+  }
+
+  const changeGalleryBlockTemplate = (id: string, templateId: GalleryTemplateId) => {
+    setDesign(d => {
+      const idx = (d.galleryBlocks ?? []).findIndex(b => b.id === id)
+      if (idx === -1) return d
+      const blocks = [...d.galleryBlocks]
+      blocks[idx] = { ...blocks[idx], templateId }
+      return { ...d, galleryBlocks: blocks }
+    })
+  }
+
+  const selectGalleryBlock = (id: string) => {
+    setDesign(d => {
+      const block = (d.galleryBlocks ?? []).find(b => b.id === id)
+      if (!block) return { ...d, activeGalleryBlockId: id }
+      return {
+        ...d,
+        activeGalleryBlockId: id,
+        activeGalleryTemplate: block.templateId,
+        title: block.title,
+        subtitleHtml: block.subtitleHtml,
+        iconCount: block.iconCount as 2|3|4,
+        iconLabels: block.iconLabels,
+        galleryIconsShowDescription: block.showDescription ?? false,
+      }
+    })
+  }
+
+  const setGalleryShowDescription = (show: boolean) => {
+    setDesign(d => {
+      const idx = (d.galleryBlocks ?? []).findIndex(b => b.id === d.activeGalleryBlockId)
+      if (idx === -1) return { ...d, galleryIconsShowDescription: show }
+      const blocks = [...d.galleryBlocks]
+      blocks[idx] = { ...blocks[idx], showDescription: show }
+      return { ...d, galleryBlocks: blocks, galleryIconsShowDescription: show }
+    })
+  }
+
+  const updateGalleryBlockSlug = (id: string, slug: string) => {
+    setDesign(d => {
+      const idx = (d.galleryBlocks ?? []).findIndex(b => b.id === id)
+      if (idx === -1) return d
+      const blocks = [...d.galleryBlocks]
+      blocks[idx] = { ...blocks[idx], slug }
+      return { ...d, galleryBlocks: blocks }
+    })
+  }
 
   // ── Smart filename derivation ──────────────────────────────────────────────
 
   const activeBlockIdx = design.blocks.findIndex(b => b.id === design.activeBlockId)
   const activeBlock    = design.blocks[activeBlockIdx]
+
+  const activeGalleryBlock = isGallery
+    ? (design.galleryBlocks ?? []).find(b => b.id === design.activeGalleryBlockId) ?? (design.galleryBlocks ?? [])[0]
+    : undefined
+
+  const currentAssets = isGallery ? (activeGalleryBlock?.assets ?? []) : (activeBlock?.assets ?? [])
+  const addCurrentAsset = isGallery ? handleAddGalleryAsset : handleAddAsset
+  const removeCurrentAsset = isGallery ? handleRemoveGalleryAsset : handleRemoveAsset
+
+  // Current template display name
+  const templateLabel = isGallery
+    ? (activeGalleryBlock?.templateId === 'gallery-icons' ? 'Gallery Icons' : 'Gallery Hero')
+    : design.activeTemplate === 'aplus-5050' ? 'A+ 50/50 Split' : 'A+ Title + Icons'
+
+  const categoryLabel = isGallery ? 'Amazon Gallery Images' : 'Amazon A+ Content'
 
   // "product" is the fallback when no product name is set
   const productPart = design.productName?.trim() ? toSlug(design.productName) : 'product'
@@ -860,8 +1078,12 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     ? toSlug(activeBlock.slug)
     : `block-${activeBlockIdx + 1}`
 
+  const galleryBlockPart = activeGalleryBlock?.slug?.trim()
+    ? toSlug(activeGalleryBlock.slug)
+    : `slide-${(design.galleryBlocks ?? []).findIndex(b => b.id === design.activeGalleryBlockId) + 1}`
+
   const defaultBase = isGallery
-    ? `${productPart}-${design.activeGalleryTemplate}`
+    ? `${productPart}-${galleryBlockPart}`
     : `${productPart}-${blockPart}`
 
   const fileBase          = customBase ?? defaultBase
@@ -879,7 +1101,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
   const iconSlots = Array.from({ length: design.iconCount }, (_, i) => `Icon ${i + 1}`)
   const assetSlotLabels = isGallery
-    ? design.activeGalleryTemplate === 'gallery-icons'
+    ? activeGalleryBlock?.templateId === 'gallery-icons'
       ? ['Product Photo', 'Background Texture', 'Brand Logo', ...iconSlots]
       : ['Product Photo', 'Background Texture', 'Brand Logo']
     : design.activeTemplate === 'aplus-icons'
@@ -922,7 +1144,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     const W = wRect.width
     const H = wRect.height
     if (isGallery) {
-      const proportion = design.activeGalleryTemplate === 'gallery-icons' ? 0.55 : 0.58
+      const proportion = 0.57
       return { left: wRect.left, top: wRect.top, width: W, height: H * proportion }
     }
     // aplus-icons: photo RIGHT by default (not flipped), LEFT when flipped
@@ -1355,6 +1577,49 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                         </button>
                       ))}
                     </div>
+
+                    {albums.length > 0 && (
+                      <>
+                        <div className="h-px bg-gray-100 dark:bg-gray-800 my-4" />
+                        <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Canto Asset Folders</p>
+                        <div className="space-y-3">
+                          {([
+                            { key: 'photosAlbumId', label: 'Product Photos', hint: 'Source album for the photo picker' },
+                            { key: 'iconsAlbumId',  label: 'Icons',          hint: 'Source album for icon images' },
+                            { key: 'logosAlbumId',  label: 'Logos',          hint: 'Source album for brand logos (default: DD Logos)' },
+                          ] as const).map(({ key, label, hint }) => (
+                            <div key={key}>
+                              <p className="text-[9px] font-semibold text-gray-500 dark:text-gray-400 mb-1">{label}</p>
+                              <div className="relative flex items-center mb-0.5">
+                                <svg className="absolute left-2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M16.65 16.65A7.5 7.5 0 1 0 4.5 4.5a7.5 7.5 0 0 0 12.15 12.15z" />
+                                </svg>
+                                <input
+                                  type="text"
+                                  value={albumSearch[key] ?? ''}
+                                  onChange={e => setAlbumSearch(s => ({ ...s, [key]: e.target.value }))}
+                                  placeholder="Search albums…"
+                                  className="w-full h-7 pl-6 pr-2 rounded-t border border-b-0 border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none placeholder-gray-300 dark:placeholder-gray-600"
+                                />
+                              </div>
+                              <select
+                                value={folderConfig[key] ?? ''}
+                                onChange={e => updateFolderConfig({ [key]: e.target.value || null })}
+                                size={4}
+                                className="w-full px-2 py-1 rounded-b border border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                              >
+                                <option value="">— not set —</option>
+                                {filteredAlbums(key).map(a => (
+                                  <option key={a.id} value={a.id} title={a.namePath}>{a.name}</option>
+                                ))}
+                              </select>
+                              <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">{hint}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-3">Textures always load from the default Textures folder.</p>
+                      </>
+                    )}
                   </div>
                 </>
               )}
@@ -1591,7 +1856,23 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   />
                 </div>
                 <div>
-                  <label className="label-xs mb-1.5 block">Description</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="label-xs block">Description</label>
+                    {isGallery && activeGalleryBlock?.templateId === 'gallery-icons' && (
+                      <button
+                        type="button"
+                        onClick={() => setGalleryShowDescription(!design.galleryIconsShowDescription)}
+                        className={`flex items-center gap-1 h-5 px-2 rounded text-[9px] font-bold uppercase tracking-wider transition-colors ${
+                          design.galleryIconsShowDescription
+                            ? 'bg-gray-900 dark:bg-gray-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
+                        }`}
+                        title="Toggle whether description shows on canvas"
+                      >
+                        {design.galleryIconsShowDescription ? 'Visible' : 'Hidden'}
+                      </button>
+                    )}
+                  </div>
                   <RichTextEditor
                     value={design.subtitleHtml}
                     onChange={html => patchDesign({ subtitleHtml: html })}
@@ -1599,7 +1880,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   />
                 </div>
 
-                {((!isGallery && design.activeTemplate === 'aplus-icons') || (isGallery && design.activeGalleryTemplate === 'gallery-icons')) && (
+                {((!isGallery && design.activeTemplate === 'aplus-icons') || (isGallery && activeGalleryBlock?.templateId === 'gallery-icons')) && (
                   <div className="space-y-2">
                     <label className="label-xs block">Icon Labels</label>
                     {Array.from({ length: design.iconCount }, (_, i) => (
@@ -1615,6 +1896,16 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           const next = [...design.iconLabels] as [string, string, string, string]
                           ;[next[from], next[i]] = [next[i], next[from]]
                           setDesign(d => {
+                            if (d.activeCategory === 'gallery') {
+                              const bIdx = (d.galleryBlocks ?? []).findIndex(b => b.id === d.activeGalleryBlockId)
+                              if (bIdx === -1) return { ...d, iconLabels: next }
+                              const gl = d.galleryBlocks[bIdx]
+                              const nextAssets = [...(gl.assets ?? [])] as (UploadedAsset | undefined)[]
+                              ;[nextAssets[3 + from], nextAssets[3 + i]] = [nextAssets[3 + i], nextAssets[3 + from]]
+                              const gBlocks = [...d.galleryBlocks]
+                              gBlocks[bIdx] = { ...gl, iconLabels: next, assets: nextAssets as UploadedAsset[] }
+                              return { ...d, iconLabels: next, galleryBlocks: gBlocks }
+                            }
                             const bIdx = d.blocks.findIndex(b => b.id === d.activeBlockId)
                             if (bIdx === -1) return { ...d, iconLabels: next }
                             const bl = d.blocks[bIdx]
@@ -1650,26 +1941,18 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               </div>
             </Section>
 
-            {/* Images — local upload + Canto library + photo composition */}
+            {/* Images — Canto library (primary) + local upload (collapsible) + photo composition */}
             <Section title="Images" icon={<ImagesIcon />}>
               <div className="space-y-4">
 
-                {/* Local upload */}
-                <AssetUploader
-                  assets={activeBlock?.assets ?? []}
-                  onAdd={handleAddAsset}
-                  onRemove={handleRemoveAsset}
-                  slotLabels={assetSlotLabels}
-                />
-
-                {/* Canto library pickers */}
+                {/* Canto library pickers — primary */}
                 <div className="space-y-3">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Canto Library</p>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Assets</p>
                   {/* Product Photo */}
                   <div>
                     <p className="text-[10px] text-gray-400 mb-1.5">Product Photo</p>
                     {(() => {
-                      const asset = activeBlock?.assets[0]
+                      const asset = currentAssets[0]
                       return asset ? (
                         <div className="flex items-center gap-1.5">
                           <div className="w-12 h-8 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
@@ -1684,7 +1967,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                             {asset.name}
                           </button>
                           <button
-                            onClick={() => handleRemoveAsset(asset.id)}
+                            onClick={() => removeCurrentAsset(asset.id)}
                             className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
                             title="Remove photo"
                           >
@@ -1708,38 +1991,37 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   </div>
                   <div>
                     <p className="text-[10px] text-gray-400 mb-1.5">Background Texture</p>
-                    <CantoAssetPicker
-                      albumId={folderConfig.texturesAlbumId}
-                      value={activeBlock?.assets[1] ? { id: activeBlock.assets[1].id, name: activeBlock.assets[1].name, previewUrl: activeBlock.assets[1].url } : null}
-                      onChange={pick => {
-                        if (pick) handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 1)
-                        else if (activeBlock?.assets[1]) handleRemoveAsset(activeBlock.assets[1].id)
+                    {/* albumId=null forces NHMFF default — folderConfig.texturesAlbumId is unreliable */}
+                    <TexturePicker
+                      albumId={null}
+                      value={currentAssets[1] ?? null}
+                      onChange={asset => {
+                        if (asset) addCurrentAsset(asset, 1)
+                        else if (currentAssets[1]) removeCurrentAsset(currentAssets[1].id)
                       }}
-                      placeholder="Pick texture from Canto"
-                      thumbnailFit="cover"
                     />
                   </div>
                   <div>
                     <p className="text-[10px] text-gray-400 mb-1.5">Brand Logo</p>
-                    <CantoAssetPicker
-                      albumId={folderConfig.logosAlbumId}
-                      value={activeBlock?.assets[2] ? { id: activeBlock.assets[2].id, name: activeBlock.assets[2].name, previewUrl: activeBlock.assets[2].url } : null}
-                      onChange={pick => {
-                        if (pick) handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 2)
-                        else if (activeBlock?.assets[2]) handleRemoveAsset(activeBlock.assets[2].id)
+                    <TexturePicker
+                      albumId="QH34D"
+                      value={currentAssets[2] ?? null}
+                      onChange={asset => {
+                        if (asset) addCurrentAsset(asset, 2)
+                        else if (currentAssets[2]) removeCurrentAsset(currentAssets[2].id)
                       }}
-                      placeholder="Pick logo from Canto"
+                      placeholder="Pick logo…"
                       thumbnailFit="contain"
                     />
                   </div>
                   {/* Icon images — only for icon templates */}
-                  {((!isGallery && design.activeTemplate === 'aplus-icons') || (isGallery && design.activeGalleryTemplate === 'gallery-icons')) && (
+                  {((!isGallery && design.activeTemplate === 'aplus-icons') || (isGallery && activeGalleryBlock?.templateId === 'gallery-icons')) && (
                     <div>
                       <p className="text-[10px] text-gray-400 mb-1.5">Icons</p>
                       <div className="space-y-1.5">
                         {Array.from({ length: design.iconCount }, (_, i) => {
                           const slot = 3 + i
-                          const asset = activeBlock?.assets[slot]
+                          const asset = currentAssets[slot]
                           return (
                             <div key={i} className="flex items-center gap-2">
                               <span className="text-[9px] font-semibold text-gray-400 w-10 shrink-0">Icon {i + 1}</span>
@@ -1758,7 +2040,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                                       {asset.name}
                                     </button>
                                     <button
-                                      onClick={() => handleRemoveAsset(asset.id)}
+                                      onClick={() => removeCurrentAsset(asset.id)}
                                       className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
                                       title="Remove icon"
                                     >
@@ -1788,8 +2070,31 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   )}
                   {(!folderConfig.texturesAlbumId && !folderConfig.logosAlbumId && !folderConfig.iconsAlbumId) && (
                     <p className="text-[10px] text-gray-400 text-center py-1">
-                      Configure folders in Bulk Mode → Image Library ⚙
+                      Configure Canto folders in Settings ⚙
                     </p>
+                  )}
+                </div>
+
+                {/* Local upload — collapsible secondary */}
+                <div>
+                  <button
+                    onClick={() => setLocalUploadOpen(o => !o)}
+                    className="w-full flex items-center justify-between text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider hover:text-gray-600 dark:hover:text-gray-300 transition-colors py-0.5"
+                  >
+                    <span>Upload local file</span>
+                    <svg className={`w-3 h-3 transition-transform ${localUploadOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {localUploadOpen && (
+                    <div className="mt-2">
+                      <AssetUploader
+                        assets={currentAssets}
+                        onAdd={addCurrentAsset}
+                        onRemove={removeCurrentAsset}
+                        slotLabels={assetSlotLabels}
+                      />
+                    </div>
                   )}
                 </div>
 
@@ -1925,7 +2230,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             </Section>
 
             {/* Icons — count, size, label styling; only for icon templates */}
-            {((!isGallery && design.activeTemplate === 'aplus-icons') || (isGallery && design.activeGalleryTemplate === 'gallery-icons')) && (
+            {((!isGallery && design.activeTemplate === 'aplus-icons') || (isGallery && activeGalleryBlock?.templateId === 'gallery-icons')) && (
               <Section title="Icons" icon={<CantoSidebarIcon />}>
                 <div className="space-y-3">
                   <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
@@ -2065,60 +2370,123 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 80 }}>
             {isGallery ? (
-              /* ── Gallery mode: two 1500×1500 frames side by side ── */
-              <div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
-                  {GALLERY_TEMPLATE_IDS.map(tplId => {
-                    const tpl = getGalleryTemplate(tplId as GalleryTemplateId)
-                    const isSelected = design.activeGalleryTemplate === tplId
-                    const tplSettings = design.gallery
-                    return (
-                      <div key={tplId} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                        {/* Frame label */}
-                        <span style={{ fontSize: 11, fontWeight: 600, color: isSelected ? '#3B82F6' : '#9CA3AF', whiteSpace: 'nowrap' }}>
-                          {tplId === 'gallery-hero' ? 'Gallery Hero' : 'Gallery Icons'} · 1500×1500
-                        </span>
-                        {/* Frame */}
-                        <div
-                          ref={el => {
-                            if (isSelected) (frameContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
-                          }}
-                          onClick={() => setDesign(d => ({ ...d, activeGalleryTemplate: tplId as GalleryTemplateId }))}
-                          onMouseDown={isSelected ? handleCanvasMouseDown : undefined}
-                          onMouseMove={isSelected ? handleCanvasMouseMove : undefined}
-                          onMouseLeave={isSelected ? () => setIsOverPhoto(false) : undefined}
-                          style={{
-                            width: tpl.width,
-                            height: tpl.height,
-                            position: 'relative',
-                            overflow: 'hidden',
-                            borderRadius: 10,
-                            flexShrink: 0,
-                            outline: isSelected ? '2px solid #3B82F6' : '2px solid transparent',
-                            outlineOffset: 2,
-                            boxShadow: isSelected
-                              ? '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
-                              : '0 2px 12px rgba(0,0,0,0.10)',
-                            cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
-                          }}
-                        >
-                          <div
-                            ref={el => {
-                              if (isSelected) (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
-                            }}
-                            className="design-canvas"
-                            style={{ width: tpl.width, height: tpl.height, position: 'relative' }}
-                          >
-                            {tplId === 'gallery-icons'
-                              ? <CanvasContentGalleryIcons design={{ ...design, activeGalleryTemplate: tplId }} settings={tplSettings} />
-                              : <CanvasContentGallery design={{ ...design, activeGalleryTemplate: tplId }} settings={tplSettings} />
-                            }
+              /* ── Gallery mode: one row of gallery blocks, add button on right ── */
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
+                {(design.galleryBlocks ?? []).map((block, blockIdx) => {
+                  const tpl = getGalleryTemplate(block.templateId)
+                  const isSelected = design.activeGalleryBlockId === block.id
+                  const renderDesign: DesignState = {
+                    ...design,
+                    assets: block.assets ?? [],
+                    title: block.title,
+                    subtitleHtml: block.subtitleHtml,
+                    iconCount: block.iconCount as 2|3|4,
+                    iconLabels: block.iconLabels,
+                    activeGalleryTemplate: block.templateId,
+                  }
+                  return (
+                    <div key={block.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      {/* Block header - scale compensated so it stays fixed screen size at any zoom */}
+                      <div style={{ height: `${24/zoom}px`, width: tpl.width, position: 'relative', marginBottom: `${4/zoom}px` }}>
+                        {/* Left: slug only — no underline */}
+                        <div style={{ position: 'absolute', top: 0, left: 0, display: 'flex', alignItems: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top left' }}>
+                          <input
+                            type="text"
+                            value={block.slug ?? ''}
+                            onChange={e => { e.stopPropagation(); updateGalleryBlockSlug(block.id, e.target.value) }}
+                            onClick={e => e.stopPropagation()}
+                            placeholder={`slide-${blockIdx + 1}`}
+                            spellCheck={false}
+                            style={{ fontSize: 11, fontWeight: 600, color: '#111827', background: 'transparent', border: 'none', outline: 'none', width: 88 }}
+                          />
+                        </div>
+                        {/* Right: template switcher + delete — both scale from top-right */}
+                        <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: 4, transform: `scale(${1/zoom})`, transformOrigin: 'top right' }}>
+                          <div style={{ display: 'flex', gap: 2, background: '#E5E7EB', borderRadius: 6, padding: 2 }}>
+                            {(['gallery-hero', 'gallery-icons'] as GalleryTemplateId[]).map(tid => (
+                              <button
+                                key={tid}
+                                onClick={e => { e.stopPropagation(); changeGalleryBlockTemplate(block.id, tid) }}
+                                style={{
+                                  padding: '3px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, border: 'none',
+                                  background: block.templateId === tid ? '#fff' : 'transparent',
+                                  color: block.templateId === tid ? '#111827' : '#6B7280',
+                                  boxShadow: block.templateId === tid ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
+                                  cursor: 'pointer',
+                                  letterSpacing: '0.01em',
+                                }}
+                              >
+                                {tid === 'gallery-hero' ? 'Hero' : 'Icons'}
+                              </button>
+                            ))}
                           </div>
+                          {(design.galleryBlocks ?? []).length > 1 && (
+                            <button
+                              onClick={e => { e.stopPropagation(); deleteGalleryBlock(block.id) }}
+                              title="Remove slide"
+                              style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', borderRadius: 6 }}
+                            >
+                              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </div>
-                    )
-                  })}
-                </div>
+                      {/* Frame */}
+                      <div
+                        ref={el => {
+                          if (isSelected) (frameContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                        }}
+                        onClick={() => selectGalleryBlock(block.id)}
+                        onMouseDown={isSelected ? handleCanvasMouseDown : undefined}
+                        onMouseMove={isSelected ? handleCanvasMouseMove : undefined}
+                        onMouseLeave={isSelected ? () => setIsOverPhoto(false) : undefined}
+                        style={{
+                          width: tpl.width, height: tpl.height,
+                          position: 'relative', overflow: 'hidden',
+                          borderRadius: 10, flexShrink: 0,
+                          outline: isSelected ? '2px solid #3B82F6' : '2px solid transparent',
+                          outlineOffset: 2,
+                          boxShadow: isSelected
+                            ? '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
+                            : '0 2px 12px rgba(0,0,0,0.10)',
+                          cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
+                        }}
+                      >
+                        <div
+                          ref={el => {
+                            if (isSelected) (canvasRef as React.MutableRefObject<HTMLDivElement | null>).current = el
+                          }}
+                          className="design-canvas"
+                          style={{ width: tpl.width, height: tpl.height, position: 'relative' }}
+                        >
+                          {block.templateId === 'gallery-icons'
+                            ? <CanvasContentGalleryIcons design={renderDesign} settings={design.gallery} />
+                            : <CanvasContentGallery design={renderDesign} settings={design.gallery} />
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {/* Add slide button — vertical strip to the right of the last frame */}
+                <button
+                  onClick={addGalleryBlock}
+                  style={{
+                    width: 120, height: 1500,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
+                    fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                    color: '#9CA3AF', background: 'transparent',
+                    border: '2px dashed #E5E7EB', borderRadius: 8, cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                >
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}>Add Slide</span>
+                </button>
               </div>
             ) : (
               /* ── A+ mode: one row per block, desktop + mobile side by side ── */
@@ -2126,10 +2494,11 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 {design.blocks.map((block, blockIdx) => {
                   return (
                     <div key={block.id}>
-                      {/* Block row header */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <span style={{ fontSize: 9, fontWeight: 700, color: '#D1D5DB', textTransform: 'uppercase', letterSpacing: '0.1em', userSelect: 'none' }}>#</span>
+                      {/* Block row header - scale compensated so it stays fixed screen size at any zoom */}
+                      <div style={{ height: `${24/zoom}px`, position: 'relative', marginBottom: `${6/zoom}px` }}>
+                        {/* Left: index + slug — no underline */}
+                        <div style={{ position: 'absolute', top: 0, left: 0, display: 'flex', alignItems: 'center', gap: 4, transform: `scale(${1/zoom})`, transformOrigin: 'top left' }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>{blockIdx + 1}</span>
                           <input
                             type="text"
                             value={block.slug ?? ''}
@@ -2138,39 +2507,42 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                             placeholder={`block-${blockIdx + 1}`}
                             spellCheck={false}
                             title="Block label — used in export filename"
-                            style={{ fontSize: 10, fontWeight: 600, color: '#4B5563', background: 'transparent', border: 'none', borderBottom: '1px solid transparent', outline: 'none', width: 112 }}
+                            style={{ fontSize: 11, fontWeight: 600, color: '#111827', background: 'transparent', border: 'none', outline: 'none', width: 120 }}
                           />
                         </div>
-                        {/* Template switcher */}
-                        <div style={{ display: 'flex', gap: 2, background: '#F3F4F6', borderRadius: 6, padding: 2 }}>
-                          {(['aplus-5050', 'aplus-icons'] as TemplateId[]).map(tid => (
+                        {/* Right: template switcher + delete — both scale from top-right */}
+                        <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: 4, transform: `scale(${1/zoom})`, transformOrigin: 'top right' }}>
+                          <div style={{ display: 'flex', gap: 2, background: '#E5E7EB', borderRadius: 6, padding: 2 }}>
+                            {(['aplus-5050', 'aplus-icons'] as TemplateId[]).map(tid => (
+                              <button
+                                key={tid}
+                                onClick={e => { e.stopPropagation(); changeBlockTemplate(block.id, tid) }}
+                                style={{
+                                  padding: '3px 10px', borderRadius: 4, fontSize: 10, fontWeight: 700, border: 'none',
+                                  background: block.templateId === tid ? '#fff' : 'transparent',
+                                  color: block.templateId === tid ? '#111827' : '#6B7280',
+                                  boxShadow: block.templateId === tid ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
+                                  cursor: 'pointer',
+                                  letterSpacing: '0.01em',
+                                }}
+                              >
+                                {tid === 'aplus-5050' ? '50/50' : 'Icons'}
+                              </button>
+                            ))}
+                          </div>
+                          {design.blocks.length > 1 && (
                             <button
-                              key={tid}
-                              onClick={e => { e.stopPropagation(); changeBlockTemplate(block.id, tid) }}
-                              style={{
-                                padding: '2px 8px', borderRadius: 4, fontSize: 9, fontWeight: 700, border: 'none',
-                                background: block.templateId === tid ? '#fff' : 'transparent',
-                                color: block.templateId === tid ? '#111' : '#6B7280',
-                                boxShadow: block.templateId === tid ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                                cursor: 'pointer',
-                              }}
+                              onClick={e => { e.stopPropagation(); deleteBlock(block.id) }}
+                              title="Remove block"
+                              style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FEE2E2', border: 'none', color: '#EF4444', cursor: 'pointer', borderRadius: 6 }}
                             >
-                              {tid === 'aplus-5050' ? '50/50' : 'Icons'}
+                              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
                             </button>
-                          ))}
+                          )}
                         </div>
-                        {design.blocks.length > 1 && (
-                          <button
-                            onClick={e => { e.stopPropagation(); deleteBlock(block.id) }}
-                            title="Remove block"
-                            style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: '#D1D5DB', cursor: 'pointer', borderRadius: 4 }}
-                          >
-                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
+                      </div>{/* close outer height container */}
 
                       {/* Frames row: desktop + mobile */}
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
@@ -2193,24 +2565,32 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           const renderSettings = frameFmt === 'desktop' ? renderDesign.desktop : renderDesign.mobile
                           const peer = peers.find(p => p.activeBlockId === block.id)
                           return (
-                            <div key={frameFmt} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                              {/* Frame label */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                {frameFmt === 'desktop'
-                                  ? <DesktopIcon className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
-                                  : <MobileIcon  className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
-                                }
-                                <span style={{ fontSize: 11, fontWeight: 600, color: isSelected ? '#3B82F6' : '#9CA3AF' }}>
-                                  {frameFmt === 'desktop' ? 'Desktop · 1464×600' : 'Mobile · 600×450'}
-                                </span>
-                              </div>
-                              {/* Peer indicator */}
-                              {peer ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, height: 14 }}>
-                                  <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: peer.color, flexShrink: 0 }} />
-                                  <span style={{ fontSize: 9, fontWeight: 500, color: peer.color }}>{peer.email}</span>
+                            <div key={frameFmt} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              {/* Frame label - scale compensated */}
+                              <div style={{ height: `${16/zoom}px`, width: tpl.width, position: 'relative', marginBottom: `${4/zoom}px` }}>
+                                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top center' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    {frameFmt === 'desktop'
+                                      ? <DesktopIcon className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
+                                      : <MobileIcon  className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
+                                    }
+                                    <span style={{ fontSize: 11, fontWeight: 600, color: isSelected ? '#3B82F6' : '#9CA3AF' }}>
+                                      {frameFmt === 'desktop' ? 'Desktop · 1464×600' : 'Mobile · 600×450'}
+                                    </span>
+                                  </div>
                                 </div>
-                              ) : <div style={{ height: 14 }} />}
+                              </div>
+                              {/* Peer indicator - scale compensated */}
+                              <div style={{ height: `${14/zoom}px`, width: tpl.width, position: 'relative', marginBottom: `${8/zoom}px` }}>
+                                {peer && (
+                                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top center' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: peer.color, flexShrink: 0 }} />
+                                      <span style={{ fontSize: 9, fontWeight: 500, color: peer.color }}>{peer.email}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                               {/* Frame at native size */}
                               <div
                                 ref={el => {
@@ -2362,14 +2742,14 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
         slotLabel={iconPickerSlot !== null ? `Icon ${iconPickerSlot - 2}` : undefined}
         onSelect={pick => {
           if (iconPickerSlot !== null)
-            handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, iconPickerSlot)
+            addCurrentAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, iconPickerSlot)
         }}
       />
       <CantoPhotoPickerModal
         open={photoPickerOpen}
         onClose={() => setPhotoPickerOpen(false)}
         initialQuery={design.productName}
-        onSelect={pick => handleAddAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 0)}
+        onSelect={pick => addCurrentAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 0)}
       />
     </div>
   )
@@ -2603,8 +2983,13 @@ function PhotoCompIcon() {
 
 function MoveIcon() {
   return (
-    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 9l-3 3m0 0l3 3M2 12h20M15 9l3 3m0 0l-3 3" />
+    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="5 9 2 12 5 15" />
+      <polyline points="9 5 12 2 15 5" />
+      <polyline points="15 19 12 22 9 19" />
+      <polyline points="19 9 22 12 19 15" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <line x1="12" y1="2" x2="12" y2="22" />
     </svg>
   )
 }

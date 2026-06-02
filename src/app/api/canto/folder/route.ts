@@ -10,14 +10,19 @@ export async function GET(req: Request) {
     const assets = await getAlbumContents(albumId, 200)
     // Filter generic Canto category tags that carry no semantic meaning for matching
     const SKIP = new Set(['Icons', 'Untagged', 'icons', 'untagged'])
-    return NextResponse.json(assets.map(a => ({
+    const mapped = assets.map(a => ({
       id: a.id,
       name: a.name,
       previewUrl:  proxyUrl(a.url?.directUrlPreview ?? a.url?.preview ?? ''),
       originalUrl: proxyUrl(a.url?.directUrlOriginal ?? a.url?.directUrlPreview ?? a.url?.preview ?? ''),
       keywords: [...(a.keyword ?? []), ...(a.tag ?? [])].filter(k => k && !SKIP.has(k)),
-    })))
+    }))
+    if (mapped.length === 0) {
+      console.warn(`[folder route] albumId=${albumId} returned 0 assets. Check server logs for Canto response details.`)
+    }
+    return NextResponse.json(mapped)
   } catch (err) {
+    console.error(`[folder route] albumId=${albumId} threw:`, err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }

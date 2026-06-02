@@ -69,9 +69,8 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
   const [cantoStatus, setCantoStatus] = useState<ConnectionStatus>('connecting')
   const [cantoError, setCantoError]   = useState('')
 
-  // Canto folder config
+  // Canto folder config (configured in Settings ⚙; used read-only here)
   const [albums, setAlbums]           = useState<CantoAlbum[]>([])
-  const [folderConfigOpen, setFolderConfigOpen] = useState(false)
   const folderConfigRef = useRef<FolderConfig>(EMPTY_CONFIG)
 
   // Branding — Canto picks or file uploads (Canto takes priority)
@@ -598,18 +597,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
                    cantoStatus === 'connecting' ? 'Connecting…' : cantoError || 'Connection failed'}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <StatusBadge status={cantoStatus} />
-                {cantoStatus === 'connected' && (
-                  <button
-                    onClick={() => setFolderConfigOpen(o => !o)}
-                    title="Configure asset folders"
-                    className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${folderConfigOpen ? 'bg-gray-900 dark:bg-gray-700 text-white' : 'text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200'}`}
-                  >
-                    <GearIcon />
-                  </button>
-                )}
-              </div>
+              <StatusBadge status={cantoStatus} />
             </div>
 
             {cantoStatus === 'error' && (
@@ -624,34 +612,10 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
               </button>
             )}
 
-            {/* Folder config panel */}
-            {folderConfigOpen && cantoStatus === 'connected' && (
-              <div className="mt-1 pt-3 border-t border-gray-100 dark:border-gray-700 space-y-2">
-                <p className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Asset Folders</p>
-                {([
-                  { key: 'photosAlbumId',   label: 'Photos' },
-                  { key: 'iconsAlbumId',    label: 'Icons' },
-                  { key: 'texturesAlbumId', label: 'Textures' },
-                  { key: 'logosAlbumId',    label: 'Logos' },
-                ] as const).map(({ key, label }) => (
-                  <div key={key} className="flex items-center gap-2">
-                    <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium w-16 shrink-0">{label}</span>
-                    <select
-                      value={folderConfig[key] ?? ''}
-                      onChange={e => updateFolderConfig({ [key]: e.target.value || null })}
-                      className="flex-1 h-7 px-2 rounded-lg border border-gray-200 dark:border-gray-600 text-[10px] text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500 truncate"
-                    >
-                      <option value="">— not set —</option>
-                      {albums.map(a => (
-                        <option key={a.id} value={a.id}>{a.namePath ?? a.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
-                <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-relaxed">
-                  Saved automatically. Bulk run uses these folders to find icons, textures, and logos.
-                </p>
-              </div>
+            {cantoStatus === 'connected' && (
+              <p className="text-[9px] text-gray-400 dark:text-gray-500">
+                Asset folders are configured in Settings ⚙ in the top toolbar.
+              </p>
             )}
           </Section>
 
@@ -1164,12 +1128,7 @@ function UploadIcon() {
     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
   </svg>
 }
-function GearIcon() {
-  return <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-}
+
 function CsvIcon() {
   return <svg className="w-7 h-7 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

@@ -3,43 +3,99 @@ import { DesignState, FormatSettings, PhotoComposition, DEFAULT_PHOTO_COMP } fro
 import { getTemplate } from '@/lib/templates'
 
 // ─── Icon color → CSS filter ──────────────────────────────────────────────────
-// Converts a hex color to a CSS filter chain that recolors a black PNG to that color.
-// White shortcut is exact; other colors use sepia pivot + hue-rotate + saturation.
+// Recolors a black PNG to any target hex color via SPSA-optimized CSS filter chain.
+// Cache ensures the solver runs once per unique color string.
+
+const _filterCache = new Map<string, string>()
+
+function _clampCh(v: number): number { return Math.max(0, Math.min(255, v)) }
+
+// Apply [sepia, saturate, hueRotate, brightness, contrast] to an RGB pixel (0-255).
+function _applyChain(r: number, g: number, b: number, f: number[]): [number, number, number] {
+  const sep = f[0]
+  ;[r, g, b] = [
+    _clampCh(r*(0.393+0.607*(1-sep)) + g*(0.769-0.769*(1-sep)) + b*(0.189-0.189*(1-sep))),
+    _clampCh(r*(0.349-0.349*(1-sep)) + g*(0.686+0.314*(1-sep)) + b*(0.168-0.168*(1-sep))),
+    _clampCh(r*(0.272-0.272*(1-sep)) + g*(0.534-0.534*(1-sep)) + b*(0.131+0.869*(1-sep))),
+  ]
+  const sat = f[1]
+  ;[r, g, b] = [
+    _clampCh(r*(0.213+0.787*sat) + g*(0.715-0.715*sat) + b*(0.072-0.072*sat)),
+    _clampCh(r*(0.213-0.213*sat) + g*(0.715+0.285*sat) + b*(0.072-0.072*sat)),
+    _clampCh(r*(0.213-0.213*sat) + g*(0.715-0.715*sat) + b*(0.072+0.928*sat)),
+  ]
+  const rad = f[2] * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad)
+  ;[r, g, b] = [
+    _clampCh(r*(0.213+cos*0.787-sin*0.213) + g*(0.715-cos*0.715-sin*0.715) + b*(0.072-cos*0.072+sin*0.928)),
+    _clampCh(r*(0.213-cos*0.213+sin*0.143) + g*(0.715+cos*0.285+sin*0.140) + b*(0.072-cos*0.072-sin*0.283)),
+    _clampCh(r*(0.213-cos*0.213-sin*0.787) + g*(0.715-cos*0.715+sin*0.715) + b*(0.072+cos*0.928+sin*0.072)),
+  ]
+  r = _clampCh(r * f[3]); g = _clampCh(g * f[3]); b = _clampCh(b * f[3])
+  r = _clampCh(f[4]*(r-127.5)+127.5); g = _clampCh(f[4]*(g-127.5)+127.5); b = _clampCh(f[4]*(b-127.5)+127.5)
+  return [r, g, b]
+}
+
+// Full params: [invert(0-1), sepia(0-1), saturate(0-10), hueRotate(0-360), brightness(0-4), contrast(0-4)]
+// Applied to black (0,0,0): invert(v) on black → gray at v*255 → rest of chain
+function _pixelFromFilters(f: number[]): [number, number, number] {
+  const gray = _clampCh(f[0] * 255)
+  return _applyChain(gray, gray, gray, f.slice(1))
+}
+
+function _colorLoss(f: number[], tr: number, tg: number, tb: number): number {
+  const [r, g, b] = _pixelFromFilters(f)
+  return Math.sqrt((r-tr)**2 + (g-tg)**2 + (b-tb)**2)
+}
+
+function _solveFilter(tr: number, tg: number, tb: number): string {
+  const MIN = [0, 0, 0,   0, 0, 0]
+  const MAX = [1, 1, 10, 360, 4, 4]
+  const clp = (f: number[]) => f.map((v, i) => Math.max(MIN[i], Math.min(MAX[i], v)))
+
+  let best = { loss: Infinity, f: [0.5, 1, 4, 0, 1, 1] as number[] }
+
+  for (let attempt = 0; attempt < 25; attempt++) {
+    let f = attempt === 0
+      ? [0.5, 1, 4, 0, 1, 1]
+      : clp([Math.random(), Math.random(), Math.random()*8, Math.random()*360, Math.random()*3, Math.random()*3])
+
+    for (let k = 0; k < 60; k++) {
+      const ck = 2 / Math.pow(k + 1, 0.16)
+      const delta = f.map(() => (Math.random() < 0.5 ? 1 : -1))
+      const f1 = clp(f.map((v, i) => v + ck * delta[i]))
+      const f2 = clp(f.map((v, i) => v - ck * delta[i]))
+      const l1 = _colorLoss(f1, tr, tg, tb)
+      const l2 = _colorLoss(f2, tr, tg, tb)
+      const ak = 1 / Math.pow(k + 1.5, 0.602)
+      f = clp(f.map((v, i) => v - ak * (l1 - l2) / (2 * ck * delta[i])))
+      const loss = _colorLoss(f, tr, tg, tb)
+      if (loss < best.loss) best = { loss, f: [...f] }
+    }
+    if (best.loss < 2) break
+  }
+
+  const [inv, sep, sat, hue, br, con] = best.f
+  return [
+    'brightness(0)',
+    `invert(${inv.toFixed(3)})`,
+    `sepia(${sep.toFixed(3)})`,
+    `saturate(${sat.toFixed(3)})`,
+    `hue-rotate(${Math.round(hue)}deg)`,
+    `brightness(${br.toFixed(3)})`,
+    `contrast(${con.toFixed(3)})`,
+  ].join(' ')
+}
 
 function iconColorToFilter(hex: string): string {
   const h = (hex ?? '#ffffff').toLowerCase().trim()
-  const normalized = h.length === 4 ? `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}` : h
-  if (normalized === '#ffffff') return 'brightness(0) invert(1)'
-  if (normalized === '#000000') return 'brightness(0)'
-
-  const r = parseInt(normalized.slice(1, 3), 16) / 255
-  const g = parseInt(normalized.slice(3, 5), 16) / 255
-  const b = parseInt(normalized.slice(5, 7), 16) / 255
-  const max = Math.max(r, g, b), min = Math.min(r, g, b)
-  const l = (max + min) / 2
-  let s = 0, hue = 0
-  if (max !== min) {
-    const d = max - min
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-    switch (max) {
-      case r: hue = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
-      case g: hue = ((b - r) / d + 2) / 6; break
-      case b: hue = ((r - g) / d + 4) / 6; break
-    }
-  }
-  const hDeg = Math.round(hue * 360)
-  const sPct = Math.round(s * 100)
-  const lPct = Math.round(l * 100)
-  // Start from black → invert(white) → sepia(golden ~38°) → rotate to target hue
-  return [
-    'brightness(0)',
-    'saturate(100%)',
-    'invert(1)',
-    'sepia(1)',
-    `hue-rotate(${hDeg - 38}deg)`,
-    `saturate(${Math.min(sPct * 6, 5000)}%)`,
-    `brightness(${Math.max(lPct * 2, 5)}%)`,
-  ].join(' ')
+  const norm = h.length === 4 ? `#${h[1]}${h[1]}${h[2]}${h[2]}${h[3]}${h[3]}` : h
+  if (norm === '#ffffff') return 'brightness(0) invert(1)'
+  if (norm === '#000000') return 'brightness(0)'
+  const cached = _filterCache.get(norm)
+  if (cached) return cached
+  const result = _solveFilter(parseInt(norm.slice(1,3),16), parseInt(norm.slice(3,5),16), parseInt(norm.slice(5,7),16))
+  _filterCache.set(norm, result)
+  return result
 }
 
 // ─── Photo composition helper ─────────────────────────────────────────────────
@@ -68,8 +124,8 @@ export function CanvasContentGallery({ design, settings, onPhotoMouseDown }: { d
   const logoImg    = design.assets[2]
 
   const W = 1500
-  const topH = Math.round(W * 0.58)  // ~870px photo
-  const botH = W - topH               // ~630px text panel
+  const topH = Math.round(W * 0.57)  // ~855px photo
+  const botH = W - topH               // ~645px text panel
 
   const logoPos: React.CSSProperties = {
     position: 'absolute',
@@ -121,7 +177,7 @@ export function CanvasContentGallery({ design, settings, onPhotoMouseDown }: { d
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         padding: `${settings.contentPaddingV}px ${settings.contentPaddingX}px`,
         boxSizing: 'border-box',
       }}>
@@ -168,10 +224,9 @@ export function CanvasContentGalleryIcons({ design, settings, onPhotoMouseDown }
   const iconImgs   = [design.assets[3], design.assets[4], design.assets[5], design.assets[6]]
 
   const W = 1500
-  const topH    = Math.round(W * 0.55)  // ~825px photo
-  const botH    = W - topH               // ~675px dark panel
-  const iconRowH = Math.round(botH * 0.42) // ~284px icon row at bottom
-  const titleH   = botH - iconRowH        // ~391px title area
+  const topH    = Math.round(W * 0.57)  // ~855px photo
+  const botH    = W - topH               // ~645px dark panel
+  const iconRowH = Math.round(botH * 0.42) // ~271px icon row at bottom
 
   const logoPos: React.CSSProperties = {
     position: 'absolute',
@@ -262,11 +317,10 @@ export function CanvasContentGalleryIcons({ design, settings, onPhotoMouseDown }
         {/* Title area */}
         <div style={{
           position: 'relative',
-          height: titleH,
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'center',
+          justifyContent: 'flex-start',
           padding: `${settings.contentPaddingV}px ${settings.contentPaddingX}px`,
           boxSizing: 'border-box',
         }}>
@@ -281,6 +335,18 @@ export function CanvasContentGalleryIcons({ design, settings, onPhotoMouseDown }
             textTransform: settings.titleTextTransform,
             maxWidth: settings.titleWidth < 100 ? `${settings.titleWidth}%` : undefined,
           }} dangerouslySetInnerHTML={{ __html: design.title || '<p>Product Title</p>' }} />
+          {design.galleryIconsShowDescription && design.subtitleHtml && (
+            <div className="rich-subtitle" style={{
+              fontFamily: 'Inter, sans-serif',
+              fontSize: settings.subtitleFontSize,
+              lineHeight: `${settings.subtitleLineHeight}px`,
+              fontWeight: 400,
+              color: design.bodyColor,
+              margin: '12px 0 0',
+              textTransform: settings.subtitleTextTransform,
+              maxWidth: settings.subtitleWidth < 100 ? `${settings.subtitleWidth}%` : undefined,
+            }} dangerouslySetInnerHTML={{ __html: design.subtitleHtml }} />
+          )}
         </div>
 
         {/* Icon row — blurred dark tiles side by side */}

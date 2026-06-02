@@ -99,9 +99,39 @@ export async function getFolders(): Promise<CantoFolder[]> {
   return flattenTree((data.results ?? []) as CantoFolder[])
 }
 
+// Canto returns assets under different keys depending on endpoint version
+function extractAssets(data: Record<string, unknown>): CantoAsset[] {
+  for (const key of ['results', 'images', 'content', 'items', 'assets']) {
+    const val = data[key]
+    if (Array.isArray(val)) return val as CantoAsset[]
+  }
+  if (Array.isArray(data)) return data as CantoAsset[]
+  return []
+}
+
 export async function getAlbumContents(folderId: string, limit = 100): Promise<CantoAsset[]> {
-  const data = await cantoFetch(`/folder/${folderId}`, { limit: String(limit), sortBy: 'name', sortDirection: 'ascending' })
-  return (data.results ?? data.images ?? []) as CantoAsset[]
+  const params = { limit: String(limit), sortBy: 'name', sortDirection: 'ascending' }
+
+  // Try /folder/ first (works for folder-type IDs like NHMFF)
+  try {
+    const data = await cantoFetch(`/folder/${folderId}`, params)
+    console.log(`[canto] /folder/${folderId} top-level keys:`, Object.keys(data), '| results len:', Array.isArray(data.results) ? data.results.length : typeof data.results)
+    const assets = extractAssets(data as Record<string, unknown>)
+    if (assets.length > 0) return assets
+  } catch (e) {
+    console.warn(`[canto] /folder/${folderId} failed:`, String(e))
+  }
+
+  // Fallback: try /album/ (album-type IDs like QH34D may use this endpoint)
+  try {
+    const data = await cantoFetch(`/album/${folderId}`, params)
+    console.log(`[canto] /album/${folderId} top-level keys:`, Object.keys(data))
+    return extractAssets(data as Record<string, unknown>)
+  } catch (e) {
+    console.warn(`[canto] /album/${folderId} also failed:`, String(e))
+  }
+
+  return []
 }
 
 // Proxy an asset through the server so html-to-image doesn't hit CORS
