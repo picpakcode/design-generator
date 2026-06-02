@@ -1940,7 +1940,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
         {/* ══ Canvas area ══ */}
         <main
           ref={wrapperRef}
-          className="flex-1 min-h-0 overflow-y-auto"
+          className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden"
           style={{ backgroundColor: canvasBg }}
         >
           <div className="px-6 py-6 space-y-10">
