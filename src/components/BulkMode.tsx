@@ -59,6 +59,10 @@ const DEFAULT_LOGO_ALBUM = 'QH34D'
 // Renders a React element into a fresh off-screen container, waits for every
 // <img> to finish loading, then returns a PNG/JPEG data-URL (or null on error).
 // Using a fresh createRoot per capture avoids ALL shared-state/stale-DOM issues.
+// IMPORTANT: html-to-image copies getComputedStyle to its clone, so if the captured
+// element has position:fixed;top:-99999px the clone renders off-screen inside the SVG
+// foreignObject → blank white output. Fix: capture an inner div (position:relative, no
+// offset) while the outer wrapper handles the off-screen hiding.
 
 async function captureToDataUrl(
   element: React.ReactElement,
@@ -66,15 +70,20 @@ async function captureToDataUrl(
   height: number,
   format: 'png' | 'jpeg',
 ): Promise<string | null> {
-  const div = document.createElement('div')
-  div.style.cssText = `position:fixed;top:-99999px;left:-99999px;width:${width}px;height:${height}px;overflow:hidden;pointer-events:none;`
-  document.body.appendChild(div)
-  const root = createRoot(div)
+  // Outer wrapper is off-screen via position:fixed — but it is NOT captured by html-to-image
+  const wrapper = document.createElement('div')
+  wrapper.style.cssText = `position:fixed;top:-${height + 100}px;left:0;pointer-events:none;`
+  document.body.appendChild(wrapper)
 
-  // flushSync on a fresh root is safe — it's independent of BulkMode's tree
+  // Inner div is the actual capture target: position:relative keeps it at (0,0) in the
+  // SVG foreignObject that html-to-image creates, so content renders correctly
+  const div = document.createElement('div')
+  div.style.cssText = `width:${width}px;height:${height}px;overflow:hidden;position:relative;`
+  wrapper.appendChild(div)
+
+  const root = createRoot(div)
   flushSync(() => root.render(element))
 
-  // All img elements are brand-new (fresh DOM) so complete=false for any uncached URL
   const imgs = Array.from(div.querySelectorAll('img'))
   await Promise.all(imgs.map(img =>
     img.complete
@@ -87,7 +96,10 @@ async function captureToDataUrl(
       ? await toJpeg(div, { quality: 0.95, backgroundColor: '#ffffff' })
       : await toPng(div)
   } catch { return null }
-  finally { root.unmount(); document.body.removeChild(div) }
+  finally {
+    root.unmount()
+    document.body.removeChild(wrapper)
+  }
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
