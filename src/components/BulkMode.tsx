@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
 import { toPng, toJpeg } from 'html-to-image'
 import { BulkProduct, ParseResult, downloadTemplate, parseCSV } from '@/lib/csv'
 import { DesignState, UploadedAsset } from '@/types'
@@ -53,6 +55,41 @@ const DEFAULT_LOGO_ID    = 'gjj53olkh15rd0vdvpq29ngf75'
 const DEFAULT_LOGO_NAME  = 'DocsDiesel-Logo-Wordmark-RedWhite-Vector 1'
 const DEFAULT_LOGO_ALBUM = 'QH34D'
 
+// ─── Capture helper ──────────────────────────────────────────────────────────
+// Renders a React element into a fresh off-screen container, waits for every
+// <img> to finish loading, then returns a PNG/JPEG data-URL (or null on error).
+// Using a fresh createRoot per capture avoids ALL shared-state/stale-DOM issues.
+
+async function captureToDataUrl(
+  element: React.ReactElement,
+  width: number,
+  height: number,
+  format: 'png' | 'jpeg',
+): Promise<string | null> {
+  const div = document.createElement('div')
+  div.style.cssText = `position:fixed;top:-99999px;left:-99999px;width:${width}px;height:${height}px;overflow:hidden;pointer-events:none;`
+  document.body.appendChild(div)
+  const root = createRoot(div)
+
+  // flushSync on a fresh root is safe — it's independent of BulkMode's tree
+  flushSync(() => root.render(element))
+
+  // All img elements are brand-new (fresh DOM) so complete=false for any uncached URL
+  const imgs = Array.from(div.querySelectorAll('img'))
+  await Promise.all(imgs.map(img =>
+    img.complete
+      ? Promise.resolve()
+      : new Promise<void>(r => { img.onload = () => r(); img.onerror = () => r() })
+  ))
+
+  try {
+    return format === 'jpeg'
+      ? await toJpeg(div, { quality: 0.95, backgroundColor: '#ffffff' })
+      : await toPng(div)
+  } catch { return null }
+  finally { root.unmount(); document.body.removeChild(div) }
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 interface BulkModeProps {
@@ -97,20 +134,12 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
   const [isRunning, setIsRunning] = useState(false)
   const [doneJobs, setDoneJobs]   = useState(0)
   const [totalJobs, setTotalJobs] = useState(0)
-  const cancelRef       = useRef(false)
-  const capturedRef     = useRef<Map<string, string>>(new Map())
-  const captureRef      = useRef<HTMLDivElement>(null)
-  const jobsSnapshot    = useRef<JobProduct[]>([])
+  const cancelRef         = useRef(false)
+  const capturedRef       = useRef<Map<string, string>>(new Map())
+  const jobsSnapshot      = useRef<JobProduct[]>([])
   const iconCacheRef      = useRef<CantoPick[] | null>(null)
   const productPhotoCache = useRef<Map<string, CantoPick[]>>(new Map())
   const photoCache        = useRef<Map<string, string | null>>(new Map())
-  const [captureFrame, setCaptureFrame] = useState<{
-    slotDesign: DesignState
-    settings: typeof designState.desktop
-    template: SlotTemplate
-    isGallery: boolean
-    width: number; height: number
-  } | null>(null)
 
   // Keep folderConfigRef in sync
   folderConfigRef.current = folderConfig
@@ -356,9 +385,12 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
     const iconFolder = await getIconFolder()
     let done = 0
 
-    // Resolved branding: Bulk picker > Design tab asset
-    const logoForRender:    UploadedAsset | undefined = logoAsset    ?? designState.assets[2]
-    const textureForRender: UploadedAsset | undefined = textureAsset ?? designState.assets[1]
+    // Active A+ block in Design tab — used as fallback for photo and icon assets
+    const activeAplusBlock = designState.blocks.find(b => b.id === designState.activeBlockId)
+
+    // Resolved branding: Bulk picker > Design tab active block asset
+    const logoForRender:    UploadedAsset | undefined = logoAsset    ?? activeAplusBlock?.assets?.[2]
+    const textureForRender: UploadedAsset | undefined = textureAsset ?? activeAplusBlock?.assets?.[1]
 
     for (let i = 0; i < snapshot.length; i++) {
       if (cancelRef.current) break
@@ -391,7 +423,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
           const pick = productPhotos.find(p => usedPhotoIds.indexOf(p.id) === -1) ?? productPhotos[j % productPhotos.length]
           if (pick) { usedPhotoIds.push(pick.id); photoAsset = { id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' } }
         }
-        if (!photoAsset) photoAsset = designState.assets[0]
+        if (!photoAsset) photoAsset = activeAplusBlock?.assets?.[0]
 
         const usedIconIds: string[] = []
         const iconAssets = (slot?.iconCallouts ?? ['', '', '', '']).map((callout, ci) => {
@@ -399,7 +431,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
           if (match) usedIconIds.push(match.id)
           return match
             ? { id: match.id, name: match.name, url: match.originalUrl ?? match.previewUrl, type: 'image' as const }
-            : designState.assets[3 + ci]
+            : activeAplusBlock?.assets?.[3 + ci]
         })
 
         slotData.push({ photoAsset, iconAssets })
@@ -426,15 +458,12 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
 
         // Desktop
         setJobs(p => p.map((r, idx) => idx === i ? { ...r, renderingSlot: `${label}-desktop`, doneCount: j * 2 } : r))
-        setCaptureFrame({ slotDesign: { ...baseSlotDesign, activeFormat: 'desktop' }, settings: { ...designState.desktop, layoutFlipped }, template: cfg.template, isGallery: false, width: 1464, height: 600 })
-        await new Promise(r => setTimeout(r, 200))
-        if (captureRef.current && !cancelRef.current) {
-          try {
-            const dataUrl = outputFormat === 'jpeg'
-              ? await toJpeg(captureRef.current, { quality: 0.95, backgroundColor: '#ffffff' })
-              : await toPng(captureRef.current)
-            capturedRef.current.set(`${job.sku}/${label}-desktop`, dataUrl)
-          } catch { /* capture failed */ }
+        if (!cancelRef.current) {
+          const desktopEl = cfg.template === 'icons'
+            ? <CanvasContentIcons design={{ ...baseSlotDesign, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped }} />
+            : <CanvasContent      design={{ ...baseSlotDesign, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped }} />
+          const dataUrl = await captureToDataUrl(desktopEl, 1464, 600, outputFormat)
+          if (dataUrl) capturedRef.current.set(`${job.sku}/${label}-desktop`, dataUrl)
         }
         done++; setDoneJobs(done)
 
@@ -442,15 +471,12 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
 
         // Mobile
         setJobs(p => p.map((r, idx) => idx === i ? { ...r, renderingSlot: `${label}-mobile`, doneCount: j * 2 + 1 } : r))
-        setCaptureFrame({ slotDesign: { ...baseSlotDesign, activeFormat: 'mobile' }, settings: { ...designState.mobile, layoutFlipped }, template: cfg.template, isGallery: false, width: 600, height: 450 })
-        await new Promise(r => setTimeout(r, 200))
-        if (captureRef.current && !cancelRef.current) {
-          try {
-            const dataUrl = outputFormat === 'jpeg'
-              ? await toJpeg(captureRef.current, { quality: 0.95, backgroundColor: '#ffffff' })
-              : await toPng(captureRef.current)
-            capturedRef.current.set(`${job.sku}/${label}-mobile`, dataUrl)
-          } catch { /* capture failed */ }
+        if (!cancelRef.current) {
+          const mobileEl = cfg.template === 'icons'
+            ? <CanvasContentIcons design={{ ...baseSlotDesign, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped }} />
+            : <CanvasContent      design={{ ...baseSlotDesign, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped }} />
+          const dataUrl = await captureToDataUrl(mobileEl, 600, 450, outputFormat)
+          if (dataUrl) capturedRef.current.set(`${job.sku}/${label}-mobile`, dataUrl)
         }
         done++; setDoneJobs(done)
       }
@@ -473,15 +499,12 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
           }
 
           setJobs(p => p.map((r, idx) => idx === i ? { ...r, renderingSlot: galleryLabel } : r))
-          setCaptureFrame({ slotDesign: gallerySlotDesign, settings: { ...designState.gallery, layoutFlipped: false }, template: cfg.template, isGallery: true, width: 1500, height: 1500 })
-          await new Promise(r => setTimeout(r, 200))
-          if (captureRef.current && !cancelRef.current) {
-            try {
-              const dataUrl = outputFormat === 'jpeg'
-                ? await toJpeg(captureRef.current, { quality: 0.95, backgroundColor: '#ffffff' })
-                : await toPng(captureRef.current)
-              capturedRef.current.set(`${job.sku}/${galleryLabel}`, dataUrl)
-            } catch { /* capture failed */ }
+          if (!cancelRef.current) {
+            const galleryEl = cfg.template === 'icons'
+              ? <CanvasContentGalleryIcons design={gallerySlotDesign} settings={{ ...designState.gallery, layoutFlipped: false }} />
+              : <CanvasContentGallery      design={gallerySlotDesign} settings={{ ...designState.gallery, layoutFlipped: false }} />
+            const dataUrl = await captureToDataUrl(galleryEl, 1500, 1500, outputFormat)
+            if (dataUrl) capturedRef.current.set(`${job.sku}/${galleryLabel}`, dataUrl)
           }
           done++; setDoneJobs(done)
         }
@@ -494,7 +517,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
       ))
     }
 
-    setCaptureFrame(null); setIsRunning(false)
+    setIsRunning(false)
   }
 
   const handleCancel = () => { cancelRef.current = true }
@@ -527,21 +550,6 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
 
   return (
     <div className="flex flex-1 min-h-0 bg-gray-50 dark:bg-gray-950">
-
-      {/* ── Hidden capture target ── */}
-      <div style={{ position: 'fixed', top: -99999, left: -99999, pointerEvents: 'none' }}>
-        <div ref={captureRef} style={{ width: captureFrame?.width ?? 1464, height: captureFrame?.height ?? 600, position: 'relative', overflow: 'hidden' }}>
-          {captureFrame && (
-            captureFrame.isGallery
-              ? captureFrame.template === 'icons'
-                ? <CanvasContentGalleryIcons design={captureFrame.slotDesign} settings={captureFrame.settings} />
-                : <CanvasContentGallery design={captureFrame.slotDesign} settings={captureFrame.settings} />
-              : captureFrame.template === 'icons'
-                ? <CanvasContentIcons design={captureFrame.slotDesign} settings={captureFrame.settings} />
-                : <CanvasContent design={captureFrame.slotDesign} settings={captureFrame.settings} />
-          )}
-        </div>
-      </div>
 
       {/* ══ Left config panel ══ */}
       <aside className="w-72 shrink-0 flex flex-col border-r border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm z-10">
@@ -579,18 +587,24 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
                 </button>
               </div>
             ) : (
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                    <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 truncate">{csvFilename}</p>
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                      <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 truncate">{csvFilename}</p>
+                    </div>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 pl-3">
+                      {products.length} products
+                      {productWarnings > 0 && <span className="ml-1.5 text-amber-600">· {productWarnings} warnings</span>}
+                    </p>
                   </div>
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400 pl-3">
-                    {products.length} products
-                    {productWarnings > 0 && <span className="ml-1.5 text-amber-600">· {productWarnings} warnings</span>}
-                  </p>
+                  <button onClick={handleClear} className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 underline underline-offset-2">Remove</button>
                 </div>
-                <button onClick={handleClear} className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 underline underline-offset-2">Remove</button>
+                <button onClick={downloadTemplate}
+                  className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                  <DownloadIcon className="w-3 h-3" /> Download template
+                </button>
               </div>
             )}
           </Section>
@@ -627,9 +641,20 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
             )}
           </Section>
 
-          {/* BRANDING */}
-          <Section label="Branding" icon={<BrandingIcon />}>
+          {/* IMAGES */}
+          <Section label="Images" icon={<ImagesIcon />}>
             <div className="space-y-3">
+              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Assets</p>
+              <div>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Background Texture</p>
+                <TexturePicker
+                  albumId={null}
+                  value={textureAsset}
+                  onChange={setTextureAsset}
+                  placeholder="Pick texture…"
+                  thumbnailFit="cover"
+                />
+              </div>
               <div>
                 <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Brand Logo</p>
                 <TexturePicker
@@ -639,29 +664,13 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
                   placeholder="Pick logo…"
                   thumbnailFit="contain"
                 />
-                {!logoAsset && designState.assets[2] && (
-                  <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1">Design tab logo used as fallback</p>
-                )}
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Background Texture</p>
-                <TexturePicker
-                  albumId={folderConfig.texturesAlbumId || null}
-                  value={textureAsset}
-                  onChange={setTextureAsset}
-                  placeholder="Pick texture…"
-                  thumbnailFit="cover"
-                />
-                {!textureAsset && designState.assets[1] && (
-                  <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1">Design tab texture used as fallback</p>
-                )}
               </div>
               <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 space-y-1">
                 <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">Photos</span> are searched automatically by SKU — unique lifestyle images are assigned to each block. Tag photos in Canto with their SKU for best results.
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">Photos</span> are matched per product by SKU from Canto.
                 </p>
                 <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">Icons</span> are matched from the icons folder using callout text.{' '}
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">Icons</span> are matched from callout text.{' '}
                   {!folderConfig.iconsAlbumId && <span className="text-amber-600">No icons folder set ↑</span>}
                   {folderConfig.iconsAlbumId && <span className="text-emerald-600">Icons folder configured ✓</span>}
                 </p>
@@ -1116,9 +1125,9 @@ function CantoSectionIcon() {
     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
   </svg>
 }
-function BrandingIcon() {
-  return <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+function ImagesIcon() {
+  return <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
   </svg>
 }
 function LayoutIcon() {

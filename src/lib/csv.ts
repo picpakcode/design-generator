@@ -166,17 +166,53 @@ export function downloadTemplate() {
     'e1_title', 'e1_desc',
   ]
 
-  const example = [
-    'FH-2001', 'Fiber Hairbrush Pro',
-    'fh-2001-angle', 'fh-2001-lifestyle', 'fh-2001-closeup', 'fh-2001-flat', 'fh-2001-group',
-    'Detangles in Seconds', 'Flexible bristles glide through any hair type.',
-    'Built Different', 'Ergonomic handle for all-day comfort', 'Heat-resistant up to 230°C', 'Anti-static coating', 'Suitable for all hair types',
-    'Professional Grade', 'Salon-quality results at home.',
-    'Designed for Real Life', 'Lightweight enough to use every day.',
-    'The Details Matter', 'Every curve engineered for performance.',
+  const rows: string[][] = [
+    [
+      'DH515146',
+      "Doc's Diesel Chevrolet/GMC 6.6L Duramax RWD/SRW Premium E-Coated Front Wheel Hub Assembly 2011-2019",
+      'DH515146-angle', 'DH515146-lifestyle', 'DH515146-closeup', '', '',
+      'Precision-Engineered Fit',
+      "Designed specifically for the Chevy/GMC Duramax platform, delivering exact OEM geometry for smooth, rattle-free driving on 2011–2019 2500/3500 trucks.",
+      'Why It Lasts Longer', 'e-coat', 'corrosion resistant', 'sealed bearing', 'direct fit',
+      'E-Coat Rust Protection',
+      "Our premium electrostatic coating creates a uniform barrier against road salt, moisture, and corrosion — far outlasting bare uncoated alternatives.",
+      'Fits 2011–2019 Duramax Trucks',
+      "Compatible with Chevrolet Silverado and GMC Sierra 2500/3500 RWD/SRW configurations. Direct OEM replacement — no modifications required.",
+      'Built for the Long Haul',
+      "Heavy-duty bearing construction rated for loaded towing and the demands of a daily work truck.",
+    ],
+    [
+      'DETAIL5',
+      "Doc's Diesel The Diesel Detail Kit",
+      'DETAIL5-kit', 'DETAIL5-lifestyle', 'DETAIL5-products', '', '',
+      'Pro-Level Clean in One Kit',
+      "Everything you need to bring your diesel truck back to showroom condition — no guessing, no missing pieces. Every product chosen to work together.",
+      "What's Inside", 'wash', 'degrease', 'polish', 'protect',
+      'Formulated for Diesel',
+      "Diesel engines leave DEF residue, exhaust staining, and heavy road grime. This kit targets all of it with formulas built specifically for the job.",
+      'Shop-Tested, Road-Proven',
+      "The same products used in Doc's Diesel's own service bays — trusted by the technicians who work on Duramax, Cummins, and Powerstroke trucks every day.",
+      'Truck Pride, Simplified',
+      "A clean truck runs better, sells better, and feels better. Full detail start to finish in under two hours.",
+    ],
+    [
+      'keeptruckinhoodie3XL',
+      "Doc's Diesel Keep Truckin' Hoodie — 3XL",
+      'keeptruckin-hoodie-front', 'keeptruckin-hoodie-back', 'keeptruckin-hoodie-lifestyle', '', '',
+      "Keep Truckin'",
+      "Wear the brand that knows diesel. Premium fleece hoodie from Doc's Diesel — built for the shop, comfortable enough for everywhere else.",
+      'Built Different', 'soft fleece', 'durable stitching', 'preshrunk cotton', 'true to size',
+      'Heavy-Duty Comfort',
+      "Premium cotton-blend fleece holds up to long shifts in the shop while keeping you warm on the coldest job sites.",
+      'Represent the Brand',
+      "Officially designed and sold by Doc's Diesel — the diesel specialists trusted by Duramax, Cummins, and Powerstroke owners across the country.",
+      'Available in All Sizes',
+      "From S to 3XL, the Keep Truckin' hoodie fits every member of the crew.",
+    ],
   ]
 
-  const csv = [headers.join(','), example.map(v => `"${v}"`).join(',')].join('\n')
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`
+  const csv = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
