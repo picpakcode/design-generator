@@ -5,7 +5,8 @@ import { toPng, toJpeg } from 'html-to-image'
 import { BulkProduct, ParseResult, downloadTemplate, parseCSV } from '@/lib/csv'
 import { DesignState, UploadedAsset } from '@/types'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
-import CantoAssetPicker, { CantoPick } from './CantoAssetPicker'
+import { CantoPick } from './CantoAssetPicker'
+import TexturePicker from './TexturePicker'
 import { CantoAlbum, FolderConfig, EMPTY_CONFIG, autoMatchFolders } from '@/lib/canto-folders'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -48,6 +49,10 @@ const TEMPLATE_LABELS: Record<SlotTemplate, string> = {
   '5050-right': 'Img | Txt', '5050-left': 'Txt | Img', 'icons': 'Icons',
 }
 
+const DEFAULT_LOGO_ID    = 'gjj53olkh15rd0vdvpq29ngf75'
+const DEFAULT_LOGO_NAME  = 'DocsDiesel-Logo-Wordmark-RedWhite-Vector 1'
+const DEFAULT_LOGO_ALBUM = 'QH34D'
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 interface BulkModeProps {
@@ -73,13 +78,9 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
   const [albums, setAlbums]           = useState<CantoAlbum[]>([])
   const folderConfigRef = useRef<FolderConfig>(EMPTY_CONFIG)
 
-  // Branding — Canto picks or file uploads (Canto takes priority)
-  const [cantoLogo,    setCantoLogo]    = useState<CantoPick | null>(null)
-  const [cantoTexture, setCantoTexture] = useState<CantoPick | null>(null)
-  const [fileLogo,     setFileLogo]     = useState<UploadedAsset | undefined>()
-  const [fileTexture,  setFileTexture]  = useState<UploadedAsset | undefined>()
-  const logoInputRef    = useRef<HTMLInputElement>(null)
-  const textureInputRef = useRef<HTMLInputElement>(null)
+  // Branding — unified UploadedAsset state (mirrors Design mode TexturePicker)
+  const [logoAsset,    setLogoAsset]    = useState<UploadedAsset | null>(null)
+  const [textureAsset, setTextureAsset] = useState<UploadedAsset | null>(null)
 
   // Settings
   const [aplusSlots, setAplusSlots]         = useState(5)
@@ -131,6 +132,16 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
         }
       })
       .catch(() => { setCantoStatus('error'); setCantoError('Could not reach server') })
+
+    // Auto-load default DocsDiesel logo — same as Design mode mount backfill
+    fetch(`/api/canto/folder?albumId=${DEFAULT_LOGO_ALBUM}`)
+      .then(r => r.json())
+      .then((items: Array<{ id: string; name: string; previewUrl: string }>) => {
+        const logo = items.find(i => i.id === DEFAULT_LOGO_ID)
+          ?? items.find(i => i.name === DEFAULT_LOGO_NAME)
+        if (logo) setLogoAsset({ id: logo.id, name: logo.name, url: logo.previewUrl, type: 'image' })
+      })
+      .catch(() => {})
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -145,7 +156,6 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
       const current = folderConfigRef.current
       const hasAnySaved = current.iconsAlbumId || current.texturesAlbumId || current.logosAlbumId || current.photosAlbumId
       if (!hasAnySaved) {
-        // First time: auto-match by album name; parent hook persists to localStorage + Supabase
         const matched = { ...EMPTY_CONFIG, ...autoMatchFolders(data) }
         onFolderConfigChange(matched)
       }
@@ -193,23 +203,6 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
     iconCacheRef.current = null
     productPhotoCache.current.clear()
   }
-
-  // ── Branding ──────────────────────────────────────────────────────────────────
-
-  const handleFileUpload = (file: File, slot: 'logo' | 'texture') => {
-    const url = URL.createObjectURL(file)
-    const asset: UploadedAsset = { id: `local-${slot}-${Date.now()}`, name: file.name, url, type: 'image' }
-    if (slot === 'logo')    { setFileLogo(asset);    setCantoLogo(null) }
-    if (slot === 'texture') { setFileTexture(asset); setCantoTexture(null) }
-  }
-
-  const clearBranding = (slot: 'logo' | 'texture') => {
-    if (slot === 'logo')    { setFileLogo(undefined); setCantoLogo(null);    if (logoInputRef.current)    logoInputRef.current.value = '' }
-    if (slot === 'texture') { setFileTexture(undefined); setCantoTexture(null); if (textureInputRef.current) textureInputRef.current.value = '' }
-  }
-
-  const isLogoSet    = !!(cantoLogo ?? fileLogo)
-  const isTextureSet = !!(cantoTexture ?? fileTexture)
 
   // ── Presets ───────────────────────────────────────────────────────────────────
 
@@ -265,8 +258,6 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
     return iconCacheRef.current
   }
 
-  // Searches Canto by SKU + product name and returns lifestyle photos for this product.
-  // Results are cached per SKU so multiple slots don't re-fetch.
   const fetchProductPhotos = async (sku: string, productName: string, need: number): Promise<CantoPick[]> => {
     const cacheKey = sku || productName
     if (productPhotoCache.current.has(cacheKey)) return productPhotoCache.current.get(cacheKey)!
@@ -285,7 +276,6 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
   const matchIcon = (icons: CantoPick[], callout: string, excludeIds: string[] = []): CantoPick | undefined => {
     if (!callout || icons.length === 0) return undefined
 
-    // Common words that carry no meaning for matching
     const STOP = new Set([
       'the','and','for','from','with','that','this','will','are','was','not',
       'but','its','our','per','into','your','against','before','after','more',
@@ -300,16 +290,13 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
     let bestScore = 0
 
     for (const icon of icons) {
-      if (excludeIds.indexOf(icon.id) !== -1) continue  // skip already used on this slide
-      // Strip vendor prefixes (dd-, li_) from filename, then split into terms
+      if (excludeIds.indexOf(icon.id) !== -1) continue
       const nameStem = icon.name.toLowerCase()
         .replace(/\.[^.]+$/, '')
         .replace(/^(dd-|li_)/, '')
         .split(/[\s\-_]+/)
         .filter(p => p.length > 1)
 
-      // Expand hyphenated keywords: "Anti-Corrosion" → ["anti-corrosion", "anti", "corrosion"]
-      // so individual parts can score exact matches
       const kwTerms = (icon.keywords ?? []).flatMap(k => {
         const lower = k.toLowerCase().trim()
         const parts = lower.split(/[\-_]+/).filter(p => p.length > 2)
@@ -320,10 +307,10 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
       let score = 0
       for (const word of calloutWords) {
         for (const term of allTerms) {
-          if (term === word)                          score += 4  // exact match
-          else if (kwTerms.includes(term) && term.startsWith(word) && word.length > 3) score += 3  // keyword starts with callout word
-          else if (term.includes(word) && word.length > 3) score += 2  // term contains callout word
-          else if (word.includes(term) && term.length > 3) score += 1  // callout contains term (shorter keyword)
+          if (term === word)                          score += 4
+          else if (kwTerms.includes(term) && term.startsWith(word) && word.length > 3) score += 3
+          else if (term.includes(word) && word.length > 3) score += 2
+          else if (word.includes(term) && term.length > 3) score += 1
         }
       }
 
@@ -360,45 +347,38 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
     capturedRef.current.clear()
 
     const snapshot = jobsSnapshot.current
-    const imagesPerProduct = aplusSlots + (includeGallery ? aplusSlots : 0)
+    // Each A+ slot generates desktop + mobile; gallery slots generate one image each
+    const imagesPerProduct = aplusSlots * 2 + (includeGallery ? aplusSlots : 0)
     setTotalJobs(snapshot.length * imagesPerProduct)
     setDoneJobs(0); setIsRunning(true)
     setJobs(p => p.map(r => ({ ...r, status: 'pending', doneCount: 0, renderingSlot: undefined })))
 
-    // Pre-fetch icon folder once before the loop
     const iconFolder = await getIconFolder()
-
     let done = 0
+
+    // Resolved branding: Bulk picker > Design tab asset
+    const logoForRender:    UploadedAsset | undefined = logoAsset    ?? designState.assets[2]
+    const textureForRender: UploadedAsset | undefined = textureAsset ?? designState.assets[1]
 
     for (let i = 0; i < snapshot.length; i++) {
       if (cancelRef.current) break
       const job = snapshot[i]
 
-      setJobs(p => p.map((r, idx) => idx === i ? { ...r, status: 'rendering', renderingSlot: slotName(0) } : r))
+      setJobs(p => p.map((r, idx) => idx === i ? { ...r, status: 'rendering' } : r))
 
-      // Search Canto for lifestyle photos matching this product's SKU / name
-      const productPhotos = await fetchProductPhotos(job.sku, job.productName, imagesPerProduct)
+      const productPhotos = await fetchProductPhotos(job.sku, job.productName, aplusSlots + (includeGallery ? aplusSlots : 0))
       const usedPhotoIds: string[] = []
 
-      for (let j = 0; j < imagesPerProduct; j++) {
-        if (cancelRef.current) break
+      // ── Pre-resolve assets for each slot ────────────────────────────────────
+      type SlotAssets = { photoAsset: UploadedAsset | undefined; iconAssets: (UploadedAsset | undefined)[] }
+      const slotData: SlotAssets[] = []
 
-        const isGallery = j >= aplusSlots
-        const slotIdx   = isGallery ? j - aplusSlots : j
-        const label     = isGallery ? `gallery-${slotIdx + 1}` : slotName(j)
-        const slot      = job.slots[slotIdx]
-        const cfg       = slotConfigs[slotIdx] ?? { template: '5050-right' }
-        const width     = isGallery ? 1500 : 1464
-        const height    = isGallery ? 1500 : 600
-
-        setJobs(p => p.map((r, idx) => idx === i ? { ...r, renderingSlot: label, doneCount: j } : r))
-
-        // Photo resolution: CSV name → photos folder SKU match → Design tab slot[0]
+      for (let j = 0; j < aplusSlots; j++) {
+        const slot = job.slots[j]
         let photoAsset: UploadedAsset | undefined = undefined
 
-        const csvPhotoName = job.photos[slotIdx % Math.max(job.photos.length, 1)]
+        const csvPhotoName = job.photos[j % Math.max(job.photos.length, 1)]
         if (csvPhotoName) {
-          // CSV name → check already-fetched product photos first, then fall back to name search
           const exactInPool = productPhotos.find(p => p.name === csvPhotoName)
           if (exactInPool) {
             photoAsset = { id: exactInPool.id, name: exactInPool.name, url: exactInPool.previewUrl, type: 'image' }
@@ -407,32 +387,14 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
             if (photoUrl) photoAsset = { id: `photo-${job.sku}-${j}`, name: csvPhotoName, url: photoUrl, type: 'image' }
           }
         }
-
         if (!photoAsset && productPhotos.length > 0) {
-          // Pick the next unused lifestyle photo for this product
           const pick = productPhotos.find(p => usedPhotoIds.indexOf(p.id) === -1) ?? productPhotos[j % productPhotos.length]
-          if (pick) {
-            usedPhotoIds.push(pick.id)
-            photoAsset = { id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }
-          }
+          if (pick) { usedPhotoIds.push(pick.id); photoAsset = { id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' } }
         }
-
-        // Last resort: Design tab product photo (slot 0) — only if user explicitly has one set
         if (!photoAsset) photoAsset = designState.assets[0]
 
-        // Branding: Canto pick > file upload > Design tab asset
-        const logoAsset: UploadedAsset | undefined =
-          cantoLogo    ? { id: cantoLogo.id,    name: cantoLogo.name,    url: cantoLogo.previewUrl,    type: 'image' } :
-          fileLogo     ?? designState.assets[2]
-
-        const textureAsset: UploadedAsset | undefined =
-          cantoTexture ? { id: cantoTexture.id, name: cantoTexture.name, url: cantoTexture.previewUrl, type: 'image' } :
-          fileTexture  ?? designState.assets[1]
-
-        // Icons: match callout text against icons folder assets, no repeats within the same slide
-        // Use originalUrl (PNG with transparency) so CSS color filter works correctly
         const usedIconIds: string[] = []
-        const iconAssets: (UploadedAsset | undefined)[] = (slot?.iconCallouts ?? ['', '', '', '']).map((callout, ci) => {
+        const iconAssets = (slot?.iconCallouts ?? ['', '', '', '']).map((callout, ci) => {
           const match = matchIcon(iconFolder, callout, usedIconIds)
           if (match) usedIconIds.push(match.id)
           return match
@@ -440,42 +402,89 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
             : designState.assets[3 + ci]
         })
 
-        const slotDesign: DesignState = {
+        slotData.push({ photoAsset, iconAssets })
+      }
+
+      // ── A+ slots: desktop + mobile ───────────────────────────────────────────
+      for (let j = 0; j < aplusSlots; j++) {
+        if (cancelRef.current) break
+        const { photoAsset, iconAssets } = slotData[j]
+        const slot = job.slots[j]
+        const cfg  = slotConfigs[j] ?? { template: '5050-right' }
+        const label = slotName(j)
+        const layoutFlipped = cfg.template === '5050-left'
+        const aplusTemplate = cfg.template === 'icons' ? 'aplus-icons' : 'aplus-5050'
+
+        const baseSlotDesign: DesignState = {
           ...designState,
-          assets: [
-            photoAsset,
-            textureAsset,
-            logoAsset,
-            iconAssets[0],
-            iconAssets[1],
-            iconAssets[2],
-            iconAssets[3],
-          ] as UploadedAsset[],
+          assets: [photoAsset, textureForRender, logoForRender, iconAssets[0], iconAssets[1], iconAssets[2], iconAssets[3]] as UploadedAsset[],
           title: `<p>${slot?.title ?? ''}</p>`,
           subtitleHtml: slot?.desc ? `<p>${slot.desc}</p>` : '',
           iconLabels: (slot?.iconCallouts ?? ['', '', '', '']) as [string, string, string, string],
-          activeFormat: 'desktop',
-          activeTemplate: cfg.template === 'icons' ? 'aplus-icons' : 'aplus-5050',
+          activeTemplate: aplusTemplate,
         }
 
-        // Gallery slots use the gallery format settings; A+ slots use desktop settings
-        const settings = isGallery
-          ? { ...designState.gallery, layoutFlipped: false }
-          : { ...designState.desktop, layoutFlipped: cfg.template === '5050-left' }
-
-        setCaptureFrame({ slotDesign, settings, template: cfg.template, isGallery, width, height })
+        // Desktop
+        setJobs(p => p.map((r, idx) => idx === i ? { ...r, renderingSlot: `${label}-desktop`, doneCount: j * 2 } : r))
+        setCaptureFrame({ slotDesign: { ...baseSlotDesign, activeFormat: 'desktop' }, settings: { ...designState.desktop, layoutFlipped }, template: cfg.template, isGallery: false, width: 1464, height: 600 })
         await new Promise(r => setTimeout(r, 200))
-
-        if (captureRef.current) {
+        if (captureRef.current && !cancelRef.current) {
           try {
             const dataUrl = outputFormat === 'jpeg'
               ? await toJpeg(captureRef.current, { quality: 0.95, backgroundColor: '#ffffff' })
               : await toPng(captureRef.current)
-            capturedRef.current.set(`${job.sku}/${label}`, dataUrl)
-          } catch { /* capture failed — continue */ }
+            capturedRef.current.set(`${job.sku}/${label}-desktop`, dataUrl)
+          } catch { /* capture failed */ }
         }
-
         done++; setDoneJobs(done)
+
+        if (cancelRef.current) break
+
+        // Mobile
+        setJobs(p => p.map((r, idx) => idx === i ? { ...r, renderingSlot: `${label}-mobile`, doneCount: j * 2 + 1 } : r))
+        setCaptureFrame({ slotDesign: { ...baseSlotDesign, activeFormat: 'mobile' }, settings: { ...designState.mobile, layoutFlipped }, template: cfg.template, isGallery: false, width: 600, height: 450 })
+        await new Promise(r => setTimeout(r, 200))
+        if (captureRef.current && !cancelRef.current) {
+          try {
+            const dataUrl = outputFormat === 'jpeg'
+              ? await toJpeg(captureRef.current, { quality: 0.95, backgroundColor: '#ffffff' })
+              : await toPng(captureRef.current)
+            capturedRef.current.set(`${job.sku}/${label}-mobile`, dataUrl)
+          } catch { /* capture failed */ }
+        }
+        done++; setDoneJobs(done)
+      }
+
+      // ── Gallery slots ────────────────────────────────────────────────────────
+      if (includeGallery && !cancelRef.current) {
+        for (let j = 0; j < aplusSlots; j++) {
+          if (cancelRef.current) break
+          const { photoAsset, iconAssets } = slotData[j]
+          const slot = job.slots[j]
+          const cfg  = slotConfigs[j] ?? { template: '5050-right' }
+          const galleryLabel = `gallery-${j + 1}`
+
+          const gallerySlotDesign: DesignState = {
+            ...designState,
+            assets: [photoAsset, textureForRender, logoForRender, iconAssets[0], iconAssets[1], iconAssets[2], iconAssets[3]] as UploadedAsset[],
+            title: `<p>${slot?.title ?? ''}</p>`,
+            subtitleHtml: slot?.desc ? `<p>${slot.desc}</p>` : '',
+            iconLabels: (slot?.iconCallouts ?? ['', '', '', '']) as [string, string, string, string],
+          }
+
+          setJobs(p => p.map((r, idx) => idx === i ? { ...r, renderingSlot: galleryLabel } : r))
+          setCaptureFrame({ slotDesign: gallerySlotDesign, settings: { ...designState.gallery, layoutFlipped: false }, template: cfg.template, isGallery: true, width: 1500, height: 1500 })
+          await new Promise(r => setTimeout(r, 200))
+          if (captureRef.current && !cancelRef.current) {
+            try {
+              const dataUrl = outputFormat === 'jpeg'
+                ? await toJpeg(captureRef.current, { quality: 0.95, backgroundColor: '#ffffff' })
+                : await toPng(captureRef.current)
+              capturedRef.current.set(`${job.sku}/${galleryLabel}`, dataUrl)
+            } catch { /* capture failed */ }
+          }
+          done++; setDoneJobs(done)
+        }
       }
 
       setJobs(p => p.map((r, idx) =>
@@ -510,7 +519,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
   const canRun           = hasProducts && cantoStatus === 'connected' && !isRunning
   const allDone          = hasProducts && jobs.every(p => p.status === 'done')
   const progressPct      = totalJobs > 0 ? Math.round((doneJobs / totalJobs) * 100) : 0
-  const imagesPerProduct = aplusSlots + (includeGallery ? aplusSlots : 0)
+  const imagesPerProduct = aplusSlots * 2 + (includeGallery ? aplusSlots : 0)
   const fileErrors       = parseResult?.errors ?? []
   const productWarnings  = products.filter(p => p.warnings.length > 0).length
 
@@ -588,7 +597,6 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
 
           {/* IMAGE LIBRARY (Canto) */}
           <Section label="Image Library" icon={<CantoSectionIcon />}>
-            {/* Connection status */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">
                 {cantoStatus === 'connecting' && <SpinnerIcon className="text-gray-400" />}
@@ -621,95 +629,33 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
 
           {/* BRANDING */}
           <Section label="Branding" icon={<BrandingIcon />}>
-            <div className="space-y-4">
-
-              {/* Logo */}
+            <div className="space-y-3">
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Logo</p>
-                  {isLogoSet && (
-                    <button onClick={() => clearBranding('logo')} className="text-[9px] text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors">Clear</button>
-                  )}
-                </div>
-                {isLogoSet ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-14 h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 overflow-hidden shrink-0 flex items-center justify-center">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={(cantoLogo?.previewUrl ?? fileLogo?.url)!} alt="logo" className="max-w-full max-h-full object-contain" crossOrigin="anonymous" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-gray-600 dark:text-gray-400 truncate font-medium">{cantoLogo?.name ?? fileLogo?.name}</p>
-                      <p className="text-[9px] text-gray-400 dark:text-gray-500">{cantoLogo ? 'From Canto' : 'Uploaded file'}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <CantoAssetPicker
-                      albumId={folderConfig.logosAlbumId}
-                      value={null}
-                      onChange={pick => { if (pick) { setCantoLogo(pick); setFileLogo(undefined) } }}
-                      placeholder="Pick logo from Canto"
-                      thumbnailFit="contain"
-                    />
-                    <div className="relative">
-                      <div className="absolute inset-x-0 top-1/2 border-t border-gray-100 dark:border-gray-700" />
-                      <span className="relative flex justify-center text-[9px] text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-900 px-2 w-fit mx-auto">or upload</span>
-                    </div>
-                    <button onClick={() => logoInputRef.current?.click()}
-                      className="w-full h-7 rounded-lg border border-dashed border-gray-200 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center justify-center gap-1.5">
-                      <UploadIcon /> Browse file
-                    </button>
-                    {designState.assets[2] && <p className="text-[9px] text-gray-400 dark:text-gray-500 text-center">Design tab logo used as fallback</p>}
-                  </div>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Brand Logo</p>
+                <TexturePicker
+                  albumId={DEFAULT_LOGO_ALBUM}
+                  value={logoAsset}
+                  onChange={setLogoAsset}
+                  placeholder="Pick logo…"
+                  thumbnailFit="contain"
+                />
+                {!logoAsset && designState.assets[2] && (
+                  <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1">Design tab logo used as fallback</p>
                 )}
-                <input ref={logoInputRef} type="file" accept="image/*" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'logo') }} />
               </div>
-
-              {/* Texture */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Background Texture</p>
-                  {isTextureSet && (
-                    <button onClick={() => clearBranding('texture')} className="text-[9px] text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors">Clear</button>
-                  )}
-                </div>
-                {isTextureSet ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-14 h-10 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 overflow-hidden shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={(cantoTexture?.previewUrl ?? fileTexture?.url)!} alt="texture" className="w-full h-full object-cover" crossOrigin="anonymous" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-gray-600 dark:text-gray-400 truncate font-medium">{cantoTexture?.name ?? fileTexture?.name}</p>
-                      <p className="text-[9px] text-gray-400 dark:text-gray-500">{cantoTexture ? 'From Canto' : 'Uploaded file'}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    <CantoAssetPicker
-                      albumId={folderConfig.texturesAlbumId}
-                      value={null}
-                      onChange={pick => { if (pick) { setCantoTexture(pick); setFileTexture(undefined) } }}
-                      placeholder="Pick texture from Canto"
-                      thumbnailFit="cover"
-                    />
-                    <div className="relative">
-                      <div className="absolute inset-x-0 top-1/2 border-t border-gray-100 dark:border-gray-700" />
-                      <span className="relative flex justify-center text-[9px] text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-900 px-2 w-fit mx-auto">or upload</span>
-                    </div>
-                    <button onClick={() => textureInputRef.current?.click()}
-                      className="w-full h-7 rounded-lg border border-dashed border-gray-200 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center justify-center gap-1.5">
-                      <UploadIcon /> Browse file
-                    </button>
-                    {designState.assets[1] && <p className="text-[9px] text-gray-400 dark:text-gray-500 text-center">Design tab texture used as fallback</p>}
-                  </div>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Background Texture</p>
+                <TexturePicker
+                  albumId={folderConfig.texturesAlbumId || null}
+                  value={textureAsset}
+                  onChange={setTextureAsset}
+                  placeholder="Pick texture…"
+                  thumbnailFit="cover"
+                />
+                {!textureAsset && designState.assets[1] && (
+                  <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1">Design tab texture used as fallback</p>
                 )}
-                <input ref={textureInputRef} type="file" accept="image/*" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'texture') }} />
               </div>
-
-              {/* Auto-matching note */}
               <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 space-y-1">
                 <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
                   <span className="font-semibold text-gray-700 dark:text-gray-300">Photos</span> are searched automatically by SKU — unique lifestyle images are assigned to each block. Tag photos in Canto with their SKU for best results.
@@ -780,6 +726,9 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
                   <span className="font-semibold text-gray-700 dark:text-gray-300">{jobs.length} products</span>
                   {' × '}<span className="font-semibold text-gray-700 dark:text-gray-300">{imagesPerProduct} images</span>
                   {' = '}<span className="font-semibold text-gray-900 dark:text-white">{jobs.length * imagesPerProduct} files</span>
+                </p>
+                <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">
+                  {aplusSlots} slots × desktop + mobile{includeGallery ? ` + ${aplusSlots} gallery` : ''}
                 </p>
               </div>
             )}
@@ -1018,34 +967,59 @@ function OutputPreview({ jobs, aplusSlots, includeGallery, capturedImages, outpu
             </svg>
           </button>
           {expanded === job.id && (
-            <div className="px-4 pb-4 space-y-3">
+            <div className="px-4 pb-4 space-y-4">
+              {/* A+ Content — desktop + mobile per slot */}
               <div>
-                <p className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">A+ Content</p>
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex items-center gap-3 mb-2">
+                  <p className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">A+ Content</p>
+                  <div className="flex items-center gap-2 text-[8px] text-gray-300 dark:text-gray-600">
+                    <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-semibold">D</span>
+                    <span>Desktop 1464×600</span>
+                    <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-semibold">M</span>
+                    <span>Mobile 600×450</span>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
                   {Array.from({ length: aplusSlots }, (_, i) => {
-                    const key = `${job.sku}/${slotName(i)}`
-                    const url = capturedImages.get(key)
+                    const label = slotName(i)
+                    const desktopUrl = capturedImages.get(`${job.sku}/${label}-desktop`)
+                    const mobileUrl  = capturedImages.get(`${job.sku}/${label}-mobile`)
                     return (
-                      <a key={i} href={url} download={`${job.sku}-${slotName(i)}.${ext}`}
-                        className="group relative block rounded overflow-hidden border border-gray-200 dark:border-gray-600 hover:border-gray-400 transition-colors"
-                        style={{ width: 120, height: 50 }}>
-                        {url
-                          ? <img src={url} alt={slotName(i)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                              <span className="text-[8px] text-gray-400 dark:text-gray-500 uppercase font-bold">{slotName(i)}</span>
-                            </div>
-                        }
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                          <DownloadIcon className="w-3 h-3 text-white" />
-                        </div>
-                      </a>
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase w-5 shrink-0">{label}</span>
+                        {/* Desktop thumbnail — 1464:600 ≈ 2.44:1, height 40 → width 97 */}
+                        <a href={desktopUrl} download={`${job.sku}-${label}-desktop.${ext}`}
+                          className="group relative block rounded overflow-hidden border border-gray-200 dark:border-gray-600 hover:border-gray-400 transition-colors shrink-0"
+                          style={{ width: 97, height: 40 }}>
+                          {desktopUrl
+                            ? <img src={desktopUrl} alt={`${label} desktop`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center"><span className="text-[7px] text-gray-400 font-bold">D</span></div>
+                          }
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <DownloadIcon className="w-3 h-3 text-white" />
+                          </div>
+                        </a>
+                        {/* Mobile thumbnail — 600:450 = 4:3, height 40 → width 53 */}
+                        <a href={mobileUrl} download={`${job.sku}-${label}-mobile.${ext}`}
+                          className="group relative block rounded overflow-hidden border border-gray-200 dark:border-gray-600 hover:border-gray-400 transition-colors shrink-0"
+                          style={{ width: 53, height: 40 }}>
+                          {mobileUrl
+                            ? <img src={mobileUrl} alt={`${label} mobile`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : <div className="w-full h-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center"><span className="text-[7px] text-gray-400 font-bold">M</span></div>
+                          }
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <DownloadIcon className="w-3 h-3 text-white" />
+                          </div>
+                        </a>
+                      </div>
                     )
                   })}
                 </div>
               </div>
+              {/* Gallery — 1:1 square thumbnails */}
               {includeGallery && (
                 <div>
-                  <p className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5">Gallery</p>
+                  <p className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Gallery 1500×1500</p>
                   <div className="flex gap-2 flex-wrap">
                     {Array.from({ length: aplusSlots }, (_, i) => {
                       const key = `${job.sku}/gallery-${i + 1}`
@@ -1060,6 +1034,9 @@ function OutputPreview({ jobs, aplusSlots, includeGallery, capturedImages, outpu
                                 <span className="text-[8px] text-gray-400 dark:text-gray-500 font-bold">G{i+1}</span>
                               </div>
                           }
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                            <DownloadIcon className="w-3 h-3 text-white" />
+                          </div>
                         </a>
                       )
                     })}
@@ -1121,11 +1098,6 @@ function SpinnerIcon({ className = '' }: { className?: string }) {
   return <svg className={`animate-spin h-3 w-3 shrink-0 ${className}`} fill="none" viewBox="0 0 24 24">
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-  </svg>
-}
-function UploadIcon() {
-  return <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
   </svg>
 }
 
