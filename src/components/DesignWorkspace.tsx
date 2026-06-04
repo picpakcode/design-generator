@@ -258,8 +258,14 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const [bulkExportOpen, setBulkExportOpen] = useState(false)
   const [bulkCanExport, setBulkCanExport] = useState(false)
   const bulkExportFnRef = useRef<() => void>(() => {})
-  const [templateCanExport, setTemplateCanExport] = useState(false)
-  const templateExportFnRef = useRef<() => void>(() => {})
+  const [templateCanExport, setTemplateCanExport]             = useState(false)
+  const [templateCanExportCurrent, setTemplateCanExportCurrent] = useState(false)
+  const [templateRenderingAll, setTemplateRenderingAll]         = useState(false)
+  const [templateStats, setTemplateStats]                       = useState({ rendered: 0, total: 0 })
+  const [templateExportOpen, setTemplateExportOpen]             = useState(false)
+  const templateExportFnRef        = useRef<() => void>(() => {})
+  const templateExportCurrentFnRef = useRef<() => void>(() => {})
+  const templateRenderAllFnRef     = useRef<() => void>(() => {})
 
   const canvasRef         = useRef<HTMLDivElement>(null)
   const altCanvasRef      = useRef<HTMLDivElement>(null)
@@ -1365,12 +1371,54 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           </div>
         )}
 
-        {/* Template mode — Export ZIP button */}
+        {/* Template mode — Export dropdown */}
         {appMode === 'template' && (
-          <div className="ml-auto">
-            <Btn variant="primary" disabled={!templateCanExport} onClick={() => templateExportFnRef.current()}>
-              Export ZIP
+          <div className="ml-auto relative">
+            <Btn variant="primary" onClick={() => setTemplateExportOpen(o => !o)}>
+              {templateRenderingAll ? (
+                <><svg className="animate-spin w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Rendering…</>
+              ) : 'Export'}
+              <svg className={`w-3 h-3 transition-transform duration-150 ${templateExportOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
             </Btn>
+            {templateExportOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setTemplateExportOpen(false)} />
+                <div className="absolute top-full right-0 mt-2 w-60 bg-white dark:bg-gray-900 rounded shadow-2xl border border-gray-100 dark:border-gray-700 p-3 z-50 animate-slide-down">
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums mb-3 px-1">
+                    {templateStats.rendered > 0
+                      ? `${templateStats.rendered} of ${templateStats.total} rendered`
+                      : templateStats.total > 0 ? 'Nothing rendered yet' : 'Upload a CSV first'}
+                  </p>
+                  <button
+                    onClick={() => { templateRenderAllFnRef.current(); setTemplateExportOpen(false) }}
+                    disabled={templateRenderingAll || templateStats.total === 0}
+                    className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3l14 9-14 9V3z" /></svg>
+                    {templateRenderingAll ? 'Rendering…' : 'Render All'}
+                  </button>
+                  <button
+                    onClick={() => { templateExportFnRef.current(); setTemplateExportOpen(false) }}
+                    disabled={!templateCanExport}
+                    className="w-full h-9 flex items-center gap-2 px-3 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors mt-1"
+                  >
+                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                    Export All ZIP
+                  </button>
+                  <div className="h-px bg-gray-100 dark:bg-gray-800 my-2" />
+                  <button
+                    onClick={() => { templateExportCurrentFnRef.current(); setTemplateExportOpen(false) }}
+                    disabled={!templateCanExportCurrent}
+                    className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    Export Current Product
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1779,7 +1827,17 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       {/* ── Body ── */}
       {/* Template mode — always mounted, CSS-hidden when inactive to preserve state across tab switches */}
       <div className={appMode === 'template' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}>
-        <TemplateMode designState={design} folderConfig={folderConfig} exportFnRef={templateExportFnRef} onCanExportChange={setTemplateCanExport} />
+        <TemplateMode
+          designState={design}
+          folderConfig={folderConfig}
+          exportFnRef={templateExportFnRef}
+          exportCurrentFnRef={templateExportCurrentFnRef}
+          renderAllFnRef={templateRenderAllFnRef}
+          onCanExportChange={setTemplateCanExport}
+          onCanExportCurrentChange={setTemplateCanExportCurrent}
+          onRenderingAllChange={setTemplateRenderingAll}
+          onStatsChange={(rendered, total) => setTemplateStats({ rendered, total })}
+        />
       </div>
 
       {appMode === 'bulk' ? (

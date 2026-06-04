@@ -35,9 +35,10 @@ const DEFAULT_LOGO_ID    = 'gjj53olkh15rd0vdvpq29ngf75'
 const DEFAULT_LOGO_NAME  = 'DocsDiesel-Logo-Wordmark-RedWhite-Vector 1'
 const DEFAULT_LOGO_ALBUM = 'QH34D'
 
-const FRAME_GAP = 32
-const SLOT_GAP  = 80
-const CANVAS_W  = 1464 + FRAME_GAP + 600  // 2096
+const FRAME_GAP       = 32
+const SLOT_GAP        = 80
+const GALLERY_ROW_GAP = 32
+const CANVAS_W        = 1464 + FRAME_GAP + 600  // 2096
 
 const TEMPLATE_LABELS: Record<SlotTemplate, string> = {
   '5050-right': 'Img | Txt',
@@ -117,12 +118,21 @@ interface TemplateModeProps {
   designState: DesignState
   folderConfig: FolderConfig
   exportFnRef: React.MutableRefObject<() => void>
+  exportCurrentFnRef: React.MutableRefObject<() => void>
+  renderAllFnRef: React.MutableRefObject<() => void>
   onCanExportChange: (can: boolean) => void
+  onCanExportCurrentChange: (can: boolean) => void
+  onRenderingAllChange: (v: boolean) => void
+  onStatsChange: (rendered: number, total: number) => void
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function TemplateMode({ designState, folderConfig, exportFnRef, onCanExportChange }: TemplateModeProps) {
+export default function TemplateMode({
+  designState, folderConfig,
+  exportFnRef, exportCurrentFnRef, renderAllFnRef,
+  onCanExportChange, onCanExportCurrentChange, onRenderingAllChange, onStatsChange,
+}: TemplateModeProps) {
   // CSV
   const [parseResult, setParseResult] = useState<ParseResult | null>(null)
   const [csvFilename, setCsvFilename] = useState('')
@@ -160,9 +170,9 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
   const cancelRef   = useRef(false)
 
   // ── Canvas zoom/pan ───────────────────────────────────────────────────────────
-  const [zoom, setZoom]               = useState(0.25)
+  const [zoom, setZoom]               = useState(0.15)
   const [pan, setPan]                 = useState({ x: 40, y: 40 })
-  const zoomRef                       = useRef(0.25)
+  const zoomRef                       = useRef(0.15)
   const [spaceDown, setSpaceDown]     = useState(false)
   const [isPanDragging, setIsPanDragging] = useState(false)
   const panOriginRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
@@ -178,8 +188,9 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
     if (!el) return
     const vw = el.clientWidth
     const vh = el.clientHeight
-    const PADDING = 56
-    const totalH = aplusSlots * 600 + Math.max(0, aplusSlots - 1) * SLOT_GAP
+    const PADDING   = 56
+    const slotH     = includeGallery ? (600 + GALLERY_ROW_GAP + 1500) : 600
+    const totalH    = aplusSlots * slotH + Math.max(0, aplusSlots - 1) * SLOT_GAP
     const z = Math.min(
       (vw - PADDING * 2) / CANVAS_W,
       (vh - PADDING * 2) / totalH,
@@ -190,7 +201,7 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
     zoomRef.current = z
     setZoom(z)
     setPan({ x: px, y: py })
-  }, [aplusSlots])
+  }, [aplusSlots, includeGallery])
 
   const adjustZoom = (factor: number) => {
     const el = wrapperRef.current
@@ -213,16 +224,13 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
     }
   }
   const handleViewportMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const o = panOriginRef.current
-    if (!o) return
+    const o = panOriginRef.current; if (!o) return
     setPan({ x: o.px + (e.clientX - o.mx), y: o.py + (e.clientY - o.my) })
   }
   const handleViewportMouseUp = () => { panOriginRef.current = null; setIsPanDragging(false) }
 
-  // Wheel: zoom + pan
   useEffect(() => {
-    const el = canvasEl
-    if (!el) return
+    const el = canvasEl; if (!el) return
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
       if (e.ctrlKey || e.metaKey) {
@@ -233,8 +241,7 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
         const prevZ = zoomRef.current
         const newZ = Math.max(0.05, Math.min(4, prevZ * factor))
         const ratio = newZ / prevZ
-        zoomRef.current = newZ
-        setZoom(newZ)
+        zoomRef.current = newZ; setZoom(newZ)
         setPan(p => ({ x: cx - (cx - p.x) * ratio, y: cy - (cy - p.y) * ratio }))
       } else {
         setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }))
@@ -244,7 +251,6 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
     return () => el.removeEventListener('wheel', onWheel)
   }, [canvasEl])
 
-  // Spacebar pan mode + F to fit
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !e.repeat &&
@@ -264,14 +270,8 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
     return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp) }
   }, [fitView])
 
-  // Fit when canvas mounts or when selected product changes
-  useEffect(() => {
-    if (canvasEl) fitView()
-  }, [canvasEl]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (selectedId && canvasEl) fitView()
-  }, [selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (canvasEl) fitView() }, [canvasEl]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (selectedId && canvasEl) fitView() }, [selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Init ──────────────────────────────────────────────────────────────────────
 
@@ -283,7 +283,6 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
         if (logo) setLogoAsset({ id: logo.id, name: logo.name, url: logo.previewUrl, type: 'image' })
       })
       .catch(() => {})
-
     const blocks = [...(designState.blocks ?? []), ...(designState.galleryBlocks ?? [])]
     const active  = designState.blocks?.find(b => b.id === designState.activeBlockId)
     const tex     = (active?.assets ?? blocks[0]?.assets ?? designState.assets)?.[1]
@@ -299,6 +298,19 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
     if (activeSlotIdx >= aplusSlots) setActiveSlotIdx(aplusSlots - 1)
   }, [aplusSlots, activeSlotIdx])
 
+  // ── Callbacks to parent ───────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const products = parseResult?.products ?? []
+    const rendered = products.filter(p => statuses[p.id] === 'done').length
+    onStatsChange(rendered, products.length)
+    onCanExportChange(capturedRef.current.size > 0)
+    const selectedDone = selectedId ? statuses[selectedId] === 'done' : false
+    onCanExportCurrentChange(selectedDone && Array.from(capturedRef.current.keys()).some(k => k.startsWith(`${selectedId}/`)))
+  }, [statuses, parseResult, selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { onRenderingAllChange(renderingAll) }, [renderingAll]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── CSV ───────────────────────────────────────────────────────────────────────
 
   const handleFile = useCallback((file: File) => {
@@ -310,7 +322,6 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
       setParseResult(result)
       setSelectedId(result.products[0]?.id ?? null)
       setActiveSlotIdx(0)
-
       const initialSlots: Record<string, TemplateSlotState[]> = {}
       for (const product of result.products) {
         initialSlots[product.id] = Array.from({ length: aplusSlots }, (_, j) => {
@@ -330,10 +341,12 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
       setStatuses({})
       capturedRef.current.clear()
       onCanExportChange(false)
+      onCanExportCurrentChange(false)
+      onStatsChange(0, result.products.length)
     }
     reader.readAsText(file)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aplusSlots, onCanExportChange])
+  }, [aplusSlots, onCanExportChange, onCanExportCurrentChange, onStatsChange])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault(); setIsDragging(false)
@@ -343,7 +356,7 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
   const handleClear = () => {
     setParseResult(null); setCsvFilename(''); setSelectedId(null)
     setAllSlots({}); setStatuses({}); capturedRef.current.clear()
-    onCanExportChange(false)
+    onCanExportChange(false); onCanExportCurrentChange(false); onStatsChange(0, 0)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -363,7 +376,6 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
     Array.from(capturedRef.current.keys())
       .filter(k => k.startsWith(`${productId}/`))
       .forEach(k => capturedRef.current.delete(k))
-    onCanExportChange(capturedRef.current.size > 0)
   }
 
   function fallbackAsset(slotIndex: number): UploadedAsset | undefined {
@@ -399,7 +411,7 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
-  const renderProduct = async (product: BulkProduct) => {
+  const renderProduct = useCallback(async (product: BulkProduct) => {
     setStatuses(prev => ({ ...prev, [product.id]: 'rendering' }))
     Array.from(capturedRef.current.keys())
       .filter(k => k.startsWith(`${product.id}/`))
@@ -435,10 +447,10 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
     }
     const ok = !cancelRef.current
     setStatuses(prev => ({ ...prev, [product.id]: ok ? 'done' : 'draft' }))
-    onCanExportChange(capturedRef.current.size > 0)
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aplusSlots, slotConfigs, includeGallery, outputFormat, designState, textureAsset, logoAsset, allSlots])
 
-  const renderAll = async () => {
+  const renderAll = useCallback(async () => {
     if (renderingAll) { cancelRef.current = true; return }
     if ((parseResult?.products ?? []).length === 0) return
     cancelRef.current = false
@@ -448,7 +460,7 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
       await renderProduct(p)
     }
     setRenderingAll(false)
-  }
+  }, [renderingAll, parseResult, renderProduct])
 
   // ── Export ────────────────────────────────────────────────────────────────────
 
@@ -469,21 +481,24 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href)
   }, [outputFormat, parseResult])
 
-  const handleExportProduct = useCallback(async (product: BulkProduct) => {
-    const entries = Array.from(capturedRef.current.entries()).filter(([k]) => k.startsWith(`${product.id}/`))
+  const handleExportCurrent = useCallback(async () => {
+    if (!selectedId) return
+    const entries = Array.from(capturedRef.current.entries()).filter(([k]) => k.startsWith(`${selectedId}/`))
     if (entries.length === 0) return
     const JSZip = (await import('jszip')).default
     const zip   = new JSZip()
     const ext   = outputFormat === 'jpeg' ? 'jpg' : 'png'
     entries.forEach(([k, d]) => zip.file(`${k.slice(k.indexOf('/') + 1)}.${ext}`, d.split(',')[1], { base64: true }))
     const blob = await zip.generateAsync({ type: 'blob' })
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${product.productName || product.id}.zip` })
+    const product = parseResult?.products.find(p => p.id === selectedId)
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${product?.productName || selectedId}.zip` })
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href)
-  }, [outputFormat])
+  }, [outputFormat, parseResult, selectedId])
 
-  useEffect(() => { exportFnRef.current = handleExportAll })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { onCanExportChange(capturedRef.current.size > 0) }, [statuses])
+  // Wire refs for parent
+  useEffect(() => { exportFnRef.current = handleExportAll }, [exportFnRef, handleExportAll])
+  useEffect(() => { exportCurrentFnRef.current = handleExportCurrent }, [exportCurrentFnRef, handleExportCurrent])
+  useEffect(() => { renderAllFnRef.current = renderAll }, [renderAllFnRef, renderAll])
 
   // ── Derived ───────────────────────────────────────────────────────────────────
 
@@ -571,7 +586,7 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
                   </p>
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
                     {selectedIdx + 1} of {products.length}
-                    {selectedStatus === 'done' && ' · Done'}
+                    {selectedStatus === 'done' && ' · Rendered'}
                     {selectedStatus === 'rendering' && ' · Rendering…'}
                   </p>
                 </>
@@ -658,17 +673,14 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
                       </div>
                     </div>
                     {Array.from({ length: activeSlot.iconCount }, (_, i) => (
-                      <input
-                        key={i}
-                        type="text"
-                        value={activeSlot.iconLabels[i]}
+                      <input key={i} type="text" value={activeSlot.iconLabels[i]}
                         onChange={e => {
                           const next = [...activeSlot.iconLabels] as [string, string, string, string]
                           next[i] = e.target.value
                           patchSlotState(selected.id, activeSlotIdx, { iconLabels: next })
                         }}
                         placeholder={`Icon ${i + 1} label…`}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 transition-all"
                       />
                     ))}
                   </div>
@@ -683,8 +695,6 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
               <p className="text-[11px] text-gray-400 text-center py-2">Select a product</p>
             ) : (
               <div className="space-y-4">
-
-                {/* Product photo */}
                 {!isIconsSlot && (
                   <div>
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Product Photo</p>
@@ -694,27 +704,19 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={activeSlot.photoAsset.url} alt={activeSlot.photoAsset.name} className="w-full h-full object-cover" />
                         </div>
-                        <button
-                          onClick={() => setPhotoPickerOpen(true)}
+                        <button onClick={() => setPhotoPickerOpen(true)}
                           className="flex-1 text-left text-[10px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 truncate transition-colors"
-                          title={activeSlot.photoAsset.name}
-                        >
-                          {activeSlot.photoAsset.name}
-                        </button>
-                        <button
-                          onClick={() => patchSlotState(selected.id, activeSlotIdx, { photoAsset: undefined })}
-                          className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
-                        >
+                          title={activeSlot.photoAsset.name}>{activeSlot.photoAsset.name}</button>
+                        <button onClick={() => patchSlotState(selected.id, activeSlotIdx, { photoAsset: undefined })}
+                          className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setPhotoPickerOpen(true)}
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
-                      >
+                      <button onClick={() => setPhotoPickerOpen(true)}
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
                         <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                         </svg>
@@ -723,30 +725,14 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
                     )}
                   </div>
                 )}
-
-                {/* Background texture (global) */}
                 <div>
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Background Texture</p>
-                  <TexturePicker
-                    albumId={null}
-                    value={textureAsset}
-                    onChange={asset => setTextureAsset(asset)}
-                  />
+                  <TexturePicker albumId={null} value={textureAsset} onChange={asset => setTextureAsset(asset)} />
                 </div>
-
-                {/* Logo (global) */}
                 <div>
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Brand Logo</p>
-                  <TexturePicker
-                    albumId="QH34D"
-                    value={logoAsset}
-                    onChange={asset => setLogoAsset(asset)}
-                    placeholder="Pick logo…"
-                    thumbnailFit="contain"
-                  />
+                  <TexturePicker albumId="QH34D" value={logoAsset} onChange={asset => setLogoAsset(asset)} placeholder="Pick logo…" thumbnailFit="contain" />
                 </div>
-
-                {/* Icon assets (icons slots only) */}
                 {isIconsSlot && (
                   <div>
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Icons</p>
@@ -769,32 +755,24 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={iconAsset.url} alt={iconAsset.name} className="max-w-full max-h-full object-contain p-0.5" />
                                   </div>
-                                  <button
-                                    onClick={() => { setIconPickerSlotIdx(i); setIconPickerOpen(true) }}
+                                  <button onClick={() => { setIconPickerSlotIdx(i); setIconPickerOpen(true) }}
                                     className="flex-1 text-left text-[10px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 truncate transition-colors"
-                                    title={iconAsset.name}
-                                  >
-                                    {iconAsset.name}
-                                  </button>
-                                  <button
-                                    onClick={() => {
+                                    title={iconAsset.name}>{iconAsset.name}</button>
+                                  <button onClick={() => {
                                       const newIcons = [...activeSlot.iconAssets] as (UploadedAsset | undefined)[]
                                       newIcons[i] = undefined
                                       patchSlotState(selected.id, activeSlotIdx, { iconAssets: newIcons })
                                     }}
-                                    className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
-                                  >
+                                    className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                   </button>
                                 </>
                               ) : (
-                                <button
-                                  onClick={() => { setIconPickerSlotIdx(i); setIconPickerOpen(true) }}
+                                <button onClick={() => { setIconPickerSlotIdx(i); setIconPickerOpen(true) }}
                                   disabled={!folderConfig.iconsAlbumId}
-                                  className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                >
+                                  className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                                   <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                                   </svg>
@@ -813,31 +791,20 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
           </Section>
         </div>
 
-        {/* Action buttons */}
+        {/* Render button */}
         {selected && (
-          <div className="shrink-0 px-4 py-3 border-t border-gray-100 dark:border-gray-700 flex gap-2">
+          <div className="shrink-0 px-4 py-3 border-t border-gray-100 dark:border-gray-700">
             <button
               onClick={() => renderProduct(selected)}
               disabled={selectedStatus === 'rendering'}
-              className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full h-9 flex items-center justify-center gap-1.5 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {selectedStatus === 'rendering' ? (
-                <><svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Rendering…</>
+                <><svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Rendering…</>
               ) : (
                 <><svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3l14 9-14 9V3z" /></svg>{selectedStatus === 'done' ? 'Re-render' : 'Render'}</>
               )}
             </button>
-            {selectedStatus === 'done' && (
-              <button
-                onClick={() => handleExportProduct(selected)}
-                className="h-9 w-9 flex items-center justify-center rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                title="Download ZIP"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              </button>
-            )}
           </div>
         )}
       </aside>
@@ -850,15 +817,11 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
           {/* Slots stepper */}
           <div className="flex items-center gap-1.5">
             <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-1">Slots</span>
-            <button
-              onClick={() => setAplusSlots(n => Math.max(1, n - 1))}
-              className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors text-sm font-bold"
-            >−</button>
+            <button onClick={() => setAplusSlots(n => Math.max(1, n - 1))}
+              className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors text-sm font-bold">−</button>
             <span className="w-5 text-center text-[12px] font-bold text-gray-700 dark:text-gray-300 tabular-nums">{aplusSlots}</span>
-            <button
-              onClick={() => setAplusSlots(n => Math.min(10, n + 1))}
-              className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors text-sm font-bold"
-            >+</button>
+            <button onClick={() => setAplusSlots(n => Math.min(10, n + 1))}
+              className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors text-sm font-bold">+</button>
           </div>
 
           <div className="w-px h-4 bg-gray-200 dark:bg-gray-700" />
@@ -883,9 +846,9 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
             <span className="text-[11px] text-gray-600 dark:text-gray-400 select-none">Gallery</span>
           </label>
 
-          <div className="ml-auto text-[10px] text-gray-400 dark:text-gray-500">
+          <div className="ml-auto text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-2">
             {csvFilename}
-            <button onClick={handleClear} className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 underline transition-colors">Clear</button>
+            <button onClick={handleClear} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 underline transition-colors">Clear</button>
           </div>
         </div>
 
@@ -911,35 +874,36 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
               <p className="text-sm text-gray-400">Select a product from the list below</p>
             </div>
           ) : (
-            /* Transform layer */
             <div
               style={{
-                position: 'absolute',
-                top: 0, left: 0,
+                position: 'absolute', top: 0, left: 0,
                 transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                 transformOrigin: '0 0',
               }}
             >
               <div style={{ display: 'flex', flexDirection: 'column', gap: SLOT_GAP }}>
                 {slotConfigs.slice(0, aplusSlots).map((cfg, slotIdx) => {
-                  const isActive  = slotIdx === activeSlotIdx
-                  const isIcons   = cfg.template === 'icons'
-                  const flip      = cfg.template === '5050-left'
+                  const isActive   = slotIdx === activeSlotIdx
+                  const isIcons    = cfg.template === 'icons'
+                  const flip       = cfg.template === '5050-left'
                   const slotDesign = buildSlotDesign(selected.id, slotIdx)
+
+                  const activeOutline  = '2px solid #3B82F6'
+                  const activeShadow   = '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
+                  const inactiveOutline= '2px solid transparent'
+                  const inactiveShadow = '0 2px 12px rgba(0,0,0,0.10)'
 
                   return (
                     <div key={slotIdx}>
                       {/* Slot header — scale compensated */}
                       <div style={{ height: `${28/zoom}px`, position: 'relative', marginBottom: `${8/zoom}px` }}>
                         <div style={{ position: 'absolute', top: 0, left: 0, display: 'flex', alignItems: 'center', gap: 8, transform: `scale(${1/zoom})`, transformOrigin: 'top left' }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#111827' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#3B82F6' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
                             {slotLabel(slotIdx)}
                           </span>
-                          {/* Template switcher */}
                           <div style={{ display: 'flex', gap: 2, background: '#E5E7EB', borderRadius: 4, padding: 2 }}>
                             {(['5050-right', '5050-left', 'icons'] as SlotTemplate[]).map(t => (
-                              <button
-                                key={t}
+                              <button key={t}
                                 onClick={e => {
                                   e.stopPropagation()
                                   setSlotConfigs(prev => prev.map((c, i) => i === slotIdx ? { template: t } : c))
@@ -951,8 +915,7 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
                                   color: cfg.template === t ? '#111827' : '#6B7280',
                                   boxShadow: cfg.template === t ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
                                   cursor: 'pointer', letterSpacing: '0.01em',
-                                }}
-                              >
+                                }}>
                                 {TEMPLATE_LABELS[t]}
                               </button>
                             ))}
@@ -960,29 +923,16 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
                         </div>
                       </div>
 
-                      {/* Frames row: desktop + mobile */}
+                      {/* Desktop + Mobile row */}
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
-
                         {/* Desktop */}
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                           <div style={{ height: `${16/zoom}px`, width: 1464, position: 'relative', marginBottom: `${4/zoom}px` }}>
                             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top center' }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#374151' : '#9CA3AF' }}>Desktop · 1464×600</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#3B82F6' : '#9CA3AF' }}>Desktop · 1464×600</span>
                             </div>
                           </div>
-                          <div
-                            onClick={() => setActiveSlotIdx(slotIdx)}
-                            style={{
-                              width: 1464, height: 600,
-                              position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0,
-                              outline: isActive ? '2px solid #111827' : '2px solid transparent',
-                              outlineOffset: 2,
-                              boxShadow: isActive
-                                ? '0 0 0 4px rgba(17,24,39,0.12), 0 4px 24px rgba(0,0,0,0.18)'
-                                : '0 2px 12px rgba(0,0,0,0.10)',
-                              cursor: 'pointer',
-                            }}
-                          >
+                          <div onClick={() => setActiveSlotIdx(slotIdx)} style={{ width: 1464, height: 600, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                             {isIcons
                               ? <CanvasContentIcons design={{ ...slotDesign, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
                               : <CanvasContent      design={{ ...slotDesign, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
@@ -994,30 +944,34 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                           <div style={{ height: `${16/zoom}px`, width: 600, position: 'relative', marginBottom: `${4/zoom}px` }}>
                             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top center' }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#374151' : '#9CA3AF' }}>Mobile · 600×450</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#3B82F6' : '#9CA3AF' }}>Mobile · 600×450</span>
                             </div>
                           </div>
-                          <div
-                            onClick={() => setActiveSlotIdx(slotIdx)}
-                            style={{
-                              width: 600, height: 450,
-                              position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0,
-                              outline: isActive ? '2px solid #111827' : '2px solid transparent',
-                              outlineOffset: 2,
-                              boxShadow: isActive
-                                ? '0 0 0 4px rgba(17,24,39,0.12), 0 4px 24px rgba(0,0,0,0.18)'
-                                : '0 2px 12px rgba(0,0,0,0.10)',
-                              cursor: 'pointer',
-                            }}
-                          >
+                          <div onClick={() => setActiveSlotIdx(slotIdx)} style={{ width: 600, height: 450, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                             {isIcons
                               ? <CanvasContentIcons design={{ ...slotDesign, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
                               : <CanvasContent      design={{ ...slotDesign, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
                             }
                           </div>
                         </div>
-
                       </div>
+
+                      {/* Gallery row */}
+                      {includeGallery && (
+                        <div style={{ marginTop: GALLERY_ROW_GAP }}>
+                          <div style={{ height: `${16/zoom}px`, width: 1500, position: 'relative', marginBottom: `${4/zoom}px` }}>
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top center' }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#3B82F6' : '#9CA3AF' }}>Gallery · 1500×1500</span>
+                            </div>
+                          </div>
+                          <div onClick={() => setActiveSlotIdx(slotIdx)} style={{ width: 1500, height: 1500, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
+                            {isIcons
+                              ? <CanvasContentGalleryIcons design={slotDesign} settings={{ ...designState.gallery, layoutFlipped: false }} />
+                              : <CanvasContentGallery      design={slotDesign} settings={{ ...designState.gallery, layoutFlipped: false }} />
+                            }
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -1027,54 +981,15 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
 
           {/* Zoom controls */}
           <div className="absolute bottom-4 right-4 flex items-center gap-1 z-10">
-            <button
-              onClick={() => adjustZoom(1 / 1.25)}
-              className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-colors text-base font-bold"
-            >−</button>
-            <button
-              onClick={fitView}
+            <button onClick={() => adjustZoom(1 / 1.25)}
+              className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-colors text-base font-bold">−</button>
+            <button onClick={fitView}
               className="h-7 px-2.5 rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-[11px] font-mono text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-colors tabular-nums"
-              title="Fit view (F)"
-            >{Math.round(zoom * 100)}%</button>
-            <button
-              onClick={() => adjustZoom(1.25)}
-              className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-colors text-base font-bold"
-            >+</button>
+              title="Fit view (F)">{Math.round(zoom * 100)}%</button>
+            <button onClick={() => adjustZoom(1.25)}
+              className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-colors text-base font-bold">+</button>
           </div>
         </main>
-
-        {/* Product list bar */}
-        <div className="shrink-0 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 flex items-center gap-2 overflow-x-auto">
-          {products.map(p => (
-            <button
-              key={p.id}
-              onClick={() => { setSelectedId(p.id); setActiveSlotIdx(0) }}
-              className={`flex items-center gap-1.5 px-3 h-7 rounded border text-[11px] font-semibold whitespace-nowrap shrink-0 transition-all ${
-                p.id === selectedId
-                  ? 'bg-gray-900 dark:bg-gray-700 text-white border-gray-900 dark:border-gray-700'
-                  : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500'
-              }`}
-            >
-              <StatusDot status={statuses[p.id] ?? 'draft'} />
-              <span className="max-w-[140px] truncate">{p.productName || `Product ${products.indexOf(p) + 1}`}</span>
-            </button>
-          ))}
-          <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 shrink-0 mx-1" />
-          <button
-            onClick={renderAll}
-            className={`flex items-center gap-1.5 px-3 h-7 rounded text-[11px] font-bold uppercase tracking-widest shrink-0 transition-colors ${
-              renderingAll
-                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                : 'bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600'
-            }`}
-          >
-            {renderingAll ? (
-              <><svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Cancel</>
-            ) : (
-              <><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3l14 9-14 9V3z" /></svg>Render All</>
-            )}
-          </button>
-        </div>
       </div>
 
       {/* ── Modals ─────────────────────────────────────────────────────────────── */}
