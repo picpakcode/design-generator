@@ -90,6 +90,35 @@ function matchesNamedAsset(asset: CantoPick, requestedName: string): boolean {
   )
 }
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Returns the "base name" of a photo by stripping the file extension and any
+// trailing _web / -web suffix, lower-cased. Used for dedup and individual-shot detection.
+function photoBaseName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\.[^.]+$/, '')   // strip extension
+    .replace(/[_-]web$/, '')   // strip _web or -web resolution suffix
+}
+
+// When both DGF429-01.jpg and DGF429-01_web.jpg are in the candidate pool,
+// keep only the full-resolution version. This prevents the same shot appearing
+// twice with different IDs, which caused the slot wrap-around to pick "duplicates".
+function dedupeWebVariants(assets: CantoPick[]): CantoPick[] {
+  const byBase = new Map<string, { asset: CantoPick; isWeb: boolean }>()
+  for (const asset of assets) {
+    const base  = photoBaseName(asset.name)
+    const isWeb = /[_-]web$/i.test(asset.name.replace(/\.[^.]+$/, ''))
+    const existing = byBase.get(base)
+    if (!existing || (existing.isWeb && !isWeb)) {
+      byBase.set(base, { asset, isWeb })
+    }
+  }
+  return Array.from(byBase.values()).map(v => v.asset)
+}
+
 function scoreProductPhoto(asset: CantoPick, sku: string, productName: string): number {
   const terms = assetTerms(asset)
   const joined = terms.join(' ')
@@ -113,6 +142,27 @@ function scoreProductPhoto(asset: CantoPick, sku: string, productName: string): 
     if (joined.split(/\s+/).includes(word)) score += 8
     else if (joined.includes(word)) score += 4
   }
+
+  // Bonus: individual product shot (e.g. DGF429-01, DGF429-02).
+  // Pattern: base name is exactly "{sku}-{1-3 digit sequence number}".
+  if (skuNorm) {
+    const base = photoBaseName(asset.name).replace(/\s+/g, '')
+    if (new RegExp(`^${escapeRegex(skuNorm)}[_-]?\\d{1,3}$`).test(base)) score += 50
+  }
+
+  // Penalty: group / kit photo — the filename contains other SKU-like codes
+  // (alphanumeric, ≥3 chars, mix of letters+digits) besides the target SKU.
+  // Example: "D11878-5W40-4.jpg" for a DGF429 product → penalised.
+  const stem     = asset.name.replace(/\.[^.]+$/, '')
+  const segments = stem.split(/-+/).filter(s => s.length >= 2)
+  const skuLow   = sku.toLowerCase()
+  const otherSkuLike = segments.filter(s => {
+    const sl = s.toLowerCase()
+    return /[a-z]/i.test(s) && /[0-9]/.test(s) && s.length >= 3
+      && !skuLow.includes(sl) && !sl.includes(skuLow)
+      && !/^\d+$/.test(s)
+  })
+  if (otherSkuLike.length >= 1) score -= 60
 
   return score
 }
@@ -415,7 +465,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
       const params = new URLSearchParams({ sku, name: productName, limit: String(Math.max(need * 3, 25)) })
       const data = await fetch(`/api/canto/photos?${params}`).then(r => r.json())
       const searchPhotos: CantoPick[] = Array.isArray(data) ? data : []
-      const photos = dedupePicks([...requestedMatches, ...folderMatches, ...searchPhotos])
+      const photos = dedupeWebVariants(dedupePicks([...requestedMatches, ...folderMatches, ...searchPhotos]))
       productPhotoCache.current.set(cacheKey, photos)
       return photos
     } catch {
