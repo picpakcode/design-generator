@@ -157,7 +157,7 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
     setCsvFilename(file.name)
     const reader = new FileReader()
     reader.onload = e => {
-      const result = parseCSV(e.target?.result as string)
+      const result = parseCSV(e.target?.result as string, { requireSku: false })
       setParseResult(result)
       setSelectedId(result.products[0]?.id ?? null)
       setActiveSlotIdx(0)

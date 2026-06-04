@@ -125,7 +125,8 @@ function rowToProduct(row: Record<string, string>, idx: number): BulkProduct {
 
 // ─── Public entry point ───────────────────────────────────────────────────────
 
-export function parseCSV(text: string): ParseResult {
+export function parseCSV(text: string, options?: { requireSku?: boolean }): ParseResult {
+  const requireSku = options?.requireSku ?? true
   const errors: string[] = []
 
   if (!text.trim()) {
@@ -139,7 +140,7 @@ export function parseCSV(text: string): ParseResult {
 
   // Validate required headers exist
   const headers = Object.keys(rows[0])
-  if (!headers.includes('sku')) errors.push('Missing column: sku')
+  if (requireSku && !headers.includes('sku')) errors.push('Missing column: sku')
   if (!headers.some(h => h.startsWith('a1_title') || h === 'a1_title')) {
     errors.push('Missing column: a1_title')
   }
