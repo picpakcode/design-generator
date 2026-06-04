@@ -13,6 +13,7 @@ import AssetUploader from './AssetUploader'
 import ExportButton from './ExportButton'
 import { exportAllAsZip } from '@/lib/export'
 import BulkMode from './BulkMode'
+import TemplateMode from './TemplateMode'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import TexturePicker from './TexturePicker'
 import CantoIconPickerModal from './CantoIconPickerModal'
@@ -249,7 +250,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const [iconPickerSlot, setIconPickerSlot] = useState<number | null>(null)
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false)
 
-  const [appMode, setAppMode] = useState<'design' | 'bulk'>('design')
+  const [appMode, setAppMode] = useState<'design' | 'bulk' | 'template'>('design')
   const [design, setDesign] = useState<DesignState>(DEFAULT_STATE)
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
@@ -257,6 +258,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const [bulkExportOpen, setBulkExportOpen] = useState(false)
   const [bulkCanExport, setBulkCanExport] = useState(false)
   const bulkExportFnRef = useRef<() => void>(() => {})
+  const [templateCanExport, setTemplateCanExport] = useState(false)
+  const templateExportFnRef = useRef<() => void>(() => {})
 
   const canvasRef         = useRef<HTMLDivElement>(null)
   const altCanvasRef      = useRef<HTMLDivElement>(null)
@@ -1213,7 +1216,12 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   if (projectId && authLoading) {
     return (
       <div className="flex flex-col h-screen items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <svg className="animate-spin h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24">
+        <svg
+          className="animate-spin h-6 w-6 text-gray-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          style={{ width: 24, height: 24, color: '#9ca3af' }}
+        >
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
         </svg>
@@ -1310,7 +1318,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
         {/* Mode tabs */}
         <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5 shrink-0">
-          {(['design', 'bulk'] as const).map(mode => (
+          {(['design', 'template', 'bulk'] as const).map(mode => (
             <button
               key={mode}
               onClick={() => setAppMode(mode)}
@@ -1320,7 +1328,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
               }`}
             >
-              {mode === 'design' ? 'Design' : 'Bulk'}
+              {mode === 'design' ? 'Design' : mode === 'template' ? 'Template' : 'Bulk'}
             </button>
           ))}
         </div>
@@ -1354,6 +1362,15 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* Template mode — Export ZIP button */}
+        {appMode === 'template' && (
+          <div className="ml-auto">
+            <Btn variant="primary" disabled={!templateCanExport} onClick={() => templateExportFnRef.current()}>
+              Export ZIP
+            </Btn>
           </div>
         )}
 
@@ -1762,6 +1779,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       {/* ── Body ── */}
       {appMode === 'bulk' ? (
         <BulkMode designState={design} exportFnRef={bulkExportFnRef} onCanExportChange={setBulkCanExport} folderConfig={folderConfig} onFolderConfigChange={updateFolderConfig} />
+      ) : appMode === 'template' ? (
+        <TemplateMode designState={design} folderConfig={folderConfig} exportFnRef={templateExportFnRef} onCanExportChange={setTemplateCanExport} />
       ) : (<>
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
