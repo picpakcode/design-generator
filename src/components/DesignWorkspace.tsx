@@ -266,6 +266,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const templateExportFnRef        = useRef<() => void>(() => {})
   const templateExportCurrentFnRef = useRef<() => void>(() => {})
   const templateRenderAllFnRef     = useRef<() => void>(() => {})
+  const templatePreviewFnRef       = useRef<() => void>(() => {})
 
   const canvasRef         = useRef<HTMLDivElement>(null)
   const altCanvasRef      = useRef<HTMLDivElement>(null)
@@ -1262,6 +1263,158 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     )
   }
 
+  const settingsGearEl = (
+    <div className="relative">
+      <button
+        onClick={() => setSettingsMenuOpen(o => !o)}
+        title="Settings"
+        className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${settingsMenuOpen ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300'}`}
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
+      {settingsMenuOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setSettingsMenuOpen(false)} />
+          <div className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 p-4 z-50 animate-slide-down">
+
+            {/* Appearance */}
+            <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Appearance</p>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-gray-600 dark:text-gray-400">Theme</span>
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5">
+                {(['light', 'dark'] as const).map(t => (
+                  <button key={t} onClick={() => updateAppSettings({ theme: t })}
+                    className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.theme === t ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    {t === 'light' ? 'Light' : 'Dark'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs text-gray-600 dark:text-gray-400">Density</span>
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5">
+                {(['comfortable', 'compact'] as const).map(d => (
+                  <button key={d} onClick={() => updateAppSettings({ uiDensity: d })}
+                    className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.uiDensity === d ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    {d === 'comfortable' ? 'Cozy' : 'Compact'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-gray-100 dark:bg-gray-800 mb-4" />
+
+            {/* Canvas background */}
+            <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Preview background</p>
+            <div className="flex items-center gap-2 mb-1">
+              {(appSettings.theme === 'dark'
+                ? ['#1a1a1a', '#111827', '#E0E0E0', '#FFFFFF'] as const
+                : ['#FFFFFF', '#F0F0F0', '#E0E0E0', '#1a1a1a'] as const
+              ).map(color => (
+                <button key={color} onClick={() => setCanvasBg(color)} title={color}
+                  className={`w-8 h-8 rounded ring-2 transition-all ${canvasBg === color ? 'ring-gray-900 dark:ring-white ring-offset-1 dark:ring-offset-gray-900' : 'ring-gray-200 dark:ring-gray-600 hover:ring-gray-400'}`}
+                  style={{ backgroundColor: color }} />
+              ))}
+              <label title="Custom color" className="relative w-8 h-8 flex items-center justify-center rounded ring-2 ring-gray-200 dark:ring-gray-600 hover:ring-gray-400 transition-all cursor-pointer overflow-hidden shrink-0">
+                <div className="w-full h-full rounded" style={{ background: 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />
+                <input type="color" value={canvasBg} onChange={e => setCanvasBg(e.target.value)}
+                  style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }} />
+              </label>
+            </div>
+            <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1 mb-4">Current: <span className="font-mono">{canvasBg}</span></p>
+
+            <div className="h-px bg-gray-100 dark:bg-gray-800 mb-4" />
+
+            {/* Export defaults */}
+            <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Export defaults</p>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-gray-600 dark:text-gray-400">Format</span>
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5">
+                {(['png', 'jpeg'] as const).map(f => (
+                  <button key={f} onClick={() => updateAppSettings({ exportFormat: f })}
+                    className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.exportFormat === f ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    {f.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {appSettings.exportFormat === 'jpeg' && (
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">JPEG quality</span>
+                  <span className="text-xs font-mono text-gray-400 dark:text-gray-500">{appSettings.exportQuality}%</span>
+                </div>
+                <input type="range" min={60} max={100} step={5}
+                  value={appSettings.exportQuality}
+                  onChange={e => updateAppSettings({ exportQuality: Number(e.target.value) })}
+                  className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
+              </div>
+            )}
+
+            <div className="h-px bg-gray-100 dark:bg-gray-800 mb-4" />
+
+            {/* Auto-save */}
+            <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Auto-save interval</p>
+            <div className="flex gap-1">
+              {([0, 1000, 2000, 5000] as const).map(ms => (
+                <button key={ms} onClick={() => updateAppSettings({ autosaveInterval: ms })}
+                  className={`flex-1 h-7 rounded text-[10px] font-bold border-2 transition-all ${appSettings.autosaveInterval === ms ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
+                  {ms === 0 ? 'Off' : `${ms / 1000}s`}
+                </button>
+              ))}
+            </div>
+
+            {albums.length > 0 && (
+              <>
+                <div className="h-px bg-gray-100 dark:bg-gray-800 my-4" />
+                <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Canto Asset Folders</p>
+                <div className="space-y-3">
+                  {([
+                    { key: 'photosAlbumId', label: 'Product Photos', hint: 'Source album for the photo picker' },
+                    { key: 'iconsAlbumId',  label: 'Icons',          hint: 'Source album for icon images' },
+                    { key: 'logosAlbumId',  label: 'Logos',          hint: 'Source album for brand logos (default: DD Logos)' },
+                  ] as const).map(({ key, label, hint }) => (
+                    <div key={key}>
+                      <p className="text-[9px] font-semibold text-gray-500 dark:text-gray-400 mb-1">{label}</p>
+                      <div className="relative flex items-center mb-0.5">
+                        <svg className="absolute left-2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M16.65 16.65A7.5 7.5 0 1 0 4.5 4.5a7.5 7.5 0 0 0 12.15 12.15z" />
+                        </svg>
+                        <input
+                          type="text"
+                          value={albumSearch[key] ?? ''}
+                          onChange={e => setAlbumSearch(s => ({ ...s, [key]: e.target.value }))}
+                          placeholder="Search albums…"
+                          className="w-full h-7 pl-6 pr-2 rounded-t border border-b-0 border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none placeholder-gray-300 dark:placeholder-gray-600"
+                        />
+                      </div>
+                      <select
+                        value={folderConfig[key] ?? ''}
+                        onChange={e => updateFolderConfig({ [key]: e.target.value || null })}
+                        size={4}
+                        className="w-full px-2 py-1 rounded-b border border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                      >
+                        <option value="">— not set —</option>
+                        {filteredAlbums(key).map(a => (
+                          <option key={a.id} value={a.id} title={a.namePath}>{a.name}</option>
+                        ))}
+                      </select>
+                      <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">{hint}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-3">Textures always load from the default Textures folder.</p>
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
 
@@ -1371,9 +1524,23 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           </div>
         )}
 
-        {/* Template mode — Export dropdown */}
+        {/* Template mode — Preview + Settings + Export */}
         {appMode === 'template' && (
-          <div className="ml-auto relative">
+          <div className="ml-auto flex items-center gap-1">
+            {/* Preview */}
+            <button
+              onClick={() => templatePreviewFnRef.current()}
+              title="Preview"
+              className="w-8 h-8 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+            {settingsGearEl}
+            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
+            <div className="relative">
             <Btn variant="primary" onClick={() => setTemplateExportOpen(o => !o)}>
               {templateRenderingAll ? (
                 <><svg className="animate-spin w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Rendering…</>
@@ -1419,6 +1586,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 </div>
               </>
             )}
+            </div>
           </div>
         )}
 
@@ -1557,155 +1725,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             </button>
 
             {/* Settings menu */}
-            <div className="relative">
-              <button
-                onClick={() => setSettingsMenuOpen(o => !o)}
-                title="Settings"
-                className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${settingsMenuOpen ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300'}`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
-              {settingsMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setSettingsMenuOpen(false)} />
-                  <div className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 p-4 z-50 animate-slide-down">
-
-                    {/* Appearance */}
-                    <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Appearance</p>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs text-gray-600 dark:text-gray-400">Theme</span>
-                      <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5">
-                        {(['light', 'dark'] as const).map(t => (
-                          <button key={t} onClick={() => updateAppSettings({ theme: t })}
-                            className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.theme === t ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                            {t === 'light' ? 'Light' : 'Dark'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-xs text-gray-600 dark:text-gray-400">Density</span>
-                      <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5">
-                        {(['comfortable', 'compact'] as const).map(d => (
-                          <button key={d} onClick={() => updateAppSettings({ uiDensity: d })}
-                            className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.uiDensity === d ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                            {d === 'comfortable' ? 'Cozy' : 'Compact'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="h-px bg-gray-100 dark:bg-gray-800 mb-4" />
-
-                    {/* Canvas background */}
-                    <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Preview background</p>
-                    <div className="flex items-center gap-2 mb-1">
-                      {(appSettings.theme === 'dark'
-                        ? ['#1a1a1a', '#111827', '#E0E0E0', '#FFFFFF'] as const
-                        : ['#FFFFFF', '#F0F0F0', '#E0E0E0', '#1a1a1a'] as const
-                      ).map(color => (
-                        <button key={color} onClick={() => setCanvasBg(color)} title={color}
-                          className={`w-8 h-8 rounded ring-2 transition-all ${canvasBg === color ? 'ring-gray-900 dark:ring-white ring-offset-1 dark:ring-offset-gray-900' : 'ring-gray-200 dark:ring-gray-600 hover:ring-gray-400'}`}
-                          style={{ backgroundColor: color }} />
-                      ))}
-                      <label title="Custom color" className="relative w-8 h-8 flex items-center justify-center rounded ring-2 ring-gray-200 dark:ring-gray-600 hover:ring-gray-400 transition-all cursor-pointer overflow-hidden shrink-0">
-                        <div className="w-full h-full rounded" style={{ background: 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />
-                        <input type="color" value={canvasBg} onChange={e => setCanvasBg(e.target.value)}
-                          style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }} />
-                      </label>
-                    </div>
-                    <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1 mb-4">Current: <span className="font-mono">{canvasBg}</span></p>
-
-                    <div className="h-px bg-gray-100 dark:bg-gray-800 mb-4" />
-
-                    {/* Export defaults */}
-                    <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Export defaults</p>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs text-gray-600 dark:text-gray-400">Format</span>
-                      <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5">
-                        {(['png', 'jpeg'] as const).map(f => (
-                          <button key={f} onClick={() => updateAppSettings({ exportFormat: f })}
-                            className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.exportFormat === f ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-                            {f.toUpperCase()}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {appSettings.exportFormat === 'jpeg' && (
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">JPEG quality</span>
-                          <span className="text-xs font-mono text-gray-400 dark:text-gray-500">{appSettings.exportQuality}%</span>
-                        </div>
-                        <input type="range" min={60} max={100} step={5}
-                          value={appSettings.exportQuality}
-                          onChange={e => updateAppSettings({ exportQuality: Number(e.target.value) })}
-                          className="w-full h-1 rounded-full appearance-none cursor-pointer accent-gray-800" />
-                      </div>
-                    )}
-
-                    <div className="h-px bg-gray-100 dark:bg-gray-800 mb-4" />
-
-                    {/* Auto-save */}
-                    <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Auto-save interval</p>
-                    <div className="flex gap-1">
-                      {([0, 1000, 2000, 5000] as const).map(ms => (
-                        <button key={ms} onClick={() => updateAppSettings({ autosaveInterval: ms })}
-                          className={`flex-1 h-7 rounded text-[10px] font-bold border-2 transition-all ${appSettings.autosaveInterval === ms ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
-                          {ms === 0 ? 'Off' : `${ms / 1000}s`}
-                        </button>
-                      ))}
-                    </div>
-
-                    {albums.length > 0 && (
-                      <>
-                        <div className="h-px bg-gray-100 dark:bg-gray-800 my-4" />
-                        <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Canto Asset Folders</p>
-                        <div className="space-y-3">
-                          {([
-                            { key: 'photosAlbumId', label: 'Product Photos', hint: 'Source album for the photo picker' },
-                            { key: 'iconsAlbumId',  label: 'Icons',          hint: 'Source album for icon images' },
-                            { key: 'logosAlbumId',  label: 'Logos',          hint: 'Source album for brand logos (default: DD Logos)' },
-                          ] as const).map(({ key, label, hint }) => (
-                            <div key={key}>
-                              <p className="text-[9px] font-semibold text-gray-500 dark:text-gray-400 mb-1">{label}</p>
-                              <div className="relative flex items-center mb-0.5">
-                                <svg className="absolute left-2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M16.65 16.65A7.5 7.5 0 1 0 4.5 4.5a7.5 7.5 0 0 0 12.15 12.15z" />
-                                </svg>
-                                <input
-                                  type="text"
-                                  value={albumSearch[key] ?? ''}
-                                  onChange={e => setAlbumSearch(s => ({ ...s, [key]: e.target.value }))}
-                                  placeholder="Search albums…"
-                                  className="w-full h-7 pl-6 pr-2 rounded-t border border-b-0 border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none placeholder-gray-300 dark:placeholder-gray-600"
-                                />
-                              </div>
-                              <select
-                                value={folderConfig[key] ?? ''}
-                                onChange={e => updateFolderConfig({ [key]: e.target.value || null })}
-                                size={4}
-                                className="w-full px-2 py-1 rounded-b border border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                              >
-                                <option value="">— not set —</option>
-                                {filteredAlbums(key).map(a => (
-                                  <option key={a.id} value={a.id} title={a.namePath}>{a.name}</option>
-                                ))}
-                              </select>
-                              <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-0.5">{hint}</p>
-                            </div>
-                          ))}
-                        </div>
-                        <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-3">Textures always load from the default Textures folder.</p>
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
+            {settingsGearEl}
 
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
 
@@ -1833,6 +1853,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           exportFnRef={templateExportFnRef}
           exportCurrentFnRef={templateExportCurrentFnRef}
           renderAllFnRef={templateRenderAllFnRef}
+          previewFnRef={templatePreviewFnRef}
           onCanExportChange={setTemplateCanExport}
           onCanExportCurrentChange={setTemplateCanExportCurrent}
           onRenderingAllChange={setTemplateRenderingAll}

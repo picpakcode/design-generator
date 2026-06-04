@@ -12,6 +12,7 @@ export interface BulkProduct {
   productName: string
   photos: string[]         // Canto tags/IDs, 1–5
   slots: SlotData[]        // a1, b1, c1… in order
+  gallerySlots: SlotData[] // g1, g2, g3… independent gallery slides
   warnings: string[]
 }
 
@@ -113,12 +114,27 @@ function rowToProduct(row: Record<string, string>, idx: number): BulkProduct {
 
   if (slots.length === 0) warnings.push('No slot titles found (a1_title, b1_title…)')
 
+  // Gallery slides (g1_title, g1_desc, g1_icon1…4, g2_title…)
+  const gallerySlots: SlotData[] = []
+  for (let g = 1; g <= 20; g++) {
+    const title = row[`g${g}_title`]?.trim() || ''
+    if (!title) break
+    const desc = row[`g${g}_desc`]?.trim() || ''
+    const iconCallouts: [string, string, string, string] = ['', '', '', '']
+    for (let ic = 1; ic <= MAX_ICONS; ic++) {
+      const v = row[`g${g}_icon${ic}`]?.trim()
+      if (v) iconCallouts[ic - 1] = v
+    }
+    gallerySlots.push({ title, desc, iconCallouts })
+  }
+
   return {
     id: `${sku}-${idx}`,
     sku,
     productName: name,
     photos,
     slots,
+    gallerySlots,
     warnings,
   }
 }
@@ -165,6 +181,8 @@ export function downloadTemplate() {
     'c1_title', 'c1_desc',
     'd1_title', 'd1_desc',
     'e1_title', 'e1_desc',
+    'g1_title', 'g1_desc',
+    'g2_title', 'g2_desc',
   ]
 
   const rows: string[][] = [
@@ -181,6 +199,12 @@ export function downloadTemplate() {
       "Compatible with Chevrolet Silverado and GMC Sierra 2500/3500 RWD/SRW configurations. Direct OEM replacement — no modifications required.",
       'Built for the Long Haul',
       "Heavy-duty bearing construction rated for loaded towing and the demands of a daily work truck.",
+      // g1 gallery slide
+      'Premium E-Coated Hub Assembly',
+      "Precision-engineered for 2011–2019 Duramax RWD/SRW. E-coat protection, sealed bearing, direct OEM fit.",
+      // g2 gallery slide
+      'Built to Last',
+      "Heavy-duty bearing rated for loaded towing. Corrosion-resistant coating outlasts bare alternatives.",
     ],
     [
       'DETAIL5',
@@ -195,6 +219,12 @@ export function downloadTemplate() {
       "The same products used in Doc's Diesel's own service bays — trusted by the technicians who work on Duramax, Cummins, and Powerstroke trucks every day.",
       'Truck Pride, Simplified',
       "A clean truck runs better, sells better, and feels better. Full detail start to finish in under two hours.",
+      // g1
+      "The Diesel Detail Kit",
+      "Pro-level clean in one box. Every product chosen to work together on Duramax, Cummins, and Powerstroke trucks.",
+      // g2
+      'Formulated for Diesel',
+      "Targets DEF residue, exhaust staining, and heavy road grime — because diesel grime is different.",
     ],
     [
       'keeptruckinhoodie3XL',
@@ -209,6 +239,12 @@ export function downloadTemplate() {
       "Officially designed and sold by Doc's Diesel — the diesel specialists trusted by Duramax, Cummins, and Powerstroke owners across the country.",
       'Available in All Sizes',
       "From S to 3XL, the Keep Truckin' hoodie fits every member of the crew.",
+      // g1
+      "Keep Truckin' Hoodie",
+      "Premium cotton-blend fleece. Built for the shop, comfortable enough for everywhere else.",
+      // g2
+      'Represent the Brand',
+      "Officially designed by Doc's Diesel — the diesel specialists trusted by Duramax, Cummins, and Powerstroke owners.",
     ],
   ]
 
