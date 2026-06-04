@@ -55,6 +55,89 @@ const DEFAULT_LOGO_ID    = 'gjj53olkh15rd0vdvpq29ngf75'
 const DEFAULT_LOGO_NAME  = 'DocsDiesel-Logo-Wordmark-RedWhite-Vector 1'
 const DEFAULT_LOGO_ALBUM = 'QH34D'
 
+function toUploadedAsset(pick: CantoPick | undefined, preferOriginal = false): UploadedAsset | undefined {
+  if (!pick) return undefined
+  return {
+    id: pick.id,
+    name: pick.name,
+    url: (preferOriginal ? pick.originalUrl : undefined) ?? pick.previewUrl ?? pick.originalUrl ?? '',
+    type: 'image',
+  }
+}
+
+function normalizeAssetText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\.[a-z0-9]+$/i, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function assetTerms(asset: CantoPick): string[] {
+  return [
+    normalizeAssetText(asset.name),
+    ...(asset.keywords ?? []).map(normalizeAssetText),
+  ].filter(Boolean)
+}
+
+function matchesNamedAsset(asset: CantoPick, requestedName: string): boolean {
+  const requested = normalizeAssetText(requestedName)
+  if (!requested) return false
+  return assetTerms(asset).some(term =>
+    term === requested ||
+    term.includes(requested) ||
+    requested.includes(term)
+  )
+}
+
+function scoreProductPhoto(asset: CantoPick, sku: string, productName: string): number {
+  const terms = assetTerms(asset)
+  const joined = terms.join(' ')
+  const skuNorm = normalizeAssetText(sku).replace(/\s+/g, '')
+
+  let score = 0
+  if (skuNorm) {
+    for (const term of terms) {
+      const compact = term.replace(/\s+/g, '')
+      if (compact === skuNorm) score += 120
+      else if (compact.includes(skuNorm)) score += 80
+    }
+  }
+
+  const STOP = new Set(['diesel', 'filter', 'engine', 'premium', 'high', 'flow', 'with', 'from', 'and', 'for', 'the'])
+  const words = normalizeAssetText(productName)
+    .split(/\s+/)
+    .filter(w => w.length > 3 && !STOP.has(w))
+
+  for (const word of words) {
+    if (joined.split(/\s+/).includes(word)) score += 8
+    else if (joined.includes(word)) score += 4
+  }
+
+  return score
+}
+
+function rankedProductPhotos(assets: CantoPick[], sku: string, productName: string, limit: number): CantoPick[] {
+  return assets
+    .map(asset => ({ asset, score: scoreProductPhoto(asset, sku, productName) }))
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.asset.name.localeCompare(b.asset.name))
+    .slice(0, limit)
+    .map(item => item.asset)
+}
+
+function dedupePicks(picks: CantoPick[]): CantoPick[] {
+  const seen = new Set<string>()
+  const out: CantoPick[] = []
+  for (const pick of picks) {
+    const key = pick.id || pick.name
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(pick)
+  }
+  return out
+}
+
 // ─── Capture helper ──────────────────────────────────────────────────────────
 // Renders a React element into a fresh off-screen container, waits for every
 // <img> to finish loading, then returns a PNG/JPEG data-URL (or null on error).
@@ -92,9 +175,13 @@ async function captureToDataUrl(
   ))
 
   try {
+    // includeQueryParams:true is critical — the proxy URL is /api/canto/proxy?url=<actual-url>.
+    // Without it, html-to-image strips query params and treats every proxy request as the same
+    // cache key, causing the first image (texture) to be reused for logo, photos, and icons.
+    const opts = { includeQueryParams: true, onImageErrorHandler: () => {} }
     return format === 'jpeg'
-      ? await toJpeg(div, { quality: 0.95, backgroundColor: '#ffffff' })
-      : await toPng(div)
+      ? await toJpeg(div, { quality: 0.95, backgroundColor: '#ffffff', ...opts })
+      : await toPng(div, opts)
   } catch { return null }
   finally {
     root.unmount()
@@ -150,6 +237,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
   const capturedRef       = useRef<Map<string, string>>(new Map())
   const jobsSnapshot      = useRef<JobProduct[]>([])
   const iconCacheRef      = useRef<CantoPick[] | null>(null)
+  const productFolderCacheRef = useRef<CantoPick[] | null>(null)
   const productPhotoCache = useRef<Map<string, CantoPick[]>>(new Map())
   const photoCache        = useRef<Map<string, string | null>>(new Map())
 
@@ -192,6 +280,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
       if (!Array.isArray(data)) return
       setAlbums(data)
       iconCacheRef.current = null
+      productFolderCacheRef.current = null
       productPhotoCache.current.clear()
 
       const current = folderConfigRef.current
@@ -242,6 +331,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
   const updateFolderConfig = (patch: Partial<FolderConfig>) => {
     onFolderConfigChange(patch)
     iconCacheRef.current = null
+    productFolderCacheRef.current = null
     productPhotoCache.current.clear()
   }
 
@@ -291,7 +381,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
     if (!albumId) return []
     if (iconCacheRef.current !== null) return iconCacheRef.current
     try {
-      const data = await fetch(`/api/canto/folder?albumId=${encodeURIComponent(albumId)}`).then(r => r.json())
+      const data = await fetch(`/api/canto/folder?albumId=${encodeURIComponent(albumId)}&limit=1000`).then(r => r.json())
       iconCacheRef.current = Array.isArray(data) ? data : []
     } catch {
       iconCacheRef.current = []
@@ -299,13 +389,33 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
     return iconCacheRef.current
   }
 
-  const fetchProductPhotos = async (sku: string, productName: string, need: number): Promise<CantoPick[]> => {
-    const cacheKey = sku || productName
+  const getProductPhotoFolder = async (): Promise<CantoPick[]> => {
+    const albumId = folderConfigRef.current.photosAlbumId
+    if (!albumId) return []
+    if (productFolderCacheRef.current !== null) return productFolderCacheRef.current
+    try {
+      const data = await fetch(`/api/canto/folder?albumId=${encodeURIComponent(albumId)}&limit=1000`).then(r => r.json())
+      productFolderCacheRef.current = Array.isArray(data) ? data : []
+    } catch {
+      productFolderCacheRef.current = []
+    }
+    return productFolderCacheRef.current
+  }
+
+  const fetchProductPhotos = async (sku: string, productName: string, need: number, requestedNames: string[] = []): Promise<CantoPick[]> => {
+    const cacheKey = `${folderConfigRef.current.photosAlbumId ?? 'search'}:${sku || productName}:${requestedNames.join('|')}`
     if (productPhotoCache.current.has(cacheKey)) return productPhotoCache.current.get(cacheKey)!
     try {
+      const folderPhotos = await getProductPhotoFolder()
+      const requestedMatches = requestedNames
+        .filter(Boolean)
+        .flatMap(name => folderPhotos.filter(photo => matchesNamedAsset(photo, name)))
+      const folderMatches = rankedProductPhotos(folderPhotos, sku, productName, Math.max(need * 3, 25))
+
       const params = new URLSearchParams({ sku, name: productName, limit: String(Math.max(need * 3, 25)) })
       const data = await fetch(`/api/canto/photos?${params}`).then(r => r.json())
-      const photos: CantoPick[] = Array.isArray(data) ? data : []
+      const searchPhotos: CantoPick[] = Array.isArray(data) ? data : []
+      const photos = dedupePicks([...requestedMatches, ...folderMatches, ...searchPhotos])
       productPhotoCache.current.set(cacheKey, photos)
       return photos
     } catch {
@@ -399,10 +509,33 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
 
     // Active A+ block in Design tab — used as fallback for photo and icon assets
     const activeAplusBlock = designState.blocks.find(b => b.id === designState.activeBlockId)
+    const assetBlocks = [
+      ...(designState.blocks ?? []),
+      ...(designState.galleryBlocks ?? []),
+    ]
 
-    // Resolved branding: Bulk picker > Design tab active block asset
-    const logoForRender:    UploadedAsset | undefined = logoAsset    ?? activeAplusBlock?.assets?.[2]
-    const textureForRender: UploadedAsset | undefined = textureAsset ?? activeAplusBlock?.assets?.[1]
+    const fallbackAsset = (slotIndex: number, preferredTemplate?: string): UploadedAsset | undefined => {
+      const ordered = [
+        ...(preferredTemplate ? assetBlocks.filter(b => b.templateId === preferredTemplate) : []),
+        ...(activeAplusBlock ? [activeAplusBlock] : []),
+        ...assetBlocks,
+      ]
+      const seen = new Set<string>()
+      for (const block of ordered) {
+        if (seen.has(block.id)) continue
+        seen.add(block.id)
+        const asset = (block.assets ?? [])[slotIndex]
+        if (asset?.url) return asset
+      }
+      return undefined
+    }
+
+    const pickUnusedIcon = (excludeIds: string[]): UploadedAsset | undefined => {
+      const pick = iconFolder.find(icon => excludeIds.indexOf(icon.id) === -1) ?? iconFolder[0]
+      if (!pick) return undefined
+      excludeIds.push(pick.id)
+      return toUploadedAsset(pick, true)
+    }
 
     for (let i = 0; i < snapshot.length; i++) {
       if (cancelRef.current) break
@@ -410,22 +543,29 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
 
       setJobs(p => p.map((r, idx) => idx === i ? { ...r, status: 'rendering' } : r))
 
-      const productPhotos = await fetchProductPhotos(job.sku, job.productName, aplusSlots + (includeGallery ? aplusSlots : 0))
+      const productPhotos = await fetchProductPhotos(job.sku, job.productName, aplusSlots + (includeGallery ? aplusSlots : 0), job.photos)
       const usedPhotoIds: string[] = []
 
       // ── Pre-resolve assets for each slot ────────────────────────────────────
-      type SlotAssets = { photoAsset: UploadedAsset | undefined; iconAssets: (UploadedAsset | undefined)[] }
+      type SlotAssets = {
+        photoAsset: UploadedAsset | undefined
+        textureAsset: UploadedAsset | undefined
+        logoAsset: UploadedAsset | undefined
+        iconAssets: (UploadedAsset | undefined)[]
+      }
       const slotData: SlotAssets[] = []
 
       for (let j = 0; j < aplusSlots; j++) {
         const slot = job.slots[j]
+        const cfg = slotConfigs[j] ?? { template: '5050-right' }
+        const templateForSlot = cfg.template === 'icons' ? 'aplus-icons' : 'aplus-5050'
         let photoAsset: UploadedAsset | undefined = undefined
 
         const csvPhotoName = job.photos[j % Math.max(job.photos.length, 1)]
         if (csvPhotoName) {
-          const exactInPool = productPhotos.find(p => p.name === csvPhotoName)
-          if (exactInPool) {
-            photoAsset = { id: exactInPool.id, name: exactInPool.name, url: exactInPool.previewUrl, type: 'image' }
+          const matchedInPool = productPhotos.find(p => matchesNamedAsset(p, csvPhotoName))
+          if (matchedInPool) {
+            photoAsset = toUploadedAsset(matchedInPool)
           } else {
             const photoUrl = await fetchPhoto(csvPhotoName)
             if (photoUrl) photoAsset = { id: `photo-${job.sku}-${j}`, name: csvPhotoName, url: photoUrl, type: 'image' }
@@ -433,26 +573,32 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
         }
         if (!photoAsset && productPhotos.length > 0) {
           const pick = productPhotos.find(p => usedPhotoIds.indexOf(p.id) === -1) ?? productPhotos[j % productPhotos.length]
-          if (pick) { usedPhotoIds.push(pick.id); photoAsset = { id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' } }
+          if (pick) { usedPhotoIds.push(pick.id); photoAsset = toUploadedAsset(pick) }
         }
-        if (!photoAsset) photoAsset = activeAplusBlock?.assets?.[0]
+        if (!photoAsset) photoAsset = fallbackAsset(0, templateForSlot)
 
         const usedIconIds: string[] = []
         const iconAssets = (slot?.iconCallouts ?? ['', '', '', '']).map((callout, ci) => {
           const match = matchIcon(iconFolder, callout, usedIconIds)
           if (match) usedIconIds.push(match.id)
-          return match
-            ? { id: match.id, name: match.name, url: match.originalUrl ?? match.previewUrl, type: 'image' as const }
-            : activeAplusBlock?.assets?.[3 + ci]
+          return toUploadedAsset(match, true)
+            ?? fallbackAsset(3 + ci, 'aplus-icons')
+            ?? fallbackAsset(3 + ci, 'gallery-icons')
+            ?? pickUnusedIcon(usedIconIds)
         })
 
-        slotData.push({ photoAsset, iconAssets })
+        slotData.push({
+          photoAsset,
+          textureAsset: textureAsset ?? fallbackAsset(1, templateForSlot) ?? fallbackAsset(1),
+          logoAsset: logoAsset ?? fallbackAsset(2, templateForSlot) ?? fallbackAsset(2),
+          iconAssets,
+        })
       }
 
       // ── A+ slots: desktop + mobile ───────────────────────────────────────────
       for (let j = 0; j < aplusSlots; j++) {
         if (cancelRef.current) break
-        const { photoAsset, iconAssets } = slotData[j]
+        const { photoAsset, textureAsset: resolvedTextureAsset, logoAsset: resolvedLogoAsset, iconAssets } = slotData[j]
         const slot = job.slots[j]
         const cfg  = slotConfigs[j] ?? { template: '5050-right' }
         const label = slotName(j)
@@ -461,7 +607,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
 
         const baseSlotDesign: DesignState = {
           ...designState,
-          assets: [photoAsset, textureForRender, logoForRender, iconAssets[0], iconAssets[1], iconAssets[2], iconAssets[3]] as UploadedAsset[],
+          assets: [photoAsset, resolvedTextureAsset, resolvedLogoAsset, iconAssets[0], iconAssets[1], iconAssets[2], iconAssets[3]] as UploadedAsset[],
           title: `<p>${slot?.title ?? ''}</p>`,
           subtitleHtml: slot?.desc ? `<p>${slot.desc}</p>` : '',
           iconLabels: (slot?.iconCallouts ?? ['', '', '', '']) as [string, string, string, string],
@@ -497,14 +643,14 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
       if (includeGallery && !cancelRef.current) {
         for (let j = 0; j < aplusSlots; j++) {
           if (cancelRef.current) break
-          const { photoAsset, iconAssets } = slotData[j]
+          const { photoAsset, textureAsset: resolvedTextureAsset, logoAsset: resolvedLogoAsset, iconAssets } = slotData[j]
           const slot = job.slots[j]
           const cfg  = slotConfigs[j] ?? { template: '5050-right' }
           const galleryLabel = `gallery-${j + 1}`
 
           const gallerySlotDesign: DesignState = {
             ...designState,
-            assets: [photoAsset, textureForRender, logoForRender, iconAssets[0], iconAssets[1], iconAssets[2], iconAssets[3]] as UploadedAsset[],
+            assets: [photoAsset, resolvedTextureAsset, resolvedLogoAsset, iconAssets[0], iconAssets[1], iconAssets[2], iconAssets[3]] as UploadedAsset[],
             title: `<p>${slot?.title ?? ''}</p>`,
             subtitleHtml: slot?.desc ? `<p>${slot.desc}</p>` : '',
             iconLabels: (slot?.iconCallouts ?? ['', '', '', '']) as [string, string, string, string],
