@@ -1777,11 +1777,14 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       </header>
 
       {/* ── Body ── */}
+      {/* Template mode — always mounted, CSS-hidden when inactive to preserve state across tab switches */}
+      <div className={appMode === 'template' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}>
+        <TemplateMode designState={design} folderConfig={folderConfig} exportFnRef={templateExportFnRef} onCanExportChange={setTemplateCanExport} />
+      </div>
+
       {appMode === 'bulk' ? (
         <BulkMode designState={design} exportFnRef={bulkExportFnRef} onCanExportChange={setBulkCanExport} folderConfig={folderConfig} onFolderConfigChange={updateFolderConfig} />
-      ) : appMode === 'template' ? (
-        <TemplateMode designState={design} folderConfig={folderConfig} exportFnRef={templateExportFnRef} onCanExportChange={setTemplateCanExport} />
-      ) : (<>
+      ) : appMode !== 'template' ? (<>
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* ══ Sidebar ══ */}
@@ -2744,7 +2747,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           </div>
         </main>
       </div>
-      </>)}
+      </>) : null}
 
       <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
       <PreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} design={design} />

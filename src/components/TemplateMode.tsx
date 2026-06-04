@@ -35,6 +35,10 @@ const DEFAULT_LOGO_ID    = 'gjj53olkh15rd0vdvpq29ngf75'
 const DEFAULT_LOGO_NAME  = 'DocsDiesel-Logo-Wordmark-RedWhite-Vector 1'
 const DEFAULT_LOGO_ALBUM = 'QH34D'
 
+const FRAME_GAP = 32
+const SLOT_GAP  = 80
+const CANVAS_W  = 1464 + FRAME_GAP + 600  // 2096
+
 const TEMPLATE_LABELS: Record<SlotTemplate, string> = {
   '5050-right': 'Img | Txt',
   '5050-left':  'Txt | Img',
@@ -155,6 +159,120 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
   const capturedRef = useRef<Map<string, string>>(new Map())
   const cancelRef   = useRef(false)
 
+  // ── Canvas zoom/pan ───────────────────────────────────────────────────────────
+  const [zoom, setZoom]               = useState(0.25)
+  const [pan, setPan]                 = useState({ x: 40, y: 40 })
+  const zoomRef                       = useRef(0.25)
+  const [spaceDown, setSpaceDown]     = useState(false)
+  const [isPanDragging, setIsPanDragging] = useState(false)
+  const panOriginRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
+  const wrapperRef   = useRef<HTMLDivElement | null>(null)
+  const [canvasEl, setCanvasEl] = useState<HTMLDivElement | null>(null)
+  const wrapperRefCallback = useCallback((el: HTMLDivElement | null) => {
+    wrapperRef.current = el
+    setCanvasEl(el)
+  }, [])
+
+  const fitView = useCallback(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    const vw = el.clientWidth
+    const vh = el.clientHeight
+    const PADDING = 56
+    const totalH = aplusSlots * 600 + Math.max(0, aplusSlots - 1) * SLOT_GAP
+    const z = Math.min(
+      (vw - PADDING * 2) / CANVAS_W,
+      (vh - PADDING * 2) / totalH,
+      1,
+    )
+    const px = Math.max(PADDING, (vw - CANVAS_W * z) / 2)
+    const py = Math.max(PADDING, (vh - totalH * z) / 2)
+    zoomRef.current = z
+    setZoom(z)
+    setPan({ x: px, y: py })
+  }, [aplusSlots])
+
+  const adjustZoom = (factor: number) => {
+    const el = wrapperRef.current
+    if (!el) return
+    const cx = el.clientWidth / 2
+    const cy = el.clientHeight / 2
+    const prevZ = zoomRef.current
+    const newZ = Math.max(0.05, Math.min(4, prevZ * factor))
+    const ratio = newZ / prevZ
+    zoomRef.current = newZ
+    setZoom(newZ)
+    setPan(p => ({ x: cx - (cx - p.x) * ratio, y: cy - (cy - p.y) * ratio }))
+  }
+
+  const handleViewportMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button === 1 || spaceDown) {
+      e.preventDefault()
+      panOriginRef.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y }
+      setIsPanDragging(true)
+    }
+  }
+  const handleViewportMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const o = panOriginRef.current
+    if (!o) return
+    setPan({ x: o.px + (e.clientX - o.mx), y: o.py + (e.clientY - o.my) })
+  }
+  const handleViewportMouseUp = () => { panOriginRef.current = null; setIsPanDragging(false) }
+
+  // Wheel: zoom + pan
+  useEffect(() => {
+    const el = canvasEl
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      if (e.ctrlKey || e.metaKey) {
+        const rect = el.getBoundingClientRect()
+        const cx = e.clientX - rect.left
+        const cy = e.clientY - rect.top
+        const factor = Math.exp(-e.deltaY * 0.008)
+        const prevZ = zoomRef.current
+        const newZ = Math.max(0.05, Math.min(4, prevZ * factor))
+        const ratio = newZ / prevZ
+        zoomRef.current = newZ
+        setZoom(newZ)
+        setPan(p => ({ x: cx - (cx - p.x) * ratio, y: cy - (cy - p.y) * ratio }))
+      } else {
+        setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }))
+      }
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [canvasEl])
+
+  // Spacebar pan mode + F to fit
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat &&
+          !(e.target instanceof HTMLInputElement) &&
+          !(e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault(); setSpaceDown(true)
+      }
+      if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey &&
+          !(e.target instanceof HTMLInputElement) &&
+          !(e.target instanceof HTMLTextAreaElement)) {
+        fitView()
+      }
+    }
+    const onUp = (e: KeyboardEvent) => { if (e.code === 'Space') setSpaceDown(false) }
+    window.addEventListener('keydown', onDown)
+    window.addEventListener('keyup', onUp)
+    return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp) }
+  }, [fitView])
+
+  // Fit when canvas mounts or when selected product changes
+  useEffect(() => {
+    if (canvasEl) fitView()
+  }, [canvasEl]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (selectedId && canvasEl) fitView()
+  }, [selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Init ──────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -193,8 +311,6 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
       setSelectedId(result.products[0]?.id ?? null)
       setActiveSlotIdx(0)
 
-      // Initialise per-product per-slot state from CSV content
-      const cfgs = defaultSlotConfigs(aplusSlots)
       const initialSlots: Record<string, TemplateSlotState[]> = {}
       for (const product of result.products) {
         initialSlots[product.id] = Array.from({ length: aplusSlots }, (_, j) => {
@@ -374,19 +490,14 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
   const products       = parseResult?.products ?? []
   const selected       = products.find(p => p.id === selectedId) ?? null
   const selectedIdx    = selected ? products.indexOf(selected) : -1
-  const activeCfg      = slotConfigs[activeSlotIdx] ?? { template: '5050-right' }
-  const isIconsSlot    = activeCfg.template === 'icons'
   const selectedStatus = selected ? (statuses[selected.id] ?? 'draft') : 'draft'
   const activeSlot     = selected ? getSlotState(selected.id, activeSlotIdx) : emptySlotState()
-
-  const PREVIEW_W     = 700
-  const PREVIEW_SCALE = PREVIEW_W / 1464
-  const PREVIEW_H     = Math.round(600 * PREVIEW_SCALE)
-  const previewDesign = selected ? buildSlotDesign(selected.id, activeSlotIdx) : null
+  const activeCfg      = slotConfigs[activeSlotIdx] ?? { template: '5050-right' }
+  const isIconsSlot    = activeCfg.template === 'icons'
 
   const StatusDot = ({ status }: { status: ProductStatus }) => {
     if (status === 'rendering') return (
-      <svg className="animate-spin w-3 h-3 text-indigo-500 shrink-0" fill="none" viewBox="0 0 24 24">
+      <svg className="animate-spin w-3 h-3 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
       </svg>
@@ -406,11 +517,11 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`w-full max-w-md rounded-2xl border-2 border-dashed p-10 flex flex-col items-center gap-4 cursor-pointer transition-all ${
-            isDragging ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 bg-white dark:bg-gray-900'
+          className={`w-full max-w-md rounded border-2 border-dashed p-10 flex flex-col items-center gap-4 cursor-pointer transition-all ${
+            isDragging ? 'border-gray-400 bg-gray-50 dark:bg-gray-800/50' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 bg-white dark:bg-gray-900'
           }`}
         >
-          <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+          <div className="w-14 h-14 rounded bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
             <svg className="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
@@ -437,7 +548,7 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
 
-      {/* ══ LEFT SIDEBAR — per-slot controls ══════════════════════════════════ */}
+      {/* ══ LEFT SIDEBAR ══════════════════════════════════════════════════════ */}
       <aside className="w-72 shrink-0 flex flex-col border-r border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm z-10">
 
         {/* Product navigator */}
@@ -480,48 +591,26 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
           </div>
         </div>
 
-        {/* Slot picker + template selector */}
-        <div className="shrink-0 px-4 py-3 border-b border-gray-100 dark:border-gray-700 space-y-3">
-          {/* Slot tabs */}
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-2">Slot</p>
-            <div className="flex gap-1 flex-wrap">
-              {slotConfigs.slice(0, aplusSlots).map((cfg, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setActiveSlotIdx(idx)}
-                  className={`flex flex-col items-center px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
-                    idx === activeSlotIdx
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <span>{slotLabel(idx)}</span>
-                  <span className={`text-[8px] mt-0.5 font-medium ${idx === activeSlotIdx ? 'text-indigo-200' : 'text-gray-400 dark:text-gray-500'}`}>
-                    {TEMPLATE_LABELS[cfg.template]}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* Template selector for active slot */}
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-2">Template</p>
-            <div className="flex gap-1">
-              {(['5050-right', '5050-left', 'icons'] as SlotTemplate[]).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setSlotConfigs(prev => prev.map((c, i) => i === activeSlotIdx ? { template: t } : c))}
-                  className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all border ${
-                    activeCfg.template === t
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {TEMPLATE_LABELS[t]}
-                </button>
-              ))}
-            </div>
+        {/* Slot tabs */}
+        <div className="shrink-0 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-2">Slot</p>
+          <div className="flex gap-1 flex-wrap">
+            {slotConfigs.slice(0, aplusSlots).map((cfg, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveSlotIdx(idx)}
+                className={`flex flex-col items-center px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                  idx === activeSlotIdx
+                    ? 'bg-gray-900 dark:bg-gray-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                }`}
+              >
+                <span>{slotLabel(idx)}</span>
+                <span className={`text-[8px] mt-0.5 font-medium ${idx === activeSlotIdx ? 'text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>
+                  {TEMPLATE_LABELS[cfg.template]}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -563,7 +652,7 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
                       <div className="flex gap-1">
                         {([2, 3, 4] as const).map(n => (
                           <button key={n} onClick={() => patchSlotState(selected.id, activeSlotIdx, { iconCount: n })}
-                            className={`w-6 h-6 rounded text-[10px] font-bold transition-all ${activeSlot.iconCount === n ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200'}`}
+                            className={`w-6 h-6 rounded text-[10px] font-bold transition-all ${activeSlot.iconCount === n ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200'}`}
                           >{n}</button>
                         ))}
                       </div>
@@ -730,7 +819,7 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
             <button
               onClick={() => renderProduct(selected)}
               disabled={selectedStatus === 'rendering'}
-              className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded bg-indigo-600 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {selectedStatus === 'rendering' ? (
                 <><svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Rendering…</>
@@ -753,73 +842,206 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
         )}
       </aside>
 
-      {/* ══ MAIN AREA — canvas + settings ═════════════════════════════════════ */}
+      {/* ══ MAIN AREA ═════════════════════════════════════════════════════════ */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-50 dark:bg-gray-950">
 
         {/* Settings bar */}
-        <div className="shrink-0 px-5 py-2.5 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 flex items-center gap-5 flex-wrap">
+        <div className="shrink-0 px-5 py-2 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 flex items-center gap-4 flex-wrap">
+          {/* Slots stepper */}
           <div className="flex items-center gap-1.5">
             <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-1">Slots</span>
-            {[3, 4, 5].map(n => (
-              <button key={n} onClick={() => setAplusSlots(n)}
-                className={`w-7 h-6 rounded text-[11px] font-bold transition-all ${aplusSlots === n ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200'}`}
-              >{n}</button>
-            ))}
+            <button
+              onClick={() => setAplusSlots(n => Math.max(1, n - 1))}
+              className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors text-sm font-bold"
+            >−</button>
+            <span className="w-5 text-center text-[12px] font-bold text-gray-700 dark:text-gray-300 tabular-nums">{aplusSlots}</span>
+            <button
+              onClick={() => setAplusSlots(n => Math.min(10, n + 1))}
+              className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors text-sm font-bold"
+            >+</button>
           </div>
+
           <div className="w-px h-4 bg-gray-200 dark:bg-gray-700" />
+
+          {/* Format */}
           <div className="flex items-center gap-1.5">
             <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mr-1">Format</span>
             {(['png', 'jpeg'] as const).map(f => (
               <button key={f} onClick={() => setOutputFormat(f)}
-                className={`px-2.5 h-6 rounded text-[11px] font-bold transition-all ${outputFormat === f ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200'}`}
+                className={`px-2.5 h-6 rounded text-[11px] font-bold transition-all ${outputFormat === f ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
               >{f.toUpperCase()}</button>
             ))}
           </div>
+
           <div className="w-px h-4 bg-gray-200 dark:bg-gray-700" />
+
+          {/* Gallery toggle */}
           <label className="flex items-center gap-2 cursor-pointer" onClick={() => setIncludeGallery(g => !g)}>
-            <div className={`w-8 h-4 rounded-full relative transition-colors ${includeGallery ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
+            <div className={`w-8 h-4 rounded-full relative transition-colors ${includeGallery ? 'bg-gray-900 dark:bg-gray-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
               <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${includeGallery ? 'translate-x-4' : 'translate-x-0.5'}`} />
             </div>
             <span className="text-[11px] text-gray-600 dark:text-gray-400 select-none">Gallery</span>
           </label>
+
           <div className="ml-auto text-[10px] text-gray-400 dark:text-gray-500">
             {csvFilename}
             <button onClick={handleClear} className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 underline transition-colors">Clear</button>
           </div>
         </div>
 
-        {/* Canvas preview */}
-        <div className="flex-1 overflow-auto flex flex-col items-center justify-start p-6 gap-4">
+        {/* ══ Canvas viewport ══ */}
+        <main
+          ref={wrapperRefCallback}
+          className="flex-1 min-h-0 min-w-0 relative overflow-hidden select-none"
+          style={{
+            backgroundColor: '#F0F0F0',
+            cursor: spaceDown ? (isPanDragging ? 'grabbing' : 'grab') : 'default',
+          }}
+          onMouseDown={handleViewportMouseDown}
+          onMouseMove={handleViewportMouseMove}
+          onMouseUp={handleViewportMouseUp}
+          onMouseLeave={handleViewportMouseUp}
+        >
+          {spaceDown && (
+            <div className="absolute inset-0 z-20" style={{ cursor: isPanDragging ? 'grabbing' : 'grab' }} />
+          )}
+
           {!selected ? (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-sm text-gray-400 dark:text-gray-600">Select a product from the list below</p>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <p className="text-sm text-gray-400">Select a product from the list below</p>
             </div>
-          ) : previewDesign ? (
-            <div className="w-full max-w-3xl">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-                {slotLabel(activeSlotIdx)} · {TEMPLATE_LABELS[activeCfg.template]} · Desktop Preview
-              </p>
-              <div
-                className="rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm bg-white"
-                style={{ width: PREVIEW_W, height: PREVIEW_H }}
-              >
-                <div style={{ width: 1464, height: 600, transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left', pointerEvents: 'none' }}>
-                  {isIconsSlot ? (
-                    <CanvasContentIcons
-                      design={{ ...previewDesign, activeFormat: 'desktop' }}
-                      settings={{ ...designState.desktop, layoutFlipped: activeCfg.template === '5050-left' }}
-                    />
-                  ) : (
-                    <CanvasContent
-                      design={{ ...previewDesign, activeFormat: 'desktop' }}
-                      settings={{ ...designState.desktop, layoutFlipped: activeCfg.template === '5050-left' }}
-                    />
-                  )}
-                </div>
+          ) : (
+            /* Transform layer */
+            <div
+              style={{
+                position: 'absolute',
+                top: 0, left: 0,
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                transformOrigin: '0 0',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: SLOT_GAP }}>
+                {slotConfigs.slice(0, aplusSlots).map((cfg, slotIdx) => {
+                  const isActive  = slotIdx === activeSlotIdx
+                  const isIcons   = cfg.template === 'icons'
+                  const flip      = cfg.template === '5050-left'
+                  const slotDesign = buildSlotDesign(selected.id, slotIdx)
+
+                  return (
+                    <div key={slotIdx}>
+                      {/* Slot header — scale compensated */}
+                      <div style={{ height: `${28/zoom}px`, position: 'relative', marginBottom: `${8/zoom}px` }}>
+                        <div style={{ position: 'absolute', top: 0, left: 0, display: 'flex', alignItems: 'center', gap: 8, transform: `scale(${1/zoom})`, transformOrigin: 'top left' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#111827' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
+                            {slotLabel(slotIdx)}
+                          </span>
+                          {/* Template switcher */}
+                          <div style={{ display: 'flex', gap: 2, background: '#E5E7EB', borderRadius: 4, padding: 2 }}>
+                            {(['5050-right', '5050-left', 'icons'] as SlotTemplate[]).map(t => (
+                              <button
+                                key={t}
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  setSlotConfigs(prev => prev.map((c, i) => i === slotIdx ? { template: t } : c))
+                                  setActiveSlotIdx(slotIdx)
+                                }}
+                                style={{
+                                  padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, border: 'none',
+                                  background: cfg.template === t ? '#fff' : 'transparent',
+                                  color: cfg.template === t ? '#111827' : '#6B7280',
+                                  boxShadow: cfg.template === t ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
+                                  cursor: 'pointer', letterSpacing: '0.01em',
+                                }}
+                              >
+                                {TEMPLATE_LABELS[t]}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Frames row: desktop + mobile */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
+
+                        {/* Desktop */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <div style={{ height: `${16/zoom}px`, width: 1464, position: 'relative', marginBottom: `${4/zoom}px` }}>
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top center' }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#374151' : '#9CA3AF' }}>Desktop · 1464×600</span>
+                            </div>
+                          </div>
+                          <div
+                            onClick={() => setActiveSlotIdx(slotIdx)}
+                            style={{
+                              width: 1464, height: 600,
+                              position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0,
+                              outline: isActive ? '2px solid #111827' : '2px solid transparent',
+                              outlineOffset: 2,
+                              boxShadow: isActive
+                                ? '0 0 0 4px rgba(17,24,39,0.12), 0 4px 24px rgba(0,0,0,0.18)'
+                                : '0 2px 12px rgba(0,0,0,0.10)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {isIcons
+                              ? <CanvasContentIcons design={{ ...slotDesign, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+                              : <CanvasContent      design={{ ...slotDesign, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+                            }
+                          </div>
+                        </div>
+
+                        {/* Mobile */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <div style={{ height: `${16/zoom}px`, width: 600, position: 'relative', marginBottom: `${4/zoom}px` }}>
+                            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top center' }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#374151' : '#9CA3AF' }}>Mobile · 600×450</span>
+                            </div>
+                          </div>
+                          <div
+                            onClick={() => setActiveSlotIdx(slotIdx)}
+                            style={{
+                              width: 600, height: 450,
+                              position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0,
+                              outline: isActive ? '2px solid #111827' : '2px solid transparent',
+                              outlineOffset: 2,
+                              boxShadow: isActive
+                                ? '0 0 0 4px rgba(17,24,39,0.12), 0 4px 24px rgba(0,0,0,0.18)'
+                                : '0 2px 12px rgba(0,0,0,0.10)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {isIcons
+                              ? <CanvasContentIcons design={{ ...slotDesign, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
+                              : <CanvasContent      design={{ ...slotDesign, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
+                            }
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
-          ) : null}
-        </div>
+          )}
+
+          {/* Zoom controls */}
+          <div className="absolute bottom-4 right-4 flex items-center gap-1 z-10">
+            <button
+              onClick={() => adjustZoom(1 / 1.25)}
+              className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-colors text-base font-bold"
+            >−</button>
+            <button
+              onClick={fitView}
+              className="h-7 px-2.5 rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-[11px] font-mono text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-colors tabular-nums"
+              title="Fit view (F)"
+            >{Math.round(zoom * 100)}%</button>
+            <button
+              onClick={() => adjustZoom(1.25)}
+              className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-colors text-base font-bold"
+            >+</button>
+          </div>
+        </main>
 
         {/* Product list bar */}
         <div className="shrink-0 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-2 flex items-center gap-2 overflow-x-auto">
@@ -827,9 +1049,9 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
             <button
               key={p.id}
               onClick={() => { setSelectedId(p.id); setActiveSlotIdx(0) }}
-              className={`flex items-center gap-1.5 px-3 h-7 rounded-full border text-[11px] font-semibold whitespace-nowrap shrink-0 transition-all ${
+              className={`flex items-center gap-1.5 px-3 h-7 rounded border text-[11px] font-semibold whitespace-nowrap shrink-0 transition-all ${
                 p.id === selectedId
-                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  ? 'bg-gray-900 dark:bg-gray-700 text-white border-gray-900 dark:border-gray-700'
                   : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500'
               }`}
             >
@@ -840,7 +1062,7 @@ export default function TemplateMode({ designState, folderConfig, exportFnRef, o
           <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 shrink-0 mx-1" />
           <button
             onClick={renderAll}
-            className={`flex items-center gap-1.5 px-3 h-7 rounded-full text-[11px] font-bold uppercase tracking-widest shrink-0 transition-colors ${
+            className={`flex items-center gap-1.5 px-3 h-7 rounded text-[11px] font-bold uppercase tracking-widest shrink-0 transition-colors ${
               renderingAll
                 ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
                 : 'bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600'
