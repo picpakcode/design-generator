@@ -1567,23 +1567,10 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setTemplateExportOpen(false)} />
                 <div className="absolute top-full right-0 mt-2 w-60 bg-white dark:bg-gray-900 rounded shadow-2xl border border-gray-100 dark:border-gray-700 p-3 z-50 animate-slide-down">
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums mb-3 px-1">
-                    {templateStats.rendered > 0
-                      ? `${templateStats.rendered} of ${templateStats.total} rendered`
-                      : templateStats.total > 0 ? 'Nothing rendered yet' : 'Upload a CSV first'}
-                  </p>
-                  <button
-                    onClick={() => { templateRenderAllFnRef.current(); setTemplateExportOpen(false) }}
-                    disabled={templateRenderingAll || templateStats.total === 0}
-                    className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3l14 9-14 9V3z" /></svg>
-                    {templateRenderingAll ? 'Rendering…' : 'Render All'}
-                  </button>
                   <button
                     onClick={() => { templateExportFnRef.current(); setTemplateExportOpen(false) }}
-                    disabled={!templateCanExport}
-                    className="w-full h-9 flex items-center gap-2 px-3 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors mt-1"
+                    disabled={!templateCanExport || templateRenderingAll}
+                    className="w-full h-9 flex items-center gap-2 px-3 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                     Export All ZIP

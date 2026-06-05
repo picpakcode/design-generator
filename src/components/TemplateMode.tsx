@@ -38,7 +38,7 @@ type ProductStatus = 'draft' | 'rendering' | 'done' | 'error'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STORAGE_KEY        = 'template-mode-v1'
+const STORAGE_KEY        = 'template-mode-v2'
 const DEFAULT_LOGO_ID    = 'gjj53olkh15rd0vdvpq29ngf75'
 const DEFAULT_LOGO_NAME  = 'DocsDiesel-Logo-Wordmark-RedWhite-Vector 1'
 const DEFAULT_LOGO_ALBUM = 'QH34D'
@@ -315,7 +315,7 @@ export default function TemplateMode({
   const _svRef = useRef<Record<string, unknown> | undefined>(undefined)
   if (_svRef.current === undefined) {
     try {
-      const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
+      const raw = typeof window !== 'undefined' ? sessionStorage.getItem(STORAGE_KEY) : null
       _svRef.current = raw ? JSON.parse(raw) as Record<string, unknown> : {}
     } catch { _svRef.current = {} }
   }
@@ -487,8 +487,8 @@ export default function TemplateMode({
   // Persist template mode state to localStorage
   useEffect(() => {
     try {
-      if (!parseResult) { localStorage.removeItem(STORAGE_KEY); return }
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      if (!parseResult) { sessionStorage.removeItem(STORAGE_KEY); return }
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
         parseResult, csvFilename, allSlots, allGallerySlots, productNames,
         aplusSlots, galleryCount, slotConfigs, galleryConfigs, outputFormat,
         selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx, logoAsset, textureAsset,
@@ -519,7 +519,7 @@ export default function TemplateMode({
     const products = parseResult?.products ?? []
     const rendered = products.filter(p => statuses[p.id] === 'done').length
     onStatsChange(rendered, products.length)
-    onCanExportChange(capturedRef.current.size > 0)
+    onCanExportChange(products.length > 0)
     // Enable "Export Current" whenever a product is selected — handleExportCurrent auto-renders if needed
     onCanExportCurrentChange(!!selectedId && (parseResult?.products ?? []).some(p => p.id === selectedId))
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -638,7 +638,7 @@ export default function TemplateMode({
     capturedRef.current.clear(); setCaptureVersion(0)
     onCanExportChange(false); onCanExportCurrentChange(false); onStatsChange(0, 0)
     if (fileInputRef.current) fileInputRef.current.value = ''
-    try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
+    try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
   }
 
   // ── Slot state helpers ────────────────────────────────────────────────────────
@@ -798,6 +798,20 @@ export default function TemplateMode({
   // ── Export ────────────────────────────────────────────────────────────────────
 
   const handleExportAll = useCallback(async () => {
+    if (!parseResult?.products.length) return
+
+    // Auto-render any products not yet captured
+    const unrendered = parseResult.products.filter(p => statuses[p.id] !== 'done')
+    if (unrendered.length > 0) {
+      cancelRef.current = false
+      setRenderingAll(true)
+      for (const p of unrendered) {
+        if (cancelRef.current) break
+        await renderProduct(p)
+      }
+      setRenderingAll(false)
+    }
+
     if (capturedRef.current.size === 0) return
     const JSZip = (await import('jszip')).default
     const zip   = new JSZip()
@@ -815,7 +829,7 @@ export default function TemplateMode({
     const blob = await zip.generateAsync({ type: 'blob' })
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'template-export.zip' })
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href)
-  }, [outputFormat, parseResult, productNames])
+  }, [outputFormat, parseResult, productNames, statuses, renderProduct])
 
   const handleExportCurrent = useCallback(async () => {
     if (!selectedId) return
@@ -901,16 +915,8 @@ export default function TemplateMode({
         <div className="flex-1 flex flex-col items-center justify-center px-16 py-12 bg-white dark:bg-gray-900">
           <div className="w-full max-w-sm">
 
-            {/* Branding */}
+            {/* Heading */}
             <div className="mb-8">
-              <div className="inline-flex items-center gap-2 mb-5">
-                <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
-                  <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Template Mode</span>
-              </div>
               <h1 className="text-[26px] font-bold text-gray-900 dark:text-white leading-tight mb-2.5">
                 Batch-generate product<br />slides in minutes.
               </h1>
