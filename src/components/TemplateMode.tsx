@@ -292,6 +292,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface TemplateModeProps {
+  projectId?: string
   designState: DesignState
   folderConfig: FolderConfig
   exportFnRef: React.MutableRefObject<() => void>
@@ -307,15 +308,21 @@ interface TemplateModeProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function TemplateMode({
+  projectId,
   designState, folderConfig,
   exportFnRef, exportCurrentFnRef, renderAllFnRef, previewFnRef,
   onCanExportChange, onCanExportCurrentChange, onRenderingAllChange, onStatsChange,
 }: TemplateModeProps) {
-  // Restore from localStorage on first mount (lazy, synchronous)
+  // Per-project storage key — isolates state between Dashboard projects
+  const storageKey = projectId ? `${STORAGE_KEY}-${projectId}` : STORAGE_KEY
+  const storageKeyRef = useRef(storageKey)
+  storageKeyRef.current = storageKey
+
+  // Restore from sessionStorage on first mount (lazy, synchronous)
   const _svRef = useRef<Record<string, unknown> | undefined>(undefined)
   if (_svRef.current === undefined) {
     try {
-      const raw = typeof window !== 'undefined' ? sessionStorage.getItem(STORAGE_KEY) : null
+      const raw = typeof window !== 'undefined' ? sessionStorage.getItem(storageKey) : null
       _svRef.current = raw ? JSON.parse(raw) as Record<string, unknown> : {}
     } catch { _svRef.current = {} }
   }
@@ -487,8 +494,8 @@ export default function TemplateMode({
   // Persist template mode state to localStorage
   useEffect(() => {
     try {
-      if (!parseResult) { sessionStorage.removeItem(STORAGE_KEY); return }
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+      if (!parseResult) { sessionStorage.removeItem(storageKeyRef.current); return }
+      sessionStorage.setItem(storageKeyRef.current, JSON.stringify({
         parseResult, csvFilename, allSlots, allGallerySlots, productNames,
         aplusSlots, galleryCount, slotConfigs, galleryConfigs, outputFormat,
         selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx, logoAsset, textureAsset,
@@ -638,7 +645,7 @@ export default function TemplateMode({
     capturedRef.current.clear(); setCaptureVersion(0)
     onCanExportChange(false); onCanExportCurrentChange(false); onStatsChange(0, 0)
     if (fileInputRef.current) fileInputRef.current.value = ''
-    try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
+    try { sessionStorage.removeItem(storageKeyRef.current) } catch { /* ignore */ }
   }
 
   // ── Slot state helpers ────────────────────────────────────────────────────────
