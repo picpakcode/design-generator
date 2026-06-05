@@ -7,7 +7,7 @@ export async function exportAsImage(
   filename: string,
   format: 'png' | 'jpeg' = 'png'
 ): Promise<void> {
-  const options = { quality: 0.95, pixelRatio: 1, cacheBust: true }
+  const options = { quality: 0.95, pixelRatio: 1, includeQueryParams: true, cacheBust: true }
   const dataUrl = format === 'jpeg'
     ? await toJpeg(element, { ...options, backgroundColor: '#ffffff' })
     : await toPng(element, options)
@@ -18,7 +18,7 @@ export async function exportAsImage(
 }
 
 export async function copyToClipboard(element: HTMLElement): Promise<void> {
-  const blob = await toBlob(element, { pixelRatio: 1, cacheBust: true })
+  const blob = await toBlob(element, { pixelRatio: 1, includeQueryParams: true, cacheBust: true })
   if (!blob) throw new Error('Failed to capture canvas')
   await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
 }
@@ -31,8 +31,8 @@ export async function exportAllAsZip(
   const zip = new JSZip()
   for (const { el, filename, format } of entries) {
     const dataUrl = format === 'png'
-      ? await toPng(el, { pixelRatio: 1, cacheBust: true })
-      : await toJpeg(el, { quality: 0.92, pixelRatio: 1, backgroundColor: '#ffffff', cacheBust: true })
+      ? await toPng(el, { pixelRatio: 1, includeQueryParams: true, cacheBust: true })
+      : await toJpeg(el, { quality: 0.92, pixelRatio: 1, backgroundColor: '#ffffff', includeQueryParams: true, cacheBust: true })
     zip.file(`${filename}.${format === 'jpeg' ? 'jpg' : 'png'}`, dataUrl.split(',')[1], { base64: true })
   }
   const blob = await zip.generateAsync({ type: 'blob' })

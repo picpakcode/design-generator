@@ -569,7 +569,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           hasSavedThumbnailRef.current = true
           try {
             const { toBlob } = await import('html-to-image')
-            const blob = await toBlob(canvasRef.current, { pixelRatio: 0.15, quality: 0.8 })
+            const blob = await toBlob(canvasRef.current, { pixelRatio: 0.15, quality: 0.8, includeQueryParams: true, cacheBust: true })
             if (blob) {
               const path = `${user.id}/${projectId}.jpg`
               await supabase.storage.from('project-thumbnails').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
