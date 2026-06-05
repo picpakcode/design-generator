@@ -115,4 +115,5 @@ export interface DesignState {
   galleryBlocks: GalleryBlock[]
   activeGalleryBlockId: string
   galleryIconsShowDescription: boolean
+  iconsMobileShowDesc?: boolean   // show description in mobile icons-text layout
 }

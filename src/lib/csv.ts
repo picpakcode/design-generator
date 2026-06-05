@@ -173,78 +173,107 @@ export function parseCSV(text: string, options?: { requireSku?: boolean }): Pars
 // ─── Template CSV download ────────────────────────────────────────────────────
 
 export function downloadTemplate() {
+  // Template Mode CSV — no photo columns (photos are picked via the Canto UI picker)
+  // Column layout:
+  //   a1 → 5050-right  (title + desc, no icons)
+  //   b1 → icons-text  (title + desc + icon callouts  → auto-detected as icons-text)
+  //   c1 → 5050-right  (title + desc, no icons)
+  //   d1 → 5050-left   (title + desc, no icons)
+  //   e1 → 5050-right  (title + desc, no icons)
+  //   g1 → gallery-hero       (title + desc, no icons)
+  //   g2 → gallery-icons-text (title + desc + icons → auto-detected as gallery-icons-text)
   const headers = [
     'sku', 'product_name',
-    'photo_1', 'photo_2', 'photo_3', 'photo_4', 'photo_5',
     'a1_title', 'a1_desc',
-    'b1_title', 'b1_icon1', 'b1_icon2', 'b1_icon3', 'b1_icon4',
+    'b1_title', 'b1_desc', 'b1_icon1', 'b1_icon2', 'b1_icon3', 'b1_icon4',
     'c1_title', 'c1_desc',
     'd1_title', 'd1_desc',
     'e1_title', 'e1_desc',
     'g1_title', 'g1_desc',
-    'g2_title', 'g2_desc',
+    'g2_title', 'g2_desc', 'g2_icon1', 'g2_icon2', 'g2_icon3', 'g2_icon4',
   ]
 
   const rows: string[][] = [
     [
       'DH515146',
       "Doc's Diesel Chevrolet/GMC 6.6L Duramax RWD/SRW Premium E-Coated Front Wheel Hub Assembly 2011-2019",
-      'DH515146-angle', 'DH515146-lifestyle', 'DH515146-closeup', '', '',
+      // a1 — 5050-right
       'Precision-Engineered Fit',
       "Designed specifically for the Chevy/GMC Duramax platform, delivering exact OEM geometry for smooth, rattle-free driving on 2011–2019 2500/3500 trucks.",
-      'Why It Lasts Longer', 'e-coat', 'corrosion resistant', 'sealed bearing', 'direct fit',
+      // b1 — icons-text (title + desc + icons)
+      'Why It Lasts Longer',
+      "Premium electrostatic E-coat, sealed bearing, and OEM-spec geometry — engineered to outlast the competition.",
+      'e-coat', 'corrosion resistant', 'sealed bearing', 'direct fit',
+      // c1 — 5050-right
       'E-Coat Rust Protection',
       "Our premium electrostatic coating creates a uniform barrier against road salt, moisture, and corrosion — far outlasting bare uncoated alternatives.",
+      // d1 — 5050-left
       'Fits 2011–2019 Duramax Trucks',
       "Compatible with Chevrolet Silverado and GMC Sierra 2500/3500 RWD/SRW configurations. Direct OEM replacement — no modifications required.",
+      // e1 — 5050-right
       'Built for the Long Haul',
       "Heavy-duty bearing construction rated for loaded towing and the demands of a daily work truck.",
-      // g1 gallery slide
+      // g1 — gallery-hero
       'Premium E-Coated Hub Assembly',
       "Precision-engineered for 2011–2019 Duramax RWD/SRW. E-coat protection, sealed bearing, direct OEM fit.",
-      // g2 gallery slide
+      // g2 — gallery-icons-text (title + desc + icons)
       'Built to Last',
       "Heavy-duty bearing rated for loaded towing. Corrosion-resistant coating outlasts bare alternatives.",
+      'e-coat', 'sealed bearing', 'direct fit', 'OEM spec',
     ],
     [
       'DETAIL5',
       "Doc's Diesel The Diesel Detail Kit",
-      'DETAIL5-kit', 'DETAIL5-lifestyle', 'DETAIL5-products', '', '',
+      // a1
       'Pro-Level Clean in One Kit',
       "Everything you need to bring your diesel truck back to showroom condition — no guessing, no missing pieces. Every product chosen to work together.",
-      "What's Inside", 'wash', 'degrease', 'polish', 'protect',
+      // b1 — icons-text
+      "What's Inside",
+      "A complete, curated set of diesel-specific formulas — each one chosen to tackle the grime, residue, and staining that diesel engines produce.",
+      'wash', 'degrease', 'polish', 'protect',
+      // c1
       'Formulated for Diesel',
       "Diesel engines leave DEF residue, exhaust staining, and heavy road grime. This kit targets all of it with formulas built specifically for the job.",
+      // d1
       'Shop-Tested, Road-Proven',
       "The same products used in Doc's Diesel's own service bays — trusted by the technicians who work on Duramax, Cummins, and Powerstroke trucks every day.",
+      // e1
       'Truck Pride, Simplified',
       "A clean truck runs better, sells better, and feels better. Full detail start to finish in under two hours.",
       // g1
       "The Diesel Detail Kit",
       "Pro-level clean in one box. Every product chosen to work together on Duramax, Cummins, and Powerstroke trucks.",
-      // g2
+      // g2 — gallery-icons-text
       'Formulated for Diesel',
       "Targets DEF residue, exhaust staining, and heavy road grime — because diesel grime is different.",
+      'wash', 'degrease', 'polish', 'protect',
     ],
     [
       'keeptruckinhoodie3XL',
       "Doc's Diesel Keep Truckin' Hoodie — 3XL",
-      'keeptruckin-hoodie-front', 'keeptruckin-hoodie-back', 'keeptruckin-hoodie-lifestyle', '', '',
+      // a1
       "Keep Truckin'",
       "Wear the brand that knows diesel. Premium fleece hoodie from Doc's Diesel — built for the shop, comfortable enough for everywhere else.",
-      'Built Different', 'soft fleece', 'durable stitching', 'preshrunk cotton', 'true to size',
+      // b1 — icons-text
+      'Built Different',
+      "Heavy-duty fleece construction with reinforced stitching — made for long days in the shop and cold mornings on the job site.",
+      'soft fleece', 'durable stitching', 'preshrunk cotton', 'true to size',
+      // c1
       'Heavy-Duty Comfort',
       "Premium cotton-blend fleece holds up to long shifts in the shop while keeping you warm on the coldest job sites.",
+      // d1
       'Represent the Brand',
       "Officially designed and sold by Doc's Diesel — the diesel specialists trusted by Duramax, Cummins, and Powerstroke owners across the country.",
+      // e1
       'Available in All Sizes',
       "From S to 3XL, the Keep Truckin' hoodie fits every member of the crew.",
       // g1
       "Keep Truckin' Hoodie",
       "Premium cotton-blend fleece. Built for the shop, comfortable enough for everywhere else.",
-      // g2
+      // g2 — gallery-icons-text
       'Represent the Brand',
       "Officially designed by Doc's Diesel — the diesel specialists trusted by Duramax, Cummins, and Powerstroke owners.",
+      'soft fleece', 'durable stitching', 'preshrunk', 'true to size',
     ],
   ]
 
@@ -254,7 +283,7 @@ export function downloadTemplate() {
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
   a.href     = url
-  a.download = 'bulk-template.csv'
+  a.download = 'template-mode.csv'
   a.click()
   URL.revokeObjectURL(url)
 }

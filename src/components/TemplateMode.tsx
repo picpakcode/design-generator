@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { toPng, toJpeg } from 'html-to-image'
-import { BulkProduct, ParseResult, parseCSV } from '@/lib/csv'
+import { BulkProduct, ParseResult, parseCSV, downloadTemplate } from '@/lib/csv'
 import { DesignState, UploadedAsset } from '@/types'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import CantoPhotoPickerModal, { PhotoPick } from './CantoPhotoPickerModal'
@@ -19,10 +19,10 @@ const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SlotTemplate    = '5050-right' | '5050-left' | 'icons'
-type GalleryTemplate = 'gallery-hero' | 'gallery-icons'
+type SlotTemplate    = '5050-right' | '5050-left' | 'icons' | 'icons-text'
+type GalleryTemplate = 'gallery-hero' | 'gallery-icons' | 'gallery-icons-text'
 
-interface SlotConfig        { template: SlotTemplate }
+interface SlotConfig        { template: SlotTemplate; mobileShowDesc?: boolean }
 interface GallerySlotConfig { template: GalleryTemplate }
 
 interface TemplateSlotState {
@@ -38,6 +38,7 @@ type ProductStatus = 'draft' | 'rendering' | 'done' | 'error'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+const STORAGE_KEY        = 'template-mode-v1'
 const DEFAULT_LOGO_ID    = 'gjj53olkh15rd0vdvpq29ngf75'
 const DEFAULT_LOGO_NAME  = 'DocsDiesel-Logo-Wordmark-RedWhite-Vector 1'
 const DEFAULT_LOGO_ALBUM = 'QH34D'
@@ -52,12 +53,14 @@ const CANVAS_W   = APLUS_W + COL_GAP + GALLERY_W  // 3716
 const APLUS_LABELS: Record<SlotTemplate, string> = {
   '5050-right': 'Img | Txt',
   '5050-left':  'Txt | Img',
-  icons:        'Icons',
+  'icons':      'Icons',
+  'icons-text': 'Icn+Txt',
 }
 
 const GALLERY_LABELS: Record<GalleryTemplate, string> = {
-  'gallery-hero':  'Hero',
-  'gallery-icons': 'Icons',
+  'gallery-hero':        'Hero',
+  'gallery-icons':       'Icons',
+  'gallery-icons-text':  'Icn+Txt',
 }
 
 function slotLabel(i: number)   { return String.fromCharCode(65 + i) + '1' }
@@ -219,7 +222,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
             <div ref={dRef}>
               {aplusDesigns.map(({ design: sd, cfg, label }) => {
                 const flip = cfg.template === '5050-left'
-                const isIcons = cfg.template === 'icons'
+                const isIcons = cfg.template === 'icons' || cfg.template === 'icons-text'
                 return (
                   <div key={label} style={{ marginBottom: 20 }}>
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} — Desktop · 1464×600</p>
@@ -240,7 +243,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
             <div ref={mRef} style={{ maxWidth: 600, margin: '0 auto' }}>
               {aplusDesigns.map(({ design: sd, cfg, label }) => {
                 const flip = cfg.template === '5050-left'
-                const isIcons = cfg.template === 'icons'
+                const isIcons = cfg.template === 'icons' || cfg.template === 'icons-text'
                 return (
                   <div key={label} style={{ marginBottom: 20 }}>
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} — Mobile · 600×450</p>
@@ -263,7 +266,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
                 <p className="text-sm text-gray-400 text-center py-8">No gallery slides configured. Add g1_title columns to your CSV or adjust the Gallery Slides count.</p>
               )}
               {galleryDesigns.map(({ design: gd, cfg, label }) => {
-                const isGIcons = cfg.template === 'gallery-icons'
+                const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
                 return (
                   <div key={label} style={{ marginBottom: 20 }}>
                     <p style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} · 1500×1500</p>
@@ -308,35 +311,48 @@ export default function TemplateMode({
   exportFnRef, exportCurrentFnRef, renderAllFnRef, previewFnRef,
   onCanExportChange, onCanExportCurrentChange, onRenderingAllChange, onStatsChange,
 }: TemplateModeProps) {
+  // Restore from localStorage on first mount (lazy, synchronous)
+  const _svRef = useRef<Record<string, unknown> | undefined>(undefined)
+  if (_svRef.current === undefined) {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
+      _svRef.current = raw ? JSON.parse(raw) as Record<string, unknown> : {}
+    } catch { _svRef.current = {} }
+  }
+  const sv = _svRef.current
+
   // CSV
-  const [parseResult, setParseResult] = useState<ParseResult | null>(null)
-  const [csvFilename, setCsvFilename] = useState('')
+  const [parseResult, setParseResult] = useState<ParseResult | null>((sv.parseResult as ParseResult) ?? null)
+  const [csvFilename, setCsvFilename] = useState<string>(typeof sv.csvFilename === 'string' ? sv.csvFilename : '')
   const [isDragging, setIsDragging]   = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Selection
-  const [selectedId, setSelectedId]         = useState<string | null>(null)
-  const [activeSlotIdx, setActiveSlotIdx]   = useState(0)
-  const [activeIsGallery, setActiveIsGallery] = useState(false)
-  const [activeGalleryIdx, setActiveGalleryIdx] = useState(0)
+  const [selectedId, setSelectedId]             = useState<string | null>(typeof sv.selectedId === 'string' ? sv.selectedId : null)
+  const [activeSlotIdx, setActiveSlotIdx]       = useState(typeof sv.activeSlotIdx === 'number' ? sv.activeSlotIdx : 0)
+  const [activeIsGallery, setActiveIsGallery]   = useState(typeof sv.activeIsGallery === 'boolean' ? sv.activeIsGallery : false)
+  const [activeGalleryIdx, setActiveGalleryIdx] = useState(typeof sv.activeGalleryIdx === 'number' ? sv.activeGalleryIdx : 0)
 
   // Per-product per-slot state
-  const [allSlots, setAllSlots]               = useState<Record<string, TemplateSlotState[]>>({})
-  const [allGallerySlots, setAllGallerySlots] = useState<Record<string, TemplateSlotState[]>>({})
+  const [allSlots, setAllSlots]               = useState<Record<string, TemplateSlotState[]>>((sv.allSlots as Record<string, TemplateSlotState[]>) ?? {})
+  const [allGallerySlots, setAllGallerySlots] = useState<Record<string, TemplateSlotState[]>>((sv.allGallerySlots as Record<string, TemplateSlotState[]>) ?? {})
+
+  // Per-product editable name overrides (affects export naming)
+  const [productNames, setProductNames] = useState<Record<string, string>>((sv.productNames as Record<string, string>) ?? {})
 
   // Per-product render status
   const [statuses, setStatuses] = useState<Record<string, ProductStatus>>({})
 
   // Slot config (global)
-  const [aplusSlots, setAplusSlots]           = useState(5)
-  const [slotConfigs, setSlotConfigs]         = useState<SlotConfig[]>(defaultSlotConfigs(5))
-  const [galleryCount, setGalleryCount]       = useState(2)
-  const [galleryConfigs, setGalleryConfigs]   = useState<GallerySlotConfig[]>(defaultGalleryConfigs(2))
-  const [outputFormat, setOutputFormat]       = useState<'png' | 'jpeg'>('png')
+  const [aplusSlots, setAplusSlots]         = useState(typeof sv.aplusSlots === 'number' ? sv.aplusSlots : 5)
+  const [slotConfigs, setSlotConfigs]       = useState<SlotConfig[]>(Array.isArray(sv.slotConfigs) ? sv.slotConfigs as SlotConfig[] : defaultSlotConfigs(5))
+  const [galleryCount, setGalleryCount]     = useState(typeof sv.galleryCount === 'number' ? sv.galleryCount : 2)
+  const [galleryConfigs, setGalleryConfigs] = useState<GallerySlotConfig[]>(Array.isArray(sv.galleryConfigs) ? sv.galleryConfigs as GallerySlotConfig[] : defaultGalleryConfigs(2))
+  const [outputFormat, setOutputFormat]     = useState<'png' | 'jpeg'>(sv.outputFormat === 'jpeg' ? 'jpeg' : 'png')
 
   // Global branding
-  const [logoAsset, setLogoAsset]       = useState<UploadedAsset | null>(null)
-  const [textureAsset, setTextureAsset] = useState<UploadedAsset | null>(null)
+  const [logoAsset, setLogoAsset]       = useState<UploadedAsset | null>((sv.logoAsset as UploadedAsset) ?? null)
+  const [textureAsset, setTextureAsset] = useState<UploadedAsset | null>((sv.textureAsset as UploadedAsset) ?? null)
 
   // Pickers
   const [photoPickerOpen, setPhotoPickerOpen]     = useState(false)
@@ -450,19 +466,36 @@ export default function TemplateMode({
   // ── Init ──────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    fetch(`/api/canto/folder?albumId=${DEFAULT_LOGO_ALBUM}`)
-      .then(r => r.json())
-      .then((items: { id: string; name: string; previewUrl: string }[]) => {
-        const logo = items.find(i => i.id === DEFAULT_LOGO_ID) ?? items.find(i => i.name === DEFAULT_LOGO_NAME)
-        if (logo) setLogoAsset({ id: logo.id, name: logo.name, url: logo.previewUrl, type: 'image' })
-      })
-      .catch(() => {})
-    const blocks = [...(designState.blocks ?? []), ...(designState.galleryBlocks ?? [])]
-    const active  = designState.blocks?.find(b => b.id === designState.activeBlockId)
-    const tex     = (active?.assets ?? blocks[0]?.assets ?? designState.assets)?.[1]
-    if (tex?.url) setTextureAsset(tex)
+    if (!logoAsset) {
+      fetch(`/api/canto/folder?albumId=${DEFAULT_LOGO_ALBUM}`)
+        .then(r => r.json())
+        .then((items: { id: string; name: string; previewUrl: string }[]) => {
+          const logo = items.find(i => i.id === DEFAULT_LOGO_ID) ?? items.find(i => i.name === DEFAULT_LOGO_NAME)
+          if (logo) setLogoAsset({ id: logo.id, name: logo.name, url: logo.previewUrl, type: 'image' })
+        })
+        .catch(() => {})
+    }
+    if (!textureAsset) {
+      const blocks = [...(designState.blocks ?? []), ...(designState.galleryBlocks ?? [])]
+      const active  = designState.blocks?.find(b => b.id === designState.activeBlockId)
+      const tex     = (active?.assets ?? blocks[0]?.assets ?? designState.assets)?.[1]
+      if (tex?.url) setTextureAsset(tex)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Persist template mode state to localStorage
+  useEffect(() => {
+    try {
+      if (!parseResult) { localStorage.removeItem(STORAGE_KEY); return }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        parseResult, csvFilename, allSlots, allGallerySlots, productNames,
+        aplusSlots, galleryCount, slotConfigs, galleryConfigs, outputFormat,
+        selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx, logoAsset, textureAsset,
+      }))
+    } catch { /* ignore quota errors */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parseResult, csvFilename, allSlots, allGallerySlots, productNames, aplusSlots, galleryCount, slotConfigs, galleryConfigs, outputFormat, selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx, logoAsset, textureAsset])
 
   useEffect(() => {
     setSlotConfigs(prev => defaultSlotConfigs(aplusSlots).map((d, i) => prev[i] ?? d))
@@ -487,8 +520,8 @@ export default function TemplateMode({
     const rendered = products.filter(p => statuses[p.id] === 'done').length
     onStatsChange(rendered, products.length)
     onCanExportChange(capturedRef.current.size > 0)
-    const selectedDone = selectedId ? statuses[selectedId] === 'done' : false
-    onCanExportCurrentChange(selectedDone && Array.from(capturedRef.current.keys()).some(k => k.startsWith(`${selectedId}/`)))
+    // Enable "Export Current" whenever a product is selected — handleExportCurrent auto-renders if needed
+    onCanExportCurrentChange(!!selectedId && (parseResult?.products ?? []).some(p => p.id === selectedId))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statuses, parseResult, selectedId, captureVersion])
 
@@ -541,6 +574,35 @@ export default function TemplateMode({
         })
       }
 
+      // Auto-detect slot templates from first product's slot data
+      const first = result.products[0]
+      if (first) {
+        const detectedAplus: SlotConfig[] = Array.from({ length: aplusSlots }, (_, j) => {
+          const s = first.slots[j]
+          const hasIcons = s?.iconCallouts.some(Boolean) ?? false
+          const hasDesc  = Boolean(s?.desc)
+          let template: SlotTemplate
+          if (hasIcons && hasDesc) template = 'icons-text'
+          else if (hasIcons)       template = 'icons'
+          else if (j % 2 === 0)   template = '5050-right'
+          else                    template = '5050-left'
+          return { template }
+        })
+        setSlotConfigs(detectedAplus)
+
+        const detectedGallery: GallerySlotConfig[] = Array.from({ length: galleryCount }, (_, g) => {
+          const s = first.gallerySlots?.[g]
+          const hasIcons = s?.iconCallouts.some(Boolean) ?? false
+          const hasDesc  = Boolean(s?.desc)
+          let template: GalleryTemplate
+          if (hasIcons && hasDesc) template = 'gallery-icons-text'
+          else if (hasIcons)       template = 'gallery-icons'
+          else                     template = 'gallery-hero'
+          return { template }
+        })
+        setGalleryConfigs(detectedGallery)
+      }
+
       setAllSlots(initSlots)
       setAllGallerySlots(initGallery)
       setStatuses({})
@@ -565,6 +627,7 @@ export default function TemplateMode({
     capturedRef.current.clear(); setCaptureVersion(0)
     onCanExportChange(false); onCanExportCurrentChange(false); onStatsChange(0, 0)
     if (fileInputRef.current) fileInputRef.current.value = ''
+    try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
   }
 
   // ── Slot state helpers ────────────────────────────────────────────────────────
@@ -595,6 +658,34 @@ export default function TemplateMode({
     setCaptureVersion(v => v + 1)
   }
 
+  const deleteAplusSlot = (idx: number) => {
+    setAplusSlots(n => Math.max(1, n - 1))
+    setSlotConfigs(prev => [...prev.slice(0, idx), ...prev.slice(idx + 1)])
+    setAllSlots(prev => {
+      const result: Record<string, TemplateSlotState[]> = {}
+      for (const pid of Object.keys(prev)) {
+        const slots = prev[pid] ?? []
+        result[pid] = [...slots.slice(0, idx), ...slots.slice(idx + 1)]
+      }
+      return result
+    })
+    setActiveSlotIdx(a => a > idx ? a - 1 : Math.min(a, Math.max(0, aplusSlots - 2)))
+  }
+
+  const deleteGallerySlot = (idx: number) => {
+    setGalleryCount(n => Math.max(0, n - 1))
+    setGalleryConfigs(prev => [...prev.slice(0, idx), ...prev.slice(idx + 1)])
+    setAllGallerySlots(prev => {
+      const result: Record<string, TemplateSlotState[]> = {}
+      for (const pid of Object.keys(prev)) {
+        const slots = prev[pid] ?? []
+        result[pid] = [...slots.slice(0, idx), ...slots.slice(idx + 1)]
+      }
+      return result
+    })
+    setActiveGalleryIdx(a => a > idx ? a - 1 : Math.min(a, Math.max(0, galleryCount - 2)))
+  }
+
   const fallbackAsset = (slotIndex: number): UploadedAsset | undefined => {
     const blocks = [...(designState.blocks ?? []), ...(designState.galleryBlocks ?? [])]
     const active  = designState.blocks?.find(b => b.id === designState.activeBlockId)
@@ -608,19 +699,25 @@ export default function TemplateMode({
 
   const buildSlotDesign = (productId: string, slotIdx: number): DesignState => {
     const s = getSlotState(productId, slotIdx)
+    const cfg = slotConfigs[slotIdx] ?? { template: '5050-right' }
+    // 'icons' template shows no description; only 'icons-text', '5050-right', '5050-left' do
+    const showDesc = cfg.template !== 'icons'
     return {
       ...designState,
       assets: [s.photoAsset, textureAsset ?? fallbackAsset(1), logoAsset ?? fallbackAsset(2), s.iconAssets[0], s.iconAssets[1], s.iconAssets[2], s.iconAssets[3]] as UploadedAsset[],
-      title: s.title || '<p></p>', subtitleHtml: s.desc || '', iconLabels: s.iconLabels, iconCount: s.iconCount,
+      title: s.title || '<p></p>', subtitleHtml: showDesc ? (s.desc || '') : '', iconLabels: s.iconLabels, iconCount: s.iconCount,
+      iconsMobileShowDesc: cfg.mobileShowDesc ?? true,
     }
   }
 
   const buildGallerySlotDesign = (productId: string, slotIdx: number): DesignState => {
     const s = getGallerySlotState(productId, slotIdx)
+    const cfg = galleryConfigs[slotIdx] ?? { template: 'gallery-hero' }
     return {
       ...designState,
       assets: [s.photoAsset, textureAsset ?? fallbackAsset(1), logoAsset ?? fallbackAsset(2), s.iconAssets[0], s.iconAssets[1], s.iconAssets[2], s.iconAssets[3]] as UploadedAsset[],
       title: s.title || '<p></p>', subtitleHtml: s.desc || '', iconLabels: s.iconLabels, iconCount: s.iconCount,
+      galleryIconsShowDescription: cfg.template === 'gallery-icons-text',
     }
   }
 
@@ -635,7 +732,7 @@ export default function TemplateMode({
       if (cancelRef.current) break
       const cfg  = slotConfigs[j] ?? { template: '5050-right' }
       const flip = cfg.template === '5050-left'
-      const isIcons = cfg.template === 'icons'
+      const isIcons = cfg.template === 'icons' || cfg.template === 'icons-text'
       const sd  = buildSlotDesign(product.id, j)
       const lbl = slotLabel(j).toLowerCase()
 
@@ -658,7 +755,7 @@ export default function TemplateMode({
     for (let g = 0; g < galleryCount; g++) {
       if (cancelRef.current) break
       const cfg     = galleryConfigs[g] ?? { template: 'gallery-hero' }
-      const isGIcons = cfg.template === 'gallery-icons'
+      const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
       const gd      = buildGallerySlotDesign(product.id, g)
 
       const gi = await captureToDataUrl(
@@ -698,27 +795,38 @@ export default function TemplateMode({
       const slash = key.indexOf('/')
       const pid   = key.slice(0, slash)
       const lbl   = key.slice(slash + 1)
-      const name  = parseResult?.products.find(p => p.id === pid)?.productName || pid
-      zip.folder(name)!.file(`${lbl}.${ext}`, dataUrl.split(',')[1], { base64: true })
+      const product = parseResult?.products.find(p => p.id === pid)
+      const name = (productNames[pid] !== undefined && productNames[pid] !== ''
+        ? productNames[pid]
+        : product?.productName) || product?.sku || pid
+      zip.folder(name)!.file(`${name}-${lbl}.${ext}`, dataUrl.split(',')[1], { base64: true })
     })
     const blob = await zip.generateAsync({ type: 'blob' })
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'template-export.zip' })
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href)
-  }, [outputFormat, parseResult])
+  }, [outputFormat, parseResult, productNames])
 
   const handleExportCurrent = useCallback(async () => {
     if (!selectedId) return
+    const product = parseResult?.products.find(p => p.id === selectedId)
+    if (!product) return
+    // Auto-render current product if not yet done
+    if (statuses[selectedId] !== 'done') {
+      await renderProduct(product)
+    }
     const entries = Array.from(capturedRef.current.entries()).filter(([k]) => k.startsWith(`${selectedId}/`))
     if (entries.length === 0) return
     const JSZip = (await import('jszip')).default
     const zip   = new JSZip()
     const ext   = outputFormat === 'jpeg' ? 'jpg' : 'png'
-    entries.forEach(([k, d]) => zip.file(`${k.slice(k.indexOf('/') + 1)}.${ext}`, d.split(',')[1], { base64: true }))
+    const effectiveName = (productNames[selectedId] !== undefined && productNames[selectedId] !== ''
+      ? productNames[selectedId]
+      : product.productName) || product.sku || selectedId
+    entries.forEach(([k, d]) => zip.file(`${effectiveName}-${k.slice(k.indexOf('/') + 1)}.${ext}`, d.split(',')[1], { base64: true }))
     const blob = await zip.generateAsync({ type: 'blob' })
-    const product = parseResult?.products.find(p => p.id === selectedId)
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${product?.productName || selectedId}.zip` })
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${effectiveName}.zip` })
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href)
-  }, [outputFormat, parseResult, selectedId])
+  }, [outputFormat, parseResult, selectedId, productNames, statuses, renderProduct])
 
   // Wire refs for parent
   useEffect(() => { exportFnRef.current    = handleExportAll     }, [exportFnRef, handleExportAll])
@@ -740,8 +848,11 @@ export default function TemplateMode({
   const activeCfgAplus   = slotConfigs[activeSlotIdx]   ?? { template: '5050-right' }
   const activeCfgGallery = galleryConfigs[activeGalleryIdx] ?? { template: 'gallery-hero' }
   const isIconsSlot = activeIsGallery
-    ? activeCfgGallery.template === 'gallery-icons'
-    : activeCfgAplus.template === 'icons'
+    ? activeCfgGallery.template === 'gallery-icons' || activeCfgGallery.template === 'gallery-icons-text'
+    : activeCfgAplus.template === 'icons' || activeCfgAplus.template === 'icons-text'
+  const showDescription = activeIsGallery
+    ? activeCfgGallery.template !== 'gallery-icons'
+    : activeCfgAplus.template !== 'icons'
 
   const patchActive = (patch: Partial<TemplateSlotState>) => {
     if (!selected) return
@@ -798,6 +909,15 @@ export default function TemplateMode({
           <input ref={fileInputRef} type="file" accept=".csv" className="hidden"
             onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
         </div>
+        <button
+          onClick={e => { e.stopPropagation(); downloadTemplate() }}
+          className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        >
+          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17a9 9 0 1118 0H3z" />
+          </svg>
+          Download template CSV
+        </button>
       </div>
     )
   }
@@ -844,6 +964,19 @@ export default function TemplateMode({
               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
             </button>
           </div>
+          {/* Editable export name — overrides CSV productName in export file/folder naming */}
+          {selected && (
+            <div className="mt-2">
+              <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 block mb-1">Export Name</label>
+              <input
+                type="text"
+                value={productNames[selected.id] !== undefined ? productNames[selected.id] : (selected.productName || '')}
+                onChange={e => setProductNames(prev => ({ ...prev, [selected.id]: e.target.value }))}
+                placeholder={selected.sku || 'export-folder-name'}
+                className="w-full px-2.5 py-1.5 text-[11px] border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+              />
+            </div>
+          )}
         </div>
 
         {/* Slot tabs — A+ and Gallery */}
@@ -853,20 +986,42 @@ export default function TemplateMode({
             <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">A+ Slots</p>
             <div className="flex gap-1 flex-wrap">
               {slotConfigs.slice(0, aplusSlots).map((cfg, idx) => (
-                <button key={idx}
-                  onClick={() => { setActiveSlotIdx(idx); setActiveIsGallery(false) }}
-                  className={`flex flex-col items-center px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
-                    !activeIsGallery && idx === activeSlotIdx
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <span>{slotLabel(idx)}</span>
-                  <span className={`text-[8px] mt-0.5 font-medium ${!activeIsGallery && idx === activeSlotIdx ? 'text-blue-200' : 'text-gray-400 dark:text-gray-500'}`}>
-                    {APLUS_LABELS[cfg.template]}
-                  </span>
-                </button>
+                <div key={idx} className="relative group">
+                  <button
+                    onClick={() => { setActiveSlotIdx(idx); setActiveIsGallery(false) }}
+                    className={`flex flex-col items-center px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                      !activeIsGallery && idx === activeSlotIdx
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <span>{slotLabel(idx)}</span>
+                    <span className={`text-[8px] mt-0.5 font-medium ${!activeIsGallery && idx === activeSlotIdx ? 'text-blue-200' : 'text-gray-400 dark:text-gray-500'}`}>
+                      {APLUS_LABELS[cfg.template]}
+                    </span>
+                  </button>
+                  {aplusSlots > 1 && (
+                    <button
+                      onClick={e => { e.stopPropagation(); deleteAplusSlot(idx) }}
+                      title="Remove slot"
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors"
+                    >
+                      <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               ))}
+              {aplusSlots < 10 && (
+                <button
+                  onClick={() => setAplusSlots(n => Math.min(10, n + 1))}
+                  title="Add A+ slot"
+                  className="flex items-center justify-center px-2 py-1 rounded text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 transition-all"
+                >
+                  +
+                </button>
+              )}
             </div>
           </div>
           {/* Gallery slots */}
@@ -874,20 +1029,42 @@ export default function TemplateMode({
             <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">Gallery</p>
             <div className="flex gap-1 flex-wrap">
               {galleryConfigs.slice(0, galleryCount).map((cfg, idx) => (
-                <button key={idx}
-                  onClick={() => { setActiveGalleryIdx(idx); setActiveIsGallery(true) }}
-                  className={`flex flex-col items-center px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
-                    activeIsGallery && idx === activeGalleryIdx
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  <span>{galleryLabel(idx)}</span>
-                  <span className={`text-[8px] mt-0.5 font-medium ${activeIsGallery && idx === activeGalleryIdx ? 'text-blue-200' : 'text-gray-400 dark:text-gray-500'}`}>
-                    {GALLERY_LABELS[cfg.template]}
-                  </span>
-                </button>
+                <div key={idx} className="relative group">
+                  <button
+                    onClick={() => { setActiveGalleryIdx(idx); setActiveIsGallery(true) }}
+                    className={`flex flex-col items-center px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                      activeIsGallery && idx === activeGalleryIdx
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <span>{galleryLabel(idx)}</span>
+                    <span className={`text-[8px] mt-0.5 font-medium ${activeIsGallery && idx === activeGalleryIdx ? 'text-blue-200' : 'text-gray-400 dark:text-gray-500'}`}>
+                      {GALLERY_LABELS[cfg.template]}
+                    </span>
+                  </button>
+                  {galleryCount > 1 && (
+                    <button
+                      onClick={e => { e.stopPropagation(); deleteGallerySlot(idx) }}
+                      title="Remove slide"
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors"
+                    >
+                      <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               ))}
+              {galleryCount < 10 && (
+                <button
+                  onClick={() => setGalleryCount(n => Math.min(10, n + 1))}
+                  title="Add gallery slide"
+                  className="flex items-center justify-center px-2 py-1 rounded text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 transition-all"
+                >
+                  +
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -906,12 +1083,12 @@ export default function TemplateMode({
                   <div>
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Template</label>
                     <div className="flex gap-1">
-                      {(['gallery-hero', 'gallery-icons'] as const).map(t => (
+                      {(['gallery-hero', 'gallery-icons', 'gallery-icons-text'] as const).map(t => (
                         <button key={t}
                           onClick={() => setGalleryConfigs(prev => prev.map((c, i) => i === activeGalleryIdx ? { template: t } : c))}
                           className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${activeCfgGallery.template === t ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200'}`}
                         >
-                          {t === 'gallery-hero' ? 'Hero' : 'Icons'}
+                          {GALLERY_LABELS[t]}
                         </button>
                       ))}
                     </div>
@@ -928,10 +1105,25 @@ export default function TemplateMode({
                   />
                 </div>
 
-                {/* Description — rich text (non-icons) */}
-                {!isIconsSlot && (
+                {/* Description — rich text (non-icons and icons-text variants) */}
+                {showDescription && (
                   <div>
-                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Description</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Description</label>
+                      {/* Mobile description toggle — only for A+ icons-text slots */}
+                      {!activeIsGallery && activeCfgAplus.template === 'icons-text' && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] text-gray-400 dark:text-gray-500">Mobile</span>
+                          <button
+                            onClick={() => setSlotConfigs(prev => prev.map((c, i) => i === activeSlotIdx ? { ...c, mobileShowDesc: !(c.mobileShowDesc ?? true) } : c))}
+                            title="Show description on mobile"
+                            className={`relative w-8 h-4 rounded-full transition-colors ${(activeCfgAplus.mobileShowDesc ?? true) ? 'bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'}`}
+                          >
+                            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${(activeCfgAplus.mobileShowDesc ?? true) ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <RichTextEditor
                       value={activeSlot.desc}
                       onChange={html => patchActive({ desc: html })}
@@ -976,31 +1168,29 @@ export default function TemplateMode({
               <p className="text-[11px] text-gray-400 text-center py-2">Select a product</p>
             ) : (
               <div className="space-y-4">
-                {/* Product photo (non-icons slots) */}
-                {!isIconsSlot && (
-                  <div>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Product Photo</p>
-                    {activeSlot.photoAsset ? (
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-12 h-8 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={activeSlot.photoAsset.url} alt={activeSlot.photoAsset.name} className="w-full h-full object-cover" />
-                        </div>
-                        <button onClick={() => setPhotoPickerOpen(true)} className="flex-1 text-left text-[10px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 truncate transition-colors" title={activeSlot.photoAsset.name}>{activeSlot.photoAsset.name}</button>
-                        <button onClick={() => patchActive({ photoAsset: undefined })}
-                          className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
+                {/* Product photo — shown for all slot types */}
+                <div>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Product Photo</p>
+                  {activeSlot.photoAsset ? (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-12 h-8 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={activeSlot.photoAsset.url} alt={activeSlot.photoAsset.name} className="w-full h-full object-cover" />
                       </div>
-                    ) : (
-                      <button onClick={() => setPhotoPickerOpen(true)}
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
-                        <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                        Pick from library
+                      <button onClick={() => setPhotoPickerOpen(true)} className="flex-1 text-left text-[10px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 truncate transition-colors" title={activeSlot.photoAsset.name}>{activeSlot.photoAsset.name}</button>
+                      <button onClick={() => patchActive({ photoAsset: undefined })}
+                        className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  ) : (
+                    <button onClick={() => setPhotoPickerOpen(true)}
+                      className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
+                      <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                      Pick from library
+                    </button>
+                  )}
+                </div>
                 <div>
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Background Texture</p>
                   <TexturePicker albumId={null} value={textureAsset} onChange={asset => setTextureAsset(asset)} />
@@ -1148,7 +1338,7 @@ export default function TemplateMode({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: SLOT_GAP }}>
                   {slotConfigs.slice(0, aplusSlots).map((cfg, slotIdx) => {
                     const isActive = !activeIsGallery && slotIdx === activeSlotIdx
-                    const isIcons  = cfg.template === 'icons'
+                    const isIcons  = cfg.template === 'icons' || cfg.template === 'icons-text'
                     const flip     = cfg.template === '5050-left'
                     const sd       = buildSlotDesign(selected.id, slotIdx)
 
@@ -1159,14 +1349,14 @@ export default function TemplateMode({
 
                     return (
                       <div key={slotIdx}>
-                        {/* Slot header — scale-compensated label + template picker */}
+                        {/* Slot header — left anchor: label + template picker; right anchor: resolution + delete */}
                         <div style={{ height: `${28/zoom}px`, position: 'relative', marginBottom: `${8/zoom}px` }}>
                           <div style={{ position: 'absolute', top: 0, left: 0, display: 'flex', alignItems: 'center', gap: 8, transform: `scale(${1/zoom})`, transformOrigin: 'top left' }}>
                             <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#3B82F6' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
                               {slotLabel(slotIdx)}
                             </span>
                             <div style={{ display: 'flex', gap: 2, background: '#E5E7EB', borderRadius: 4, padding: 2 }}>
-                              {(['5050-right', '5050-left', 'icons'] as SlotTemplate[]).map(t => (
+                              {(['5050-right', '5050-left', 'icons', 'icons-text'] as SlotTemplate[]).map(t => (
                                 <button key={t}
                                   onClick={e => {
                                     e.stopPropagation()
@@ -1186,40 +1376,36 @@ export default function TemplateMode({
                               ))}
                             </div>
                           </div>
+                          {aplusSlots > 1 && (
+                            <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top right' }}>
+                              <button
+                                onClick={e => { e.stopPropagation(); deleteAplusSlot(slotIdx) }}
+                                title="Remove slot"
+                                style={{ width: 20, height: 20, borderRadius: 5, border: '1px solid #E5E7EB', background: 'white', color: '#9CA3AF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                              >
+                                <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Desktop + Mobile row */}
+                        {/* Desktop + Mobile frames */}
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
-                          {/* Desktop */}
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ height: `${16/zoom}px`, width: 1464, position: 'relative', marginBottom: `${4/zoom}px` }}>
-                              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top center' }}>
-                                <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#3B82F6' : '#9CA3AF' }}>Desktop · 1464×600</span>
-                              </div>
-                            </div>
-                            <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false) }}
-                              style={{ width: 1464, height: 600, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
-                              {isIcons
-                                ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
-                                : <CanvasContent      design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
-                              }
-                            </div>
+                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false) }}
+                            style={{ width: 1464, height: 600, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
+                            {isIcons
+                              ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+                              : <CanvasContent      design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+                            }
                           </div>
-
-                          {/* Mobile */}
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ height: `${16/zoom}px`, width: 600, position: 'relative', marginBottom: `${4/zoom}px` }}>
-                              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top center' }}>
-                                <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#3B82F6' : '#9CA3AF' }}>Mobile · 600×450</span>
-                              </div>
-                            </div>
-                            <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false) }}
-                              style={{ width: 600, height: 450, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
-                              {isIcons
-                                ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
-                                : <CanvasContent      design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
-                              }
-                            </div>
+                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false) }}
+                            style={{ width: 600, height: 450, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
+                            {isIcons
+                              ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
+                              : <CanvasContent      design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
+                            }
                           </div>
                         </div>
                       </div>
@@ -1234,7 +1420,7 @@ export default function TemplateMode({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: SLOT_GAP }}>
                       {galleryConfigs.slice(0, galleryCount).map((cfg, gIdx) => {
                         const isActive = activeIsGallery && gIdx === activeGalleryIdx
-                        const isGIcons = cfg.template === 'gallery-icons'
+                        const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
                         const gd       = buildGallerySlotDesign(selected.id, gIdx)
 
                         const activeOutline  = '2px solid #3B82F6'
@@ -1244,14 +1430,14 @@ export default function TemplateMode({
 
                         return (
                           <div key={gIdx}>
-                            {/* Gallery slot header */}
+                            {/* Gallery slot header — left anchor: label + picker; right anchor: resolution + delete */}
                             <div style={{ height: `${28/zoom}px`, position: 'relative', marginBottom: `${8/zoom}px` }}>
                               <div style={{ position: 'absolute', top: 0, left: 0, display: 'flex', alignItems: 'center', gap: 8, transform: `scale(${1/zoom})`, transformOrigin: 'top left' }}>
                                 <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#3B82F6' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
                                   {galleryLabel(gIdx)}
                                 </span>
                                 <div style={{ display: 'flex', gap: 2, background: '#E5E7EB', borderRadius: 4, padding: 2 }}>
-                                  {(['gallery-hero', 'gallery-icons'] as GalleryTemplate[]).map(t => (
+                                  {(['gallery-hero', 'gallery-icons', 'gallery-icons-text'] as GalleryTemplate[]).map(t => (
                                     <button key={t}
                                       onClick={e => {
                                         e.stopPropagation()
@@ -1271,13 +1457,19 @@ export default function TemplateMode({
                                   ))}
                                 </div>
                               </div>
-                            </div>
-
-                            {/* Frame label */}
-                            <div style={{ height: `${16/zoom}px`, width: 1500, position: 'relative', marginBottom: `${4/zoom}px` }}>
-                              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top center' }}>
-                                <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#3B82F6' : '#9CA3AF' }}>Gallery · 1500×1500</span>
-                              </div>
+                              {galleryCount > 1 && (
+                                <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top right' }}>
+                                  <button
+                                    onClick={e => { e.stopPropagation(); deleteGallerySlot(gIdx) }}
+                                    title="Remove slide"
+                                    style={{ width: 20, height: 20, borderRadius: 5, border: '1px solid #E5E7EB', background: 'white', color: '#9CA3AF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                                  >
+                                    <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              )}
                             </div>
 
                             {/* Gallery frame */}
@@ -1317,7 +1509,7 @@ export default function TemplateMode({
       <CantoPhotoPickerModal
         open={photoPickerOpen}
         onClose={() => setPhotoPickerOpen(false)}
-        initialQuery={selected?.productName ?? ''}
+        initialQuery={selected?.sku ?? ''}
         onSelect={(pick: PhotoPick) => {
           if (!selected) return
           const asset: UploadedAsset = { id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }

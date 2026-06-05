@@ -250,7 +250,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const [iconPickerSlot, setIconPickerSlot] = useState<number | null>(null)
   const [photoPickerOpen, setPhotoPickerOpen] = useState(false)
 
-  const [appMode, setAppMode] = useState<'design' | 'bulk' | 'template'>('design')
+  const [appMode, setAppMode] = useState<'design' | 'bulk' | 'template'>('template')
   const [design, setDesign] = useState<DesignState>(DEFAULT_STATE)
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false)
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false)
@@ -1475,19 +1475,33 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           </>
         )}
 
+        {/* Beta badge */}
+        <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700">
+          Beta
+        </span>
+
         {/* Mode tabs */}
         <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5 shrink-0">
-          {(['design', 'template', 'bulk'] as const).map(mode => (
+          {(['template', 'bulk'] as const).map(mode => (
             <button
               key={mode}
               onClick={() => setAppMode(mode)}
+              title={mode === 'bulk' ? 'Coming soon' : undefined}
+              disabled={mode === 'bulk'}
               className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${
                 appMode === mode
                   ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  : mode === 'bulk'
+                  ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
               }`}
             >
-              {mode === 'design' ? 'Design' : mode === 'template' ? 'Template' : 'Bulk'}
+              {mode === 'template' ? 'Template' : (
+                <span className="flex items-center gap-1">
+                  Bulk
+                  <span className="text-[8px] font-semibold normal-case tracking-normal opacity-70">soon</span>
+                </span>
+              )}
             </button>
           ))}
         </div>

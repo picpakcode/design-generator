@@ -251,7 +251,7 @@ export function CanvasContentGalleryIcons({ design, settings, onPhotoMouseDown }
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         gap: 14,
         padding: '20px 16px',
         border: '1px solid rgba(255,255,255,0.18)',
@@ -487,7 +487,7 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         gap: isMobile ? 8 : 12,
         padding: isMobile ? '10px 6px' : '14px 10px',
         border: '1px solid rgba(255,255,255,0.18)',
@@ -521,7 +521,7 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
   }
 
   const iconRow = (
-    <div style={{ display: 'flex', gap: isMobile ? 8 : 12, width: '100%', alignItems: isMobile ? 'stretch' : 'center' }}>
+    <div style={{ display: 'flex', gap: isMobile ? 8 : 12, width: '100%', alignItems: 'stretch' }}>
       {Array.from({ length: design.iconCount }, (_, i) => <IconBox key={i} index={i} />)}
     </div>
   )
@@ -556,12 +556,24 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
                 fontWeight: 400,
                 lineHeight: settings.titleLineHeight,
                 color: design.accentColor,
-                margin: 0,
+                margin: design.iconsMobileShowDesc ? '0 0 8px' : 0,
                 letterSpacing: '0.01em',
                 textShadow: '0 2px 8px rgba(0,0,0,0.5)',
                 textTransform: settings.titleTextTransform,
                 maxWidth: settings.titleWidth < 100 ? `${settings.titleWidth}%` : undefined,
               }} dangerouslySetInnerHTML={{ __html: design.title || '<p>Product Title</p>' }} />
+              {design.iconsMobileShowDesc && design.subtitleHtml && (
+                <div className="rich-subtitle" style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: settings.subtitleFontSize,
+                  lineHeight: `${settings.subtitleLineHeight}px`,
+                  fontWeight: 400,
+                  color: design.bodyColor,
+                  margin: 0,
+                  textTransform: settings.subtitleTextTransform,
+                  maxWidth: settings.subtitleWidth < 100 ? `${settings.subtitleWidth}%` : undefined,
+                }} dangerouslySetInnerHTML={{ __html: design.subtitleHtml }} />
+              )}
             </div>
           </div>
           <div style={{ width: '50%', position: 'relative', overflow: 'hidden', flexShrink: 0 }} onMouseDown={onPhotoMouseDown}>
