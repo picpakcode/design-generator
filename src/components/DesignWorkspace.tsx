@@ -1902,12 +1902,20 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
                   />
                 </div>
-                {design.productName.trim() && (
-                  <p className="text-[10px] text-gray-400 px-0.5">
-                    Files: <span className="font-mono text-gray-600">{toSlug(design.productName)}-block-1-desktop.png</span>
-                  </p>
-                )}
-                {!design.productName.trim() && (
+                {design.productName.trim() ? (
+                  <div className="space-y-0.5 pt-0.5">
+                    {(isGallery ? (design.galleryBlocks ?? []) : design.blocks).map((block, idx) => {
+                      const slug = (block.slug?.trim() ? toSlug(block.slug) : null)
+                        ?? (isGallery ? `slide-${idx + 1}` : `block-${idx + 1}`)
+                      const prefix = toSlug(design.productName)
+                      return (
+                        <p key={block.id} className="text-[10px] text-gray-400 px-0.5 truncate">
+                          <span className="font-mono text-gray-600 dark:text-gray-400">{prefix}-{slug}{isGallery ? '' : '-desktop'}.png</span>
+                        </p>
+                      )
+                    })}
+                  </div>
+                ) : (
                   <p className="text-[10px] text-gray-400 px-0.5">
                     Set a product name — it becomes the prefix for all exported filenames.
                   </p>
@@ -2886,7 +2894,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
         slotLabel={iconPickerSlot !== null ? `Icon ${iconPickerSlot - 2}` : undefined}
         onSelect={pick => {
           if (iconPickerSlot !== null)
-            addCurrentAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, iconPickerSlot)
+            addCurrentAsset({ id: pick.id, name: pick.name, url: pick.originalUrl ?? pick.previewUrl, type: 'image' }, iconPickerSlot)
         }}
       />
       <CantoPhotoPickerModal
