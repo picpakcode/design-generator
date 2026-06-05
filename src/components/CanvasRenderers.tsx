@@ -143,6 +143,7 @@ export function CanvasContentGallery({ design, settings, onPhotoMouseDown }: { d
           <img
             src={productImg.url}
             alt=""
+            crossOrigin="anonymous"
             style={applyPhotoComposition(settings.photoComposition ?? DEFAULT_PHOTO_COMP)}
           />
         ) : (
@@ -156,6 +157,7 @@ export function CanvasContentGallery({ design, settings, onPhotoMouseDown }: { d
             <img
               src={logoImg.url}
               alt="logo"
+              crossOrigin="anonymous"
               style={{ maxHeight: settings.logoSize, maxWidth: settings.logoSize * 3.5, objectFit: 'contain', display: 'block' }}
             />
           </div>
@@ -167,7 +169,7 @@ export function CanvasContentGallery({ design, settings, onPhotoMouseDown }: { d
       {/* Text panel */}
       <div style={{ height: botH, flexShrink: 0, position: 'relative', overflow: 'hidden' }}>
         {textureImg ? (
-          <img src={textureImg.url} alt="background" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          <img src={textureImg.url} alt="background" crossOrigin="anonymous" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         ) : (
           <div style={{ position: 'absolute', inset: 0, backgroundColor: design.primaryColor }} />
         )}
@@ -261,7 +263,7 @@ export function CanvasContentGalleryIcons({ design, settings, onPhotoMouseDown }
       }}>
         <div style={{ width: sz, height: sz, borderRadius: '50%', backgroundColor: design.accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           {img ? (
-            <img src={img.url} alt={label} style={{ width: sz * 0.6, height: sz * 0.6, objectFit: 'contain', display: 'block', filter: iconFilter }} />
+            <img src={img.url} alt={label} crossOrigin="anonymous" style={{ width: sz * 0.6, height: sz * 0.6, objectFit: 'contain', display: 'block', filter: iconFilter }} />
           ) : (
             <svg width={sz * 0.45} height={sz * 0.45} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
               <circle cx="12" cy="12" r="9" /><path d="M12 8v4l2 2" strokeLinecap="round" />
@@ -289,7 +291,7 @@ export function CanvasContentGalleryIcons({ design, settings, onPhotoMouseDown }
       {/* ── Photo section ── */}
       <div style={{ height: topH, position: 'relative', flexShrink: 0, overflow: 'hidden' }} onMouseDown={onPhotoMouseDown}>
         {productImg ? (
-          <img src={productImg.url} alt="" style={applyPhotoComposition(settings.photoComposition ?? DEFAULT_PHOTO_COMP)} />
+          <img src={productImg.url} alt="" crossOrigin="anonymous" style={applyPhotoComposition(settings.photoComposition ?? DEFAULT_PHOTO_COMP)} />
         ) : (
           <div style={{ width: '100%', height: '100%', backgroundColor: '#c4c4c4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ color: '#9ca3af', fontSize: 28, fontFamily: 'system-ui' }}>Product Photo</span>
@@ -297,7 +299,7 @@ export function CanvasContentGalleryIcons({ design, settings, onPhotoMouseDown }
         )}
         {logoImg && (
           <div style={logoPos}>
-            <img src={logoImg.url} alt="logo" style={{ maxHeight: settings.logoSize, maxWidth: settings.logoSize * 3.5, objectFit: 'contain', display: 'block' }} />
+            <img src={logoImg.url} alt="logo" crossOrigin="anonymous" style={{ maxHeight: settings.logoSize, maxWidth: settings.logoSize * 3.5, objectFit: 'contain', display: 'block' }} />
           </div>
         )}
         {/* 8px accent separator */}
@@ -308,7 +310,7 @@ export function CanvasContentGalleryIcons({ design, settings, onPhotoMouseDown }
       <div style={{ height: botH, flexShrink: 0, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {/* Background */}
         {textureImg ? (
-          <img src={textureImg.url} alt="background" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          <img src={textureImg.url} alt="background" crossOrigin="anonymous" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         ) : (
           <div style={{ position: 'absolute', inset: 0, backgroundColor: design.primaryColor }} />
         )}
@@ -389,7 +391,7 @@ export function CanvasContent({ design, settings, onPhotoMouseDown }: { design: 
   const PhotoPanel = (
     <div style={{ width: '50%', position: 'relative', overflow: 'hidden', flexShrink: 0 }} onMouseDown={onPhotoMouseDown}>
       {productImg ? (
-        <img src={productImg.url} alt="" style={applyPhotoComposition(settings.photoComposition ?? DEFAULT_PHOTO_COMP)} />
+        <img src={productImg.url} alt="" crossOrigin="anonymous" style={applyPhotoComposition(settings.photoComposition ?? DEFAULT_PHOTO_COMP)} />
       ) : (
         <div style={{ width: '100%', height: '100%', backgroundColor: '#c4c4c4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ color: '#9ca3af', fontSize: 13, fontFamily: 'system-ui' }}>Product Photo</span>
@@ -401,7 +403,7 @@ export function CanvasContent({ design, settings, onPhotoMouseDown }: { design: 
   const ContentPanel = (
     <div style={{ width: '50%', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
       {textureImg ? (
-        <img src={textureImg.url} alt="background" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        <img src={textureImg.url} alt="background" crossOrigin="anonymous" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       ) : (
         <div style={{ position: 'absolute', inset: 0, backgroundColor: design.primaryColor }} />
       )}
@@ -409,7 +411,7 @@ export function CanvasContent({ design, settings, onPhotoMouseDown }: { design: 
       <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: contentPad }}>
         {logoImg && (
           <div style={logoPos}>
-            <img src={logoImg.url} alt="logo" style={{ maxHeight: settings.logoSize, maxWidth: settings.logoSize * 3.5, objectFit: 'contain', display: 'block' }} />
+            <img src={logoImg.url} alt="logo" crossOrigin="anonymous" style={{ maxHeight: settings.logoSize, maxWidth: settings.logoSize * 3.5, objectFit: 'contain', display: 'block' }} />
           </div>
         )}
         <div className="rich-title" style={{
@@ -463,7 +465,7 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
   const bgPanel = (
     <div style={{ position: 'absolute', inset: 0 }}>
       {textureImg ? (
-        <img src={textureImg.url} alt="background" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        <img src={textureImg.url} alt="background" crossOrigin="anonymous" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       ) : (
         <div style={{ width: '100%', height: '100%', backgroundColor: design.primaryColor }} />
       )}
@@ -494,15 +496,15 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
       }}>
-        {img ? (
-          <img src={img.url} alt={label} style={{ width: sz, height: sz, objectFit: 'contain', display: 'block', filter: iconFilter2 }} />
-        ) : (
-          <div style={{ width: sz, height: sz, borderRadius: '50%', backgroundColor: design.accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: sz, height: sz, borderRadius: '50%', backgroundColor: design.accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {img ? (
+            <img src={img.url} alt={label} crossOrigin="anonymous" style={{ width: sz * 0.6, height: sz * 0.6, objectFit: 'contain', display: 'block', filter: iconFilter2 }} />
+          ) : (
             <svg width={sz * 0.45} height={sz * 0.45} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
               <circle cx="12" cy="12" r="9" /><path d="M12 8v4l2 2" strokeLinecap="round" />
             </svg>
-          </div>
-        )}
+          )}
+        </div>
         <p style={{
           fontFamily: 'Inter, sans-serif',
           fontSize: settings.iconLabelFontSize,
@@ -545,7 +547,7 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
             <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: `${settings.contentPaddingV}px ${settings.contentPaddingX}px` }}>
               {logoImg && (
                 <div style={logoPos}>
-                  <img src={logoImg.url} alt="logo" style={{ maxHeight: settings.logoSize, maxWidth: settings.logoSize * 3.5, objectFit: 'contain', display: 'block' }} />
+                  <img src={logoImg.url} alt="logo" crossOrigin="anonymous" style={{ maxHeight: settings.logoSize, maxWidth: settings.logoSize * 3.5, objectFit: 'contain', display: 'block' }} />
                 </div>
               )}
               <div className="rich-title" style={{
@@ -564,7 +566,7 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
           </div>
           <div style={{ width: '50%', position: 'relative', overflow: 'hidden', flexShrink: 0 }} onMouseDown={onPhotoMouseDown}>
             {productImg ? (
-              <img src={productImg.url} alt="" style={applyPhotoComposition(settings.photoComposition ?? DEFAULT_PHOTO_COMP)} />
+              <img src={productImg.url} alt="" crossOrigin="anonymous" style={applyPhotoComposition(settings.photoComposition ?? DEFAULT_PHOTO_COMP)} />
             ) : (
               <div style={{ width: '100%', height: '100%', backgroundColor: '#c4c4c4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ color: '#9ca3af', fontSize: 12, fontFamily: 'system-ui' }}>Photo</span>
@@ -593,7 +595,7 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
         {/* Logo as a flow item so it never overlaps the title — left/right corner controls alignment */}
         {logoImg && (
           <div style={{ flexShrink: 0, marginBottom: 16, display: 'flex', justifyContent: settings.logoCorner.endsWith('r') ? 'flex-end' : 'flex-start' }}>
-            <img src={logoImg.url} alt="logo" style={{ maxHeight: settings.logoSize, maxWidth: settings.logoSize * 3.5, objectFit: 'contain', display: 'block' }} />
+            <img src={logoImg.url} alt="logo" crossOrigin="anonymous" style={{ maxHeight: settings.logoSize, maxWidth: settings.logoSize * 3.5, objectFit: 'contain', display: 'block' }} />
           </div>
         )}
         {/* Title + subtitle vertically centered in remaining space */}
@@ -632,7 +634,7 @@ export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { des
   const PhotoPanel = (
     <div style={{ width: '50%', position: 'relative', overflow: 'hidden', flexShrink: 0 }} onMouseDown={onPhotoMouseDown}>
       {productImg ? (
-        <img src={productImg.url} alt="" style={applyPhotoComposition(settings.photoComposition ?? DEFAULT_PHOTO_COMP)} />
+        <img src={productImg.url} alt="" crossOrigin="anonymous" style={applyPhotoComposition(settings.photoComposition ?? DEFAULT_PHOTO_COMP)} />
       ) : (
         <div style={{ width: '100%', height: '100%', backgroundColor: '#c4c4c4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <span style={{ color: '#9ca3af', fontSize: 13, fontFamily: 'system-ui' }}>Product Photo</span>

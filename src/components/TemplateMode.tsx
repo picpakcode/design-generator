@@ -123,7 +123,7 @@ async function captureToDataUrl(
       : new Promise<void>(r => { img.onload = () => r(); img.onerror = () => r() })
   ))
   try {
-    const opts = { includeQueryParams: true, onImageErrorHandler: () => {} }
+    const opts = { includeQueryParams: true, cacheBust: true, onImageErrorHandler: () => {} }
     return format === 'jpeg'
       ? await toJpeg(div, { quality: 0.95, backgroundColor: '#ffffff', ...opts })
       : await toPng(div, opts)
