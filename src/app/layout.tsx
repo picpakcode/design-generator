@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'] })
 const anton = Anton({ weight: '400', subsets: ['latin'], variable: '--font-anton' })
 
 export const metadata: Metadata = {
-  title: 'Design Generator',
+  title: "Doc's Design Generator",
   description: 'Generate listing designs for Amazon, eBay, and Shopify',
   icons: {
     icon: '/Favicon.png',
