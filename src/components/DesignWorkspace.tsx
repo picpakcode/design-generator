@@ -267,6 +267,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const templateExportCurrentFnRef = useRef<() => void>(() => {})
   const templateRenderAllFnRef     = useRef<() => void>(() => {})
   const templatePreviewFnRef       = useRef<() => void>(() => {})
+  const templateThumbnailFnRef     = useRef<() => Promise<Blob | null>>(() => Promise.resolve(null))
 
   const canvasRef         = useRef<HTMLDivElement>(null)
   const altCanvasRef      = useRef<HTMLDivElement>(null)
@@ -588,6 +589,29 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     }, appSettings.autosaveInterval)
     return () => clearTimeout(t)
   }, [design, projectId, user, appSettings.autosaveInterval]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Template mode thumbnail — capture when products are loaded (once per session)
+  useEffect(() => {
+    if (appMode !== 'template' || !projectId || !user) return
+    if (templateStats.total === 0 || hasSavedThumbnailRef.current) return
+    const supabase = createClient()
+    const t = setTimeout(async () => {
+      if (hasSavedThumbnailRef.current) return
+      hasSavedThumbnailRef.current = true
+      try {
+        const blob = await templateThumbnailFnRef.current()
+        if (!blob) { hasSavedThumbnailRef.current = false; return }
+        const path = `${user.id}/${projectId}.jpg`
+        await supabase.storage.from('project-thumbnails').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+        const { data } = supabase.storage.from('project-thumbnails').getPublicUrl(path)
+        await saveProjectThumbnail(supabase, projectId, data.publicUrl)
+      } catch (err) {
+        console.warn('Template thumbnail failed:', err)
+        hasSavedThumbnailRef.current = false
+      }
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [appMode, templateStats.total, projectId, user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Broadcast state to collaborators (debounced 400ms, skipped when applying remote update)
   const broadcastTimerRef = useRef<ReturnType<typeof setTimeout>>()
@@ -1856,6 +1880,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           exportCurrentFnRef={templateExportCurrentFnRef}
           renderAllFnRef={templateRenderAllFnRef}
           previewFnRef={templatePreviewFnRef}
+          thumbnailFnRef={templateThumbnailFnRef}
           onCanExportChange={setTemplateCanExport}
           onCanExportCurrentChange={setTemplateCanExportCurrent}
           onRenderingAllChange={setTemplateRenderingAll}

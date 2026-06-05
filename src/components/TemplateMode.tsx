@@ -299,6 +299,7 @@ interface TemplateModeProps {
   exportCurrentFnRef: React.MutableRefObject<() => void>
   renderAllFnRef: React.MutableRefObject<() => void>
   previewFnRef: React.MutableRefObject<() => void>
+  thumbnailFnRef: React.MutableRefObject<() => Promise<Blob | null>>
   onCanExportChange: (can: boolean) => void
   onCanExportCurrentChange: (can: boolean) => void
   onRenderingAllChange: (v: boolean) => void
@@ -310,7 +311,7 @@ interface TemplateModeProps {
 export default function TemplateMode({
   projectId,
   designState, folderConfig,
-  exportFnRef, exportCurrentFnRef, renderAllFnRef, previewFnRef,
+  exportFnRef, exportCurrentFnRef, renderAllFnRef, previewFnRef, thumbnailFnRef,
   onCanExportChange, onCanExportCurrentChange, onRenderingAllChange, onStatsChange,
 }: TemplateModeProps) {
   // Per-project storage key — isolates state between Dashboard projects
@@ -374,6 +375,10 @@ export default function TemplateMode({
   const capturedRef   = useRef<Map<string, string>>(new Map())
   const cancelRef     = useRef(false)
   const [captureVersion, setCaptureVersion] = useState(0)  // bumped on any capture mutation
+
+  // Always-current snapshot for thumbnail generation (avoids stale closures in the wired fn)
+  const thumbLatest = useRef({ parseResult, selectedId, allSlots, slotConfigs, logoAsset, textureAsset, designState })
+  thumbLatest.current = { parseResult, selectedId, allSlots, slotConfigs, logoAsset, textureAsset, designState }
 
   // ── Canvas zoom / pan ─────────────────────────────────────────────────────────
   const [zoom, setZoom]               = useState(0.12)
@@ -536,6 +541,46 @@ export default function TemplateMode({
   useEffect(() => { onRenderingAllChange(renderingAll) }, [renderingAll])
 
   useEffect(() => { previewFnRef.current = () => setPreviewOpen(true) }, [previewFnRef])
+
+  // Wire thumbnail generator — always reads latest state via thumbLatest ref
+  useEffect(() => {
+    thumbnailFnRef.current = async (): Promise<Blob | null> => {
+      const { parseResult, selectedId, allSlots, slotConfigs, logoAsset, textureAsset, designState } = thumbLatest.current
+      if (!parseResult?.products.length) return null
+      const product = parseResult.products.find(p => p.id === selectedId) ?? parseResult.products[0]
+      const s   = allSlots[product.id]?.[0] ?? emptySlotState()
+      const cfg = slotConfigs[0] ?? { template: '5050-right' as SlotTemplate }
+      const showDesc = cfg.template !== 'icons'
+      const flip     = cfg.template === '5050-left'
+      const isIcons  = cfg.template === 'icons' || cfg.template === 'icons-text'
+      const blocks   = [...(designState.blocks ?? []), ...(designState.galleryBlocks ?? [])]
+      const active   = designState.blocks?.find(b => b.id === designState.activeBlockId)
+      const fallback = (idx: number) => {
+        const seen = new Set<string>()
+        for (const b of [...(active ? [active] : []), ...blocks]) {
+          if (seen.has(b.id)) continue; seen.add(b.id)
+          const a = (b.assets ?? [])[idx]; if (a?.url) return a
+        }
+        return undefined
+      }
+      const sd: DesignState = {
+        ...designState,
+        activeFormat: 'desktop',
+        assets: [s.photoAsset, textureAsset ?? fallback(1), logoAsset ?? fallback(2), s.iconAssets[0], s.iconAssets[1], s.iconAssets[2], s.iconAssets[3]] as UploadedAsset[],
+        title: s.title || '<p></p>',
+        subtitleHtml: showDesc ? (s.desc || '') : '',
+        iconLabels: s.iconLabels,
+        iconCount: s.iconCount,
+      }
+      const element = isIcons
+        ? <CanvasContentIcons design={sd} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+        : <CanvasContent      design={sd} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+      const dataUrl = await captureToDataUrl(element, 1464, 600, 'jpeg')
+      if (!dataUrl) return null
+      const res = await fetch(dataUrl)
+      return res.blob()
+    }
+  }, [thumbnailFnRef])
 
   // ── CSV ───────────────────────────────────────────────────────────────────────
 
