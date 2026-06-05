@@ -289,6 +289,250 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
   )
 }
 
+// ─── CSV Guide Modal ──────────────────────────────────────────────────────────
+
+function CSVGuideModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { settings } = useAppSettings()
+  const dark = settings.theme === 'dark'
+
+  useEffect(() => {
+    if (!open) return
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  const panelBg  = dark ? 'bg-gray-950 border-white/8'   : 'bg-white border-gray-200'
+  const hdrBg    = dark ? 'bg-gray-900/80 border-white/8' : 'bg-gray-50 border-gray-200'
+  const hdrTxt   = dark ? 'text-white'   : 'text-gray-900'
+  const subTxt   = dark ? 'text-gray-400': 'text-gray-500'
+  const closeCls = dark ? 'text-gray-500 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-100'
+  const cardBg   = dark ? 'bg-gray-900 border-white/8'    : 'bg-gray-50 border-gray-100'
+  const divider  = dark ? 'border-white/8'  : 'border-gray-100'
+  const txt      = dark ? 'text-gray-300'   : 'text-gray-700'
+  const mutedTxt = dark ? 'text-gray-500'   : 'text-gray-400'
+
+  const C = ({ children }: { children: string }) => (
+    <code className={`font-mono text-[11px] px-1.5 py-0.5 rounded border whitespace-nowrap ${dark ? 'bg-gray-800 border-gray-700 text-indigo-300' : 'bg-indigo-50 border-indigo-100 text-indigo-600'}`}>{children}</code>
+  )
+
+  const aplusTemplates = [
+    { label: 'Img | Txt', desc: 'Photo left, text right. Default for slots without icon columns.' },
+    { label: 'Txt | Img', desc: 'Text left, photo right. Flipped layout.' },
+    { label: 'Icons',     desc: 'Icon grid only — no description paragraph.' },
+    { label: 'Icn+Txt',  desc: 'Icon callouts with a headline and description above.' },
+  ]
+  const galleryTemplates = [
+    { label: 'Hero',     desc: 'Headline and description over the product image.' },
+    { label: 'Icons',    desc: 'Icon grid with callout labels.' },
+    { label: 'Icn+Txt', desc: 'Icon grid plus a title and description.' },
+  ]
+
+  return (
+    <>
+      <div className={`fixed inset-0 z-50 ${dark ? 'bg-black/80' : 'bg-black/50'} backdrop-blur-sm`} onClick={onClose} />
+      <div className={`fixed inset-x-6 top-6 bottom-6 z-50 max-w-2xl mx-auto flex flex-col rounded-2xl overflow-hidden shadow-2xl border ${panelBg}`}>
+
+        {/* Header */}
+        <div className={`shrink-0 flex items-center justify-between px-6 py-4 border-b ${hdrBg}`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${dark ? 'bg-indigo-900/50' : 'bg-indigo-100'}`}>
+              <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <div>
+              <h2 className={`text-sm font-bold ${hdrTxt}`}>CSV Guide</h2>
+              <p className={`text-[11px] ${subTxt}`}>How to structure your data for Template Mode</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] hidden sm:block ${mutedTxt}`}>Esc to close</span>
+            <button onClick={onClose} className={`ml-1 w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${closeCls}`}>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className={`flex-1 overflow-y-auto px-6 py-6 space-y-8 ${dark ? 'bg-gray-950' : 'bg-white'}`}>
+
+          {/* How it works */}
+          <section>
+            <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b ${dark ? 'text-indigo-400 border-indigo-900/40' : 'text-indigo-600 border-indigo-100'}`}>How it works</h3>
+            <div className="space-y-4">
+              {([
+                { n: '1', title: 'Prepare your CSV', body: 'Fill in product data using the column structure below. Download the template CSV to get started — each row is one product.' },
+                { n: '2', title: 'Upload & configure', body: 'Drag-drop your CSV or click to browse. Product photos are auto-fetched from Canto by SKU. Edit any text directly in the sidebar.' },
+                { n: '3', title: 'Export', body: 'Click Export All in the top toolbar. Slides auto-render and download as a ZIP — one folder per product, named by product name.' },
+              ] as const).map(s => (
+                <div key={s.n} className="flex gap-4">
+                  <div className="w-7 h-7 rounded-full bg-indigo-500 text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">{s.n}</div>
+                  <div>
+                    <p className={`text-sm font-semibold mb-0.5 ${hdrTxt}`}>{s.title}</p>
+                    <p className={`text-[12px] leading-relaxed ${txt}`}>{s.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Required columns */}
+          <section>
+            <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b ${dark ? 'text-indigo-400 border-indigo-900/40' : 'text-indigo-600 border-indigo-100'}`}>Required columns</h3>
+            <div className={`rounded-xl border ${cardBg} overflow-hidden`}>
+              {([
+                { col: 'sku',          note: 'Unique product identifier. Used as the export folder name and file prefix.' },
+                { col: 'product_name', note: 'Full product name. Shown in the sidebar and used in export filenames.' },
+              ] as const).map((r, i) => (
+                <div key={r.col} className={`flex items-start gap-4 px-4 py-3 ${i === 0 ? `border-b ${divider}` : ''}`}>
+                  <div className="w-36 shrink-0 pt-0.5"><C>{r.col}</C></div>
+                  <p className={`text-[12px] leading-relaxed ${txt}`}>{r.note}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* A+ Content Slots */}
+          <section>
+            <div className={`flex items-center gap-2 mb-4 pb-2 border-b ${dark ? 'border-indigo-900/40' : 'border-indigo-100'}`}>
+              <h3 className={`text-[10px] font-bold uppercase tracking-widest ${dark ? 'text-indigo-400' : 'text-indigo-600'}`}>A+ Content Slots</h3>
+              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${dark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-600'}`}>a1 → h1</span>
+            </div>
+            <p className={`text-[12px] mb-3 leading-relaxed ${txt}`}>
+              Each letter (a, b, c…) is one A+ slide. A slot is created for every letter with a non-empty <C>_title</C> column. Stop at the first blank title — later letters are skipped.
+            </p>
+            <div className={`rounded-xl border ${cardBg} overflow-hidden`}>
+              <div className={`px-4 py-2 border-b ${divider} flex gap-4`}>
+                <p className={`text-[10px] font-bold uppercase tracking-wider w-44 shrink-0 ${mutedTxt}`}>Column</p>
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${mutedTxt}`}>What it does</p>
+              </div>
+              {([
+                { col: 'a1_title',        note: 'Slide headline. Required for the slot to be created.' },
+                { col: 'a1_desc',         note: 'Body text / description paragraph.' },
+                { col: 'a1_icon1 – icon4',note: 'Icon callout labels. Filling any of these auto-switches the layout to Icn+Txt.' },
+                { col: 'b1_title, b1_desc, …', note: 'Repeat the same pattern for slides b, c, d, e, f, g, h.' },
+              ] as const).map((r, i, arr) => (
+                <div key={r.col} className={`flex items-start gap-4 px-4 py-3 ${i < arr.length - 1 ? `border-b ${divider}` : ''}`}>
+                  <div className="w-44 shrink-0 pt-0.5"><C>{r.col}</C></div>
+                  <p className={`text-[12px] leading-relaxed ${txt}`}>{r.note}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Gallery Slides */}
+          <section>
+            <div className={`flex items-center gap-2 mb-4 pb-2 border-b ${dark ? 'border-violet-900/40' : 'border-violet-100'}`}>
+              <h3 className={`text-[10px] font-bold uppercase tracking-widest ${dark ? 'text-violet-400' : 'text-violet-600'}`}>Gallery Slides</h3>
+              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${dark ? 'bg-violet-900/40 text-violet-300' : 'bg-violet-50 text-violet-600'}`}>g1 → g20</span>
+            </div>
+            <p className={`text-[12px] mb-3 leading-relaxed ${txt}`}>
+              Gallery slides use the <C>g</C> prefix. Up to 20 slides per product, stopping at the first blank title.
+            </p>
+            <div className={`rounded-xl border ${cardBg} overflow-hidden`}>
+              <div className={`px-4 py-2 border-b ${divider} flex gap-4`}>
+                <p className={`text-[10px] font-bold uppercase tracking-wider w-44 shrink-0 ${mutedTxt}`}>Column</p>
+                <p className={`text-[10px] font-bold uppercase tracking-wider ${mutedTxt}`}>What it does</p>
+              </div>
+              {([
+                { col: 'g1_title',         note: 'Gallery slide headline.' },
+                { col: 'g1_desc',          note: 'Gallery slide description text.' },
+                { col: 'g1_icon1 – icon4', note: 'Icon callout labels for icon-layout gallery slides.' },
+                { col: 'g2_title, g2_desc, …', note: 'Repeat for each additional gallery slide (g2, g3, g4…).' },
+              ] as const).map((r, i, arr) => (
+                <div key={r.col} className={`flex items-start gap-4 px-4 py-3 ${i < arr.length - 1 ? `border-b ${divider}` : ''}`}>
+                  <div className="w-44 shrink-0 pt-0.5"><C>{r.col}</C></div>
+                  <p className={`text-[12px] leading-relaxed ${txt}`}>{r.note}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Slide layout types */}
+          <section>
+            <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b ${dark ? 'text-indigo-400 border-indigo-900/40' : 'text-indigo-600 border-indigo-100'}`}>Slide Layout Types</h3>
+            <p className={`text-[12px] mb-4 leading-relaxed ${txt}`}>
+              Layout is auto-detected from your icon columns, but you can override it per slot using the canvas toolbar or sidebar.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${mutedTxt}`}>A+ Layouts (1464×600)</p>
+                <div className="space-y-2">
+                  {aplusTemplates.map(t => (
+                    <div key={t.label} className={`rounded-lg border px-3 py-2.5 ${cardBg}`}>
+                      <p className={`text-[11px] font-bold mb-0.5 ${hdrTxt}`}>{t.label}</p>
+                      <p className={`text-[11px] leading-relaxed ${mutedTxt}`}>{t.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${mutedTxt}`}>Gallery Layouts (1500×1500)</p>
+                <div className="space-y-2">
+                  {galleryTemplates.map(t => (
+                    <div key={t.label} className={`rounded-lg border px-3 py-2.5 ${cardBg}`}>
+                      <p className={`text-[11px] font-bold mb-0.5 ${hdrTxt}`}>{t.label}</p>
+                      <p className={`text-[11px] leading-relaxed ${mutedTxt}`}>{t.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Tips */}
+          <section>
+            <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b ${dark ? 'text-indigo-400 border-indigo-900/40' : 'text-indigo-600 border-indigo-100'}`}>Tips</h3>
+            <ul className="space-y-3">
+              {[
+                'Start from the template CSV — it includes sample data for all common slot types.',
+                "Photos are auto-fetched from Canto by SKU — no photo columns needed unless you want a different image.",
+                'CSV content is fully editable in the sidebar after upload. Tweak titles and descriptions without re-uploading.',
+                'The "Export Name" field in the sidebar overrides the product_name for file and folder naming.',
+                'You can add or remove A+ and Gallery slots from the sidebar without touching the CSV.',
+                'For icon callouts, assign the icon images from Canto using the icon picker in the sidebar — then the callout labels come from the CSV.',
+              ].map((tip, i) => (
+                <li key={i} className="flex gap-3">
+                  <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${dark ? 'bg-indigo-900/40' : 'bg-indigo-100'}`}>
+                    <svg className="w-2.5 h-2.5 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <p className={`text-[12px] leading-relaxed ${txt}`}>{tip}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+
+        {/* Footer */}
+        <div className={`shrink-0 flex items-center justify-between px-6 py-3.5 border-t ${hdrBg}`}>
+          <button
+            onClick={downloadTemplate}
+            className="flex items-center gap-1.5 text-[12px] font-semibold text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17a9 9 0 1118 0H3z" />
+            </svg>
+            Download template CSV
+          </button>
+          <button
+            onClick={onClose}
+            className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-colors ${dark ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface TemplateModeProps {
@@ -367,8 +611,9 @@ export default function TemplateMode({
   const [iconPickerOpen, setIconPickerOpen]       = useState(false)
   const [iconPickerSlotIdx, setIconPickerSlotIdx] = useState(0)
 
-  // Preview
+  // Preview / guide
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [guideOpen, setGuideOpen]     = useState(false)
 
   // Render / export
   const [renderingAll, setRenderingAll] = useState(false)
@@ -1033,6 +1278,17 @@ export default function TemplateMode({
               </svg>
               Download template CSV
             </button>
+
+            {/* Guide link */}
+            <button
+              onClick={() => setGuideOpen(true)}
+              className="mt-2 w-full flex items-center justify-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-600 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors py-1.5"
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              How to use Template Mode
+            </button>
           </div>
         </div>
 
@@ -1070,6 +1326,7 @@ export default function TemplateMode({
           </div>
         </div>
 
+        <CSVGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
       </div>
     )
   }
@@ -1452,7 +1709,18 @@ export default function TemplateMode({
             </div>
           </Section>
         </div>
-        {/* No render button — use Export dropdown in header */}
+        {/* Sidebar footer — CSV guide */}
+        <div className="shrink-0 border-t border-gray-100 dark:border-gray-700">
+          <button
+            onClick={() => setGuideOpen(true)}
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all"
+          >
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            CSV Guide & Help
+          </button>
+        </div>
       </aside>
 
       {/* ══ MAIN CANVAS AREA ════════════════════════════════════════════════════ */}
@@ -1690,6 +1958,8 @@ export default function TemplateMode({
         galleryDesigns={galleryPreviewDesigns}
         designState={designState}
       />
+
+      <CSVGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
     </div>
   )
 }
