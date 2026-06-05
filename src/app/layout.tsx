@@ -9,6 +9,17 @@ const anton = Anton({ weight: '400', subsets: ['latin'], variable: '--font-anton
 export const metadata: Metadata = {
   title: 'Design Generator',
   description: 'Generate listing designs for Amazon, eBay, and Shopify',
+  icons: {
+    icon: '/Favicon.png',
+    apple: '/Favicon.png',
+  },
+  openGraph: {
+    images: [{ url: '/Social Sharing.png', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: ['/Social Sharing.png'],
+  },
 }
 
 export default function RootLayout({
