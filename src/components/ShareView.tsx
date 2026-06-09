@@ -732,10 +732,12 @@ export default function ShareView({ token }: { token: string }) {
   // Template Mode state
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
 
-  const desktopRef = useRef<HTMLDivElement>(null)
-  const mobileRef  = useRef<HTMLDivElement>(null)
-  const [desktopScale, setDesktopScale] = useState(0.5)
-  const [mobileScale,  setMobileScale]  = useState(0.5)
+  const desktopRef       = useRef<HTMLDivElement>(null)
+  const tplMobileRef     = useRef<HTMLDivElement>(null)
+  const mobileRef        = useRef<HTMLDivElement>(null)
+  const [desktopScale,    setDesktopScale]    = useState(0.5)
+  const [tplMobileScale,  setTplMobileScale]  = useState(0.5)
+  const [mobileScale,     setMobileScale]     = useState(0.5)
 
   const [anonId] = useState(() => {
     if (typeof window === 'undefined') return 'anon'
@@ -788,10 +790,11 @@ export default function ShareView({ token }: { token: string }) {
   useEffect(() => {
     const tState = data?.templateState
     if (tState) {
-      // Template mode: desktop col = 1464, gallery col = 1500
+      // Template mode: A+ desktop=1464, A+ mobile=600, gallery=1500
       const measure = () => {
-        if (desktopRef.current) setDesktopScale(desktopRef.current.clientWidth / 1464)
-        if (mobileRef.current)  setMobileScale(mobileRef.current.clientWidth  / 1500)
+        if (desktopRef.current)   setDesktopScale(desktopRef.current.clientWidth   / 1464)
+        if (tplMobileRef.current) setTplMobileScale(tplMobileRef.current.clientWidth / 600)
+        if (mobileRef.current)    setMobileScale(mobileRef.current.clientWidth     / 1500)
       }
       const t = setTimeout(measure, 30)
       window.addEventListener('resize', measure)
@@ -836,8 +839,9 @@ export default function ShareView({ token }: { token: string }) {
   // ── Template Mode rendering ───────────────────────────────────────────────
 
   const tState = data.templateState
-  if (tState && selectedProductId !== null) {
-    const productId = selectedProductId
+  const effectiveProductId = selectedProductId ?? tState?.products[0]?.id ?? null
+  if (tState && effectiveProductId) {
+    const productId = effectiveProductId
     const aplusBlockItems: BlockItem[] = Array.from({ length: tState.aplusSlots }, (_, i) => ({
       id: `${productId}:aplus:${i}`,
       label: String.fromCharCode(65 + i) + '1',
@@ -874,25 +878,48 @@ export default function ShareView({ token }: { token: string }) {
         </header>
 
         {/* Product tab bar */}
-        <div className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-gray-50 border-b border-gray-100 overflow-x-auto">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-1">Product:</span>
-          {tState.products.map(p => (
-            <button
-              key={p.id}
-              onClick={() => {
-                setSelectedProductId(p.id)
-                setSelectedBlockId(null)
-              }}
-              className={`shrink-0 h-7 px-3 rounded-full text-[11px] font-semibold transition-all whitespace-nowrap ${
-                p.id === productId
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
-              }`}
-            >
-              {p.productName || p.sku || p.id}
-            </button>
-          ))}
-        </div>
+        {(() => {
+          const pidx = tState.products.findIndex(p => p.id === productId)
+          const prev = tState.products[pidx - 1]
+          const next = tState.products[pidx + 1]
+          return (
+            <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0">Products</span>
+              <span className="text-[10px] text-gray-300 shrink-0">{pidx + 1} / {tState.products.length}</span>
+              <div className="flex-1 flex items-center gap-1.5 overflow-x-auto min-w-0">
+                {tState.products.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => { setSelectedProductId(p.id); setSelectedBlockId(null) }}
+                    className={`shrink-0 h-6 px-2.5 rounded-full text-[10px] font-semibold transition-all whitespace-nowrap ${
+                      p.id === productId
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+                    }`}
+                  >
+                    {p.productName || p.sku || `#${tState.products.indexOf(p) + 1}`}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => { if (prev) { setSelectedProductId(prev.id); setSelectedBlockId(null) } }}
+                  disabled={!prev}
+                  className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <button
+                  onClick={() => { if (next) { setSelectedProductId(next.id); setSelectedBlockId(null) } }}
+                  disabled={!next}
+                  className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                </button>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Body */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -930,6 +957,43 @@ export default function ShareView({ token }: { token: string }) {
               </div>
             </div>
           </div>
+
+          {/* Mobile A+ column */}
+          {tState.aplusSlots > 0 && (
+            <div className="flex flex-col border-r border-gray-100 min-w-0" style={{ flex: '2 1 0%' }}>
+              <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
+                <svg className="w-3 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <rect x="5" y="2" width="14" height="20" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01" />
+                </svg>
+                <span className="text-[11px] font-semibold text-gray-500">Mobile</span>
+                <span className="text-[10px] text-gray-400">600 × 450 px</span>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <div className="px-3 pt-4 pb-6">
+                  <div ref={tplMobileRef}>
+                    {Array.from({ length: tState.aplusSlots }, (_, i) => {
+                      const bid = `${productId}:aplus:${i}`
+                      return (
+                        <TemplateModeAplusMobileItem
+                          key={bid + '-m'}
+                          productId={productId}
+                          slotIdx={i}
+                          tState={tState}
+                          baseDesign={design}
+                          scale={tplMobileScale}
+                          blockId={bid}
+                          selected={effectiveBlockId === bid}
+                          onClick={() => setSelectedBlockId(bid)}
+                          feedback={feedback}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Gallery column */}
           {tState.galleryCount > 0 && (
