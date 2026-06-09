@@ -297,6 +297,17 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
 function CSVGuideModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { settings } = useAppSettings()
   const dark = settings.theme === 'dark'
+  const [mounted, setMounted] = useState(false)
+  const [closing, setClosing] = useState(false)
+
+  useEffect(() => {
+    if (open) { setMounted(true); setClosing(false) }
+    else if (mounted) {
+      setClosing(true)
+      const t = setTimeout(() => { setMounted(false); setClosing(false) }, 160)
+      return () => clearTimeout(t)
+    }
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return
@@ -305,7 +316,7 @@ function CSVGuideModal({ open, onClose }: { open: boolean; onClose: () => void }
     return () => window.removeEventListener('keydown', h)
   }, [open, onClose])
 
-  if (!open) return null
+  if (!mounted) return null
 
   const panelBg  = dark ? 'bg-gray-950 border-white/8'   : 'bg-white border-gray-200'
   const hdrBg    = dark ? 'bg-gray-900/80 border-white/8' : 'bg-gray-50 border-gray-200'
@@ -335,8 +346,8 @@ function CSVGuideModal({ open, onClose }: { open: boolean; onClose: () => void }
 
   return (
     <>
-      <div className={`fixed inset-0 z-50 ${dark ? 'bg-black/80' : 'bg-black/50'} backdrop-blur-sm`} onClick={onClose} />
-      <div className={`fixed inset-x-6 bottom-6 top-14 z-50 max-w-2xl mx-auto flex flex-col rounded-2xl overflow-hidden shadow-2xl border ${panelBg}`}>
+      <div className={`fixed inset-0 z-50 ${dark ? 'bg-black/80' : 'bg-black/50'} backdrop-blur-sm ${closing ? 'animate-fade-out' : 'animate-fade-in'}`} onClick={onClose} />
+      <div className={`fixed inset-x-6 bottom-6 top-14 z-50 max-w-2xl mx-auto flex flex-col rounded overflow-hidden border ${panelBg} ${closing ? 'animate-scale-out' : 'animate-scale-in'}`}>
 
         {/* Header */}
         <div className={`shrink-0 flex items-center justify-between px-6 py-4 border-b ${hdrBg}`}>

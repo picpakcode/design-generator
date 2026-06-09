@@ -37,12 +37,22 @@ module.exports = {
           '0%':   { opacity: '0', transform: 'translateY(6px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        scaleOut: {
+          '0%':   { opacity: '1', transform: 'scale(1)' },
+          '100%': { opacity: '0', transform: 'scale(0.97)' },
+        },
+        fadeOut: {
+          '0%':   { opacity: '1' },
+          '100%': { opacity: '0' },
+        },
       },
       animation: {
         'fade-in':      'fadeIn      150ms ease both',
+        'fade-out':     'fadeOut     150ms ease both',
         'slide-down':   'slideDown   160ms cubic-bezier(0.16,1,0.3,1) both',
         'slide-up':     'slideUp     220ms cubic-bezier(0.16,1,0.3,1) both',
         'scale-in':     'scaleIn     220ms cubic-bezier(0.16,1,0.3,1) both',
+        'scale-out':    'scaleOut    160ms cubic-bezier(0.4,0,1,1) both',
         'bounce-once':  'bounceOnce  300ms cubic-bezier(0.16,1,0.3,1) both',
         'slide-in-up':  'slideInUp   180ms cubic-bezier(0.16,1,0.3,1) both',
       },

@@ -447,12 +447,12 @@ export default function FeedbackPanel({ projectId, user, isOpen, onClose, onUnre
       {isOpen && <div className="fixed inset-0 z-30 bg-black/20 lg:hidden" onClick={onClose} />}
 
       {/* Panel */}
-      <div className={`fixed right-0 top-0 bottom-0 z-40 w-[340px] bg-white border-l border-gray-100 shadow-xl flex flex-col transition-transform duration-300 ease-out ${
+      <div className={`fixed right-0 top-0 bottom-0 z-40 w-[340px] bg-white border-l border-gray-100 flex flex-col transition-transform duration-300 ease-out ${
         isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}>
 
         {/* Header */}
-        <div className="shrink-0 flex items-center gap-2.5 px-4 py-3.5 border-b border-gray-100 bg-white">
+        <div className="shrink-0 flex items-center gap-2.5 px-4 py-3 border-b border-gray-100 bg-white">
           <svg className="w-4 h-4 text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
