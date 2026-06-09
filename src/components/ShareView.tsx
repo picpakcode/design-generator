@@ -900,6 +900,18 @@ export default function ShareView({ token }: { token: string }) {
       .finally(() => setLoading(false))
   }, [token, loadFeedback])
 
+  // Poll every 10s when tab is visible so reviewers see owner replies without refreshing
+  useEffect(() => {
+    if (!token) return
+    const pollRef = { current: null as ReturnType<typeof setInterval> | null }
+    const start = () => { pollRef.current = setInterval(loadFeedback, 10000) }
+    const stop  = () => { pollRef.current && clearInterval(pollRef.current); pollRef.current = null }
+    const onVisibility = () => document.hidden ? stop() : (stop(), start())
+    if (!document.hidden) start()
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
+  }, [token, loadFeedback])
+
   useEffect(() => {
     const tState = data?.templateState
     if (tState) {

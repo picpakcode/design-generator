@@ -1444,7 +1444,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   )
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden" style={{ paddingRight: feedbackOpen ? 340 : 0, transition: 'padding-right 0.3s ease-out' }}>
 
       {/* ── App header ── */}
       <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3 z-20 shadow-sm">
@@ -1589,22 +1589,6 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             </button>
             {settingsGearEl}
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
-            {/* Share button */}
-            {projectId && user ? (
-              <Btn variant="indigo" onClick={() => setShareModalOpen(true)} title="Share project">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-                Share
-              </Btn>
-            ) : !projectId ? (
-              <Btn variant="indigo" onClick={() => { setSaveToShareName(design.productName || ''); setSaveToShareOpen(true) }} title="Share project">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-                Share
-              </Btn>
-            ) : null}
             {/* Feedback button — only for saved projects */}
             {projectId && user && (
               <button
@@ -1622,6 +1606,22 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 )}
               </button>
             )}
+            {/* Share button */}
+            {projectId && user ? (
+              <Btn variant="indigo" onClick={() => setShareModalOpen(true)} title="Share project">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                Share
+              </Btn>
+            ) : !projectId ? (
+              <Btn variant="indigo" onClick={() => { setSaveToShareName(design.productName || ''); setSaveToShareOpen(true) }} title="Share project">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                Share
+              </Btn>
+            ) : null}
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
             <div className="relative">
             <Btn variant="primary" onClick={() => setTemplateExportOpen(o => !o)}>
@@ -1799,22 +1799,6 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
 
-            {/* Share button */}
-            {projectId && user ? (
-              <Btn variant="indigo" onClick={() => setShareModalOpen(true)} title="Share project">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-                Share
-              </Btn>
-            ) : !projectId ? (
-              <Btn variant="indigo" onClick={() => { setSaveToShareName(design.productName || ''); setSaveToShareOpen(true) }} title="Share project">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                </svg>
-                Share
-              </Btn>
-            ) : null}
             {projectId && user && (
               <button
                 onClick={() => setFeedbackOpen(o => !o)}
@@ -1831,6 +1815,22 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 )}
               </button>
             )}
+            {/* Share button */}
+            {projectId && user ? (
+              <Btn variant="indigo" onClick={() => setShareModalOpen(true)} title="Share project">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                Share
+              </Btn>
+            ) : !projectId ? (
+              <Btn variant="indigo" onClick={() => { setSaveToShareName(design.productName || ''); setSaveToShareOpen(true) }} title="Share project">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+                Share
+              </Btn>
+            ) : null}
 
             {/* Export dropdown */}
             <div className="relative">
@@ -2737,35 +2737,35 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                             title="Block label — used in export filename"
                             style={{ fontSize: 11, fontWeight: 600, color: '#111827', background: 'transparent', border: 'none', outline: 'none', width: 120 }}
                           />
-                          {/* Comment status badge */}
+                          {/* Comment + approval status badges */}
                           {(() => {
                             const st = blockCommentStatus[block.id]
                             if (!st) return null
-                            if (st.open > 0) return (
-                              <button
-                                onClick={e => { e.stopPropagation(); setFeedbackOpen(true) }}
-                                title={`${st.open} open comment${st.open !== 1 ? 's' : ''}`}
-                                style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#FEF3C7', border: '1px solid #FDE68A', cursor: 'pointer' }}
-                              >
-                                <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#D97706" strokeWidth={2.5}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                                </svg>
-                                <span style={{ fontSize: 9, fontWeight: 700, color: '#D97706', lineHeight: 1 }}>{st.open}</span>
-                              </button>
+                            return (
+                              <>
+                                {st.approval === 'approved' && (
+                                  <button onClick={e => { e.stopPropagation(); setFeedbackOpen(true) }} title="Approved"
+                                    style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#ECFDF5', border: '1px solid #A7F3D0', cursor: 'pointer' }}>
+                                    <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#059669" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: '#059669', lineHeight: 1 }}>Approved</span>
+                                  </button>
+                                )}
+                                {st.approval === 'changes_requested' && (
+                                  <button onClick={e => { e.stopPropagation(); setFeedbackOpen(true) }} title="Changes requested"
+                                    style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#FFF7ED', border: '1px solid #FED7AA', cursor: 'pointer' }}>
+                                    <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#EA580C" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>Revisions</span>
+                                  </button>
+                                )}
+                                {st.open > 0 && (
+                                  <button onClick={e => { e.stopPropagation(); setFeedbackOpen(true) }} title={`${st.open} open comment${st.open !== 1 ? 's' : ''}`}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#FEF3C7', border: '1px solid #FDE68A', cursor: 'pointer' }}>
+                                    <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#D97706" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: '#D97706', lineHeight: 1 }}>{st.open}</span>
+                                  </button>
+                                )}
+                              </>
                             )
-                            if (st.resolved > 0) return (
-                              <button
-                                onClick={e => { e.stopPropagation(); setFeedbackOpen(true) }}
-                                title={`${st.resolved} resolved`}
-                                style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#ECFDF5', border: '1px solid #A7F3D0', cursor: 'pointer' }}
-                              >
-                                <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#059669" strokeWidth={2.5}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
-                                <span style={{ fontSize: 9, fontWeight: 700, color: '#059669', lineHeight: 1 }}>{st.resolved}</span>
-                              </button>
-                            )
-                            return null
                           })()}
                         </div>
                         {/* Right: template switcher + delete — both scale from top-right */}
