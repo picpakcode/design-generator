@@ -21,9 +21,14 @@ interface ShareData {
 interface Comment {
   id: string
   block_id: string
+  parent_id: string | null
   author_name: string
+  author_type?: 'reviewer' | 'owner'
   body: string
   created_at: string
+  resolved_at?: string | null
+  resolved_by?: string | null
+  reactions?: Record<string, string[]>
 }
 
 interface Approval {
@@ -386,6 +391,8 @@ function TemplateModeGalleryItem({
 
 // ─── Comments sidebar ─────────────────────────────────────────────────────────
 
+const SHARE_EMOJIS = ['👍', '❤️', '😄', '👀', '🎉']
+
 function CommentsSidebar({
   token, blocks, selectedBlockId, onSelectBlock, feedback, feedbackLoading, onRefresh,
 }: {
@@ -406,7 +413,18 @@ function CommentsSidebar({
   const [approveFlash, setApproveFlash] = useState<'approved' | 'changes_requested' | null>(null)
   const [postFlash,    setPostFlash]    = useState(false)
   const [submitError,  setSubmitError]  = useState<string | null>(null)
+  const [replyingTo,   setReplyingTo]   = useState<string | null>(null)
+  const [replyText,    setReplyText]    = useState('')
+  const [replyPosting, setReplyPosting] = useState(false)
+  const [emojiPickerFor, setEmojiPickerFor] = useState<string | null>(null)
+  const [localComments, setLocalComments]   = useState<Comment[]>([])
   const commentsEndRef = useRef<HTMLDivElement>(null)
+
+  // Merge server comments with optimistic local updates
+  const allComments = React.useMemo(() => {
+    const ids = new Set(feedback.comments.map(c => c.id))
+    return [...feedback.comments, ...localComments.filter(c => !ids.has(c.id))]
+  }, [feedback.comments, localComments])
 
   useEffect(() => {
     const stored = localStorage.getItem('dg:reviewer-name') ?? ''
@@ -416,12 +434,15 @@ function CommentsSidebar({
 
   const effectiveBlockId = selectedBlockId ?? blocks[0]?.id ?? null
 
-  const blockComments = feedback.comments
-    .filter(c => c.block_id === effectiveBlockId)
-    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  // Build threads for the selected block
+  const blockRoots = allComments.filter(c => c.block_id === effectiveBlockId && !c.parent_id)
+  const blockReplies = allComments.filter(c => c.block_id === effectiveBlockId && !!c.parent_id)
+  const threads = blockRoots.map(root => ({
+    root,
+    replies: blockReplies.filter(r => r.parent_id === root.id),
+  }))
 
   const blockApprovals = feedback.approvals.filter(a => a.block_id === effectiveBlockId)
-
   const latestPerAuthor = (() => {
     const map = new Map<string, Approval>()
     for (const a of blockApprovals) {
@@ -430,10 +451,9 @@ function CommentsSidebar({
     }
     return Array.from(map.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   })()
-
   const myLatest = authorName ? latestPerAuthor.find(a => a.author_name === authorName) ?? null : null
 
-  const totalComments = feedback.comments.length
+  const totalRootComments = allComments.filter(c => !c.parent_id).length
   const totalApprovals = (() => {
     const set = new Set<string>()
     for (const a of feedback.approvals) set.add(`${a.block_id}::${a.author_name}`)
@@ -460,9 +480,8 @@ function CommentsSidebar({
     setSubmitError(null)
     try {
       const res = await fetch(`/api/share/${token}/comments`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ blockId: effectiveBlockId, authorName, body: commentInput.trim() }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockId: effectiveBlockId, authorName, body: commentInput.trim() }),
       })
       if (!res.ok) throw new Error('Post failed')
       setCommentInput('')
@@ -477,14 +496,47 @@ function CommentsSidebar({
     }
   }
 
+  async function handlePostReply(parentId: string, blockId: string) {
+    if (!authorName || !replyText.trim()) return
+    setReplyPosting(true)
+    try {
+      const res = await fetch(`/api/share/${token}/comments`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockId, parentId, authorName, body: replyText.trim() }),
+      })
+      if (res.ok) {
+        const d: Comment = await res.json()
+        setLocalComments(prev => [...prev, d])
+        setReplyText('')
+        setReplyingTo(null)
+      }
+    } finally {
+      setReplyPosting(false)
+    }
+  }
+
+  async function handleReaction(commentId: string, emoji: string) {
+    if (!authorName) return
+    setEmojiPickerFor(null)
+    const res = await fetch(`/api/share/${token}/react`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commentId, emoji, authorName }),
+    })
+    if (res.ok) {
+      const d = await res.json()
+      const updater = (c: Comment) => c.id === commentId ? { ...c, reactions: d.reactions ?? {} } : c
+      setLocalComments(prev => prev.map(updater))
+      onRefresh()
+    }
+  }
+
   async function handleApproval(status: 'approved' | 'changes_requested') {
     if (!effectiveBlockId || !authorName) return
     setApproving(true)
     try {
       await fetch(`/api/share/${token}/approve`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ blockId: effectiveBlockId, authorName, status }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockId: effectiveBlockId, authorName, status }),
       })
       onRefresh()
       setApproveFlash(status)
@@ -512,7 +564,7 @@ function CommentsSidebar({
           )}
         </div>
         <p className="text-[10px] text-gray-400 mt-0.5">
-          {totalComments} comment{totalComments !== 1 ? 's' : ''} · {totalApprovals} vote{totalApprovals !== 1 ? 's' : ''}
+          {totalRootComments} comment{totalRootComments !== 1 ? 's' : ''} · {totalApprovals} vote{totalApprovals !== 1 ? 's' : ''}
         </p>
       </div>
 
@@ -521,7 +573,7 @@ function CommentsSidebar({
         <div className="shrink-0 flex items-center gap-1 px-3 py-2 border-b border-gray-100 overflow-x-auto">
           {blocks.map(block => {
             const blockStatus = blockApprovalSummary(feedback.approvals, block.id)
-            const blockCommentCount = feedback.comments.filter(c => c.block_id === block.id).length
+            const blockCommentCount = allComments.filter(c => c.block_id === block.id && !c.parent_id).length
             const isActive = (selectedBlockId ?? blocks[0]?.id) === block.id
             return (
               <button
@@ -529,17 +581,14 @@ function CommentsSidebar({
                 onClick={() => onSelectBlock(block.id)}
                 title={block.label}
                 className={`relative shrink-0 h-[26px] px-2.5 rounded text-[10px] font-semibold transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                  isActive ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                 }`}
               >
                 {block.label}
                 {(blockCommentCount > 0 || blockStatus) && (
                   <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-white ${
                     blockStatus === 'changes_requested' ? 'bg-amber-400' :
-                    blockStatus === 'approved'          ? 'bg-emerald-400' :
-                    'bg-indigo-400'
+                    blockStatus === 'approved'          ? 'bg-emerald-400' : 'bg-indigo-400'
                   }`} />
                 )}
               </button>
@@ -548,7 +597,7 @@ function CommentsSidebar({
         </div>
       )}
 
-      {/* Scrollable content: approval + comments */}
+      {/* Scrollable content */}
       <div className="flex-1 min-h-0 overflow-y-auto">
       <div key={effectiveBlockId ?? ''} className="animate-fade-in">
 
@@ -566,9 +615,7 @@ function CommentsSidebar({
                   : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
               } ${approveFlash === 'approved' ? 'animate-bounce-once' : ''}`}
             >
-              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
               Approve
             </button>
             <button
@@ -581,67 +628,158 @@ function CommentsSidebar({
                   : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
               } ${approveFlash === 'changes_requested' ? 'animate-bounce-once' : ''}`}
             >
-              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               Changes
             </button>
           </div>
-
           {latestPerAuthor.length > 0 && (
             <div className="space-y-1">
               {latestPerAuthor.map(a => (
                 <div key={a.author_name} className="flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                    a.status === 'approved' ? 'bg-emerald-400' : 'bg-amber-400'
-                  }`} />
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${a.status === 'approved' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                   <span className="text-[10px] text-gray-500 truncate flex-1">
                     <span className="font-medium text-gray-700">{a.author_name}</span>
-                    {' · '}
-                    {a.status === 'approved' ? 'approved' : 'changes requested'}
-                    {' · '}
-                    {timeAgo(a.created_at)}
+                    {' · '}{a.status === 'approved' ? 'approved' : 'changes requested'}{' · '}{timeAgo(a.created_at)}
                   </span>
                 </div>
               ))}
             </div>
           )}
-
-          {!authorName && (
-            <p className="text-[10px] text-gray-400 mt-1.5">Enter your name below to vote.</p>
-          )}
+          {!authorName && <p className="text-[10px] text-gray-400 mt-1.5">Enter your name below to vote.</p>}
         </div>
 
-        {/* Comments */}
-        <div className="px-4 pt-3 pb-4">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
-            Comments {blockComments.length > 0 && `(${blockComments.length})`}
+        {/* Threads */}
+        <div className="px-3 pt-3 pb-4 space-y-3">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1">
+            Comments {threads.length > 0 && `(${threads.length})`}
           </p>
 
-          {blockComments.length === 0 ? (
-            <div className="flex flex-col items-center py-6 text-center">
+          {threads.length === 0 ? (
+            <div className="flex flex-col items-center py-5 text-center">
               <svg className="w-5 h-5 text-gray-200 mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
               <p className="text-[11px] text-gray-300 font-medium">No comments yet</p>
-              <p className="text-[10px] text-gray-200 mt-0.5">Be the first to leave feedback.</p>
             </div>
           ) : (
-            <div className="space-y-3.5">
-              {blockComments.map(c => (
-                <div key={c.id}>
-                  <div className="flex items-baseline gap-2 mb-0.5">
-                    <span className="text-[11px] font-semibold text-gray-800">{c.author_name}</span>
-                    <span className="text-[9px] text-gray-300">{timeAgo(c.created_at)}</span>
+            threads.map(({ root, replies: threadReplies }) => {
+              const isResolved = !!root.resolved_at
+              const isReplying = replyingTo === root.id
+              return (
+                <div key={root.id} className={`rounded-xl border transition-all ${isResolved ? 'border-gray-100 bg-gray-50/50 opacity-60' : 'border-gray-100 bg-white'}`}>
+                  {/* Root comment */}
+                  <div className="p-3">
+                    <div className="flex items-start gap-2">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5 ${root.author_type === 'owner' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                        {root.author_name[0]?.toUpperCase() ?? '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-[11px] font-semibold text-gray-800 truncate">{root.author_name}</span>
+                          {root.author_type === 'owner' && <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full shrink-0">Owner</span>}
+                          <span className="text-[9px] text-gray-300 ml-auto shrink-0">{timeAgo(root.created_at)}</span>
+                        </div>
+                        <p className="text-[11px] text-gray-600 leading-relaxed">{root.body}</p>
+                        {/* Reactions */}
+                        <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                          {Object.entries(root.reactions ?? {}).map(([emoji, names]) => (
+                            <button key={emoji} onClick={() => handleReaction(root.id, emoji)}
+                              title={names.join(', ')}
+                              className="flex items-center gap-0.5 h-5 px-1.5 rounded-full bg-gray-100 hover:bg-indigo-50 hover:ring-1 hover:ring-indigo-200 transition-all text-[10px]">
+                              {emoji} <span className="text-gray-500 font-medium">{names.length}</span>
+                            </button>
+                          ))}
+                          <div className="relative">
+                            <button onClick={() => setEmojiPickerFor(emojiPickerFor === root.id ? null : root.id)}
+                              className="h-5 w-5 flex items-center justify-center rounded-full text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-all">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M8 13s1.5 2 4 2 4-2 4-2" />
+                                <line x1="9" y1="9" x2="9.01" y2="9" strokeWidth={3} strokeLinecap="round" />
+                                <line x1="15" y1="9" x2="15.01" y2="9" strokeWidth={3} strokeLinecap="round" />
+                              </svg>
+                            </button>
+                            {emojiPickerFor === root.id && (
+                              <>
+                                <div className="fixed inset-0 z-10" onClick={() => setEmojiPickerFor(null)} />
+                                <div className="absolute bottom-6 left-0 z-20 flex gap-1 bg-white rounded-xl shadow-lg border border-gray-100 px-2 py-1.5">
+                                  {SHARE_EMOJIS.map(e => <button key={e} onClick={() => handleReaction(root.id, e)} className="text-base hover:scale-125 transition-transform">{e}</button>)}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {isResolved && (
+                        <span className="w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 mt-0.5" title={`Resolved by ${root.resolved_by}`}>
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-[11px] text-gray-600 leading-relaxed">{c.body}</p>
+
+                  {/* Replies */}
+                  {threadReplies.length > 0 && (
+                    <div className="border-t border-gray-50 divide-y divide-gray-50">
+                      {threadReplies.map(reply => (
+                        <div key={reply.id} className="px-3 py-2 pl-7">
+                          <div className="flex items-start gap-2">
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 mt-0.5 ${reply.author_type === 'owner' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                              {reply.author_name[0]?.toUpperCase() ?? '?'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="text-[10px] font-semibold text-gray-800 truncate">{reply.author_name}</span>
+                                {reply.author_type === 'owner' && <span className="text-[8px] font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded-full shrink-0">Owner</span>}
+                                <span className="text-[9px] text-gray-300 ml-auto shrink-0">{timeAgo(reply.created_at)}</span>
+                              </div>
+                              <p className="text-[11px] text-gray-600 leading-relaxed">{reply.body}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Reply form */}
+                  {!isResolved && authorName && (
+                    <div className="px-3 pb-2.5">
+                      {isReplying ? (
+                        <div className="mt-1 space-y-1.5">
+                          <textarea
+                            value={replyText}
+                            onChange={e => setReplyText(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handlePostReply(root.id, root.block_id) }}
+                            placeholder="Reply… (⌘↵ to post)"
+                            rows={2}
+                            autoFocus
+                            className="w-full px-2.5 py-1.5 text-[11px] border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none placeholder:text-gray-300 transition-all"
+                          />
+                          <div className="flex gap-1.5">
+                            <button onClick={() => handlePostReply(root.id, root.block_id)} disabled={replyPosting || !replyText.trim()}
+                              className="h-6 px-2.5 rounded-lg bg-indigo-600 text-white text-[10px] font-bold hover:bg-indigo-500 disabled:opacity-40 transition-colors">
+                              {replyPosting ? '…' : 'Reply'}
+                            </button>
+                            <button onClick={() => { setReplyingTo(null); setReplyText('') }}
+                              className="h-6 px-2 rounded-lg text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={() => setReplyingTo(root.id)}
+                          className="mt-1 text-[10px] text-gray-400 hover:text-indigo-600 transition-colors font-medium">
+                          Reply
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ))}
-              <div ref={commentsEndRef} />
-            </div>
+              )
+            })
           )}
+          <div ref={commentsEndRef} />
         </div>
-      </div>{/* end keyed crossfade wrapper */}
+      </div>
       </div>
 
       {/* Add comment / identity form */}
@@ -652,61 +790,36 @@ function CommentsSidebar({
               {authorName ? 'Change name' : 'Your name'}
             </p>
             <div className="flex gap-2">
-              <input
-                type="text"
-                value={nameInput}
-                onChange={e => setNameInput(e.target.value)}
+              <input type="text" value={nameInput} onChange={e => setNameInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') saveName() }}
-                placeholder="Enter your name…"
-                autoFocus
+                placeholder="Enter your name…" autoFocus
                 className="flex-1 h-7 px-2.5 text-[11px] border border-gray-200 rounded bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 placeholder:text-gray-300 transition-all"
               />
-              <button
-                onClick={saveName}
-                disabled={!nameInput.trim()}
-                className="h-7 px-3 rounded bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-500 disabled:opacity-40 transition-colors"
-              >
+              <button onClick={saveName} disabled={!nameInput.trim()}
+                className="h-7 px-3 rounded bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-500 disabled:opacity-40 transition-colors">
                 Set
               </button>
             </div>
             {authorName && (
-              <button
-                onClick={() => setEditingName(false)}
-                className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                Cancel
-              </button>
+              <button onClick={() => setEditingName(false)} className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors">Cancel</button>
             )}
           </div>
         ) : (
           <div className="space-y-2">
-            <textarea
-              value={commentInput}
-              onChange={e => setCommentInput(e.target.value)}
+            <textarea value={commentInput} onChange={e => setCommentInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handlePostComment() }}
-              placeholder="Leave a comment… (⌘↵ to post)"
-              rows={2}
+              placeholder="Leave a comment… (⌘↵ to post)" rows={2}
               className="w-full px-2.5 py-2 text-[11px] border border-gray-200 rounded bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none placeholder:text-gray-300 transition-all"
             />
             {submitError && <p className="text-[10px] text-red-500">{submitError}</p>}
             <div className="flex items-center justify-between gap-2">
-              <button
-                onClick={startEditName}
-                className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors truncate max-w-[150px] text-left"
-              >
+              <button onClick={startEditName}
+                className="text-[10px] text-gray-400 hover:text-gray-600 transition-colors truncate max-w-[150px] text-left">
                 As&nbsp;<span className="font-medium text-gray-600">{authorName}</span>&nbsp;·&nbsp;Change
               </button>
-              <button
-                onClick={handlePostComment}
-                disabled={submitting || !commentInput.trim()}
-                className={`shrink-0 h-7 px-3 rounded bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-500 disabled:opacity-40 transition-colors flex items-center gap-1.5 ${postFlash ? 'animate-bounce-once' : ''}`}
-              >
-                {submitting && (
-                  <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                )}
+              <button onClick={handlePostComment} disabled={submitting || !commentInput.trim()}
+                className={`shrink-0 h-7 px-3 rounded bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-500 disabled:opacity-40 transition-colors flex items-center gap-1.5 ${postFlash ? 'animate-bounce-once' : ''}`}>
+                {submitting && <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
                 Post
               </button>
             </div>

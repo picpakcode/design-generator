@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { loadProject, saveProject, saveProjectThumbnail, renameProject, createProject, loadProjectShare } from '@/lib/db'
 import { usePresence, presenceColor } from '@/hooks/usePresence'
 import ShareModal from './ShareModal'
+import FeedbackPanel from './FeedbackPanel'
 import Btn from './ui/Btn'
 import { getGalleryTemplate, getTemplate } from '@/lib/templates'
 import AssetUploader from './AssetUploader'
@@ -324,6 +325,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const [saveToShareOpen, setSaveToShareOpen] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [feedbackUnread, setFeedbackUnread] = useState(0)
   const [saveToShareName, setSaveToShareName] = useState('')
   const [saveToShareSaving, setSaveToShareSaving] = useState(false)
   const isApplyingRemoteRef = useRef(false)
@@ -1601,6 +1604,23 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 Share
               </Btn>
             ) : null}
+            {/* Feedback button — only for saved projects */}
+            {projectId && user && (
+              <button
+                onClick={() => setFeedbackOpen(o => !o)}
+                title="View feedback"
+                className="relative h-7 px-2.5 flex items-center gap-1.5 rounded-md text-[11px] font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                {feedbackUnread > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5 leading-none">
+                    {feedbackUnread > 9 ? '9+' : feedbackUnread}
+                  </span>
+                )}
+              </button>
+            )}
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
             <div className="relative">
             <Btn variant="primary" onClick={() => setTemplateExportOpen(o => !o)}>
@@ -1794,6 +1814,22 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 Share
               </Btn>
             ) : null}
+            {projectId && user && (
+              <button
+                onClick={() => setFeedbackOpen(o => !o)}
+                title="View feedback"
+                className="relative h-7 px-2.5 flex items-center gap-1.5 rounded-md text-[11px] font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                {feedbackUnread > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-3.5 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5 leading-none">
+                    {feedbackUnread > 9 ? '9+' : feedbackUnread}
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* Export dropdown */}
             <div className="relative">
@@ -2899,6 +2935,17 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           onClose={() => setShareModalOpen(false)}
           projectId={projectId}
           userId={user.id}
+        />
+      )}
+
+      {/* Feedback panel */}
+      {projectId && user && (
+        <FeedbackPanel
+          projectId={projectId}
+          user={user}
+          isOpen={feedbackOpen}
+          onClose={() => setFeedbackOpen(false)}
+          onUnreadCount={setFeedbackUnread}
         />
       )}
 
