@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import type { DesignState } from '@/types'
+import type { DesignState, TemplateShareState, TemplateShareSlotState, TemplateId, GalleryTemplateId } from '@/types'
 import { getTemplate, getGalleryTemplate } from '@/lib/templates'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import { usePresence, type Peer } from '@/hooks/usePresence'
@@ -14,6 +14,7 @@ interface ShareData {
   projectName: string
   ownerEmail: string | null
   state: DesignState
+  templateState: TemplateShareState | null
   updatedAt: string
 }
 
@@ -213,6 +214,173 @@ function GalleryBlockCanvas({ gBlock, design, scale }: {
         </div>
       </div>
     </div>
+  )
+}
+
+// ─── Template Mode helpers ────────────────────────────────────────────────────
+
+function emptyTplSlot(): TemplateShareSlotState {
+  return { title: '', desc: '', iconLabels: ['', '', '', ''], iconCount: 3, photoAsset: undefined, iconAssets: [] }
+}
+
+function buildTemplateSlotDesign(
+  productId: string,
+  slotIdx: number,
+  tState: TemplateShareState,
+  baseDesign: DesignState,
+): DesignState {
+  const s = (tState.allSlots[productId] ?? [])[slotIdx] ?? emptyTplSlot()
+  const cfg = tState.slotConfigs[slotIdx] ?? { template: '5050-right' }
+  const showDesc = cfg.template !== 'icons'
+  return {
+    ...baseDesign,
+    assets: [
+      s.photoAsset,
+      tState.textureAsset,
+      tState.logoAsset,
+      s.iconAssets[0], s.iconAssets[1], s.iconAssets[2], s.iconAssets[3],
+    ] as DesignState['assets'],
+    title:               s.title || '<p></p>',
+    subtitleHtml:        showDesc ? (s.desc || '') : '',
+    iconLabels:          s.iconLabels,
+    iconCount:           s.iconCount,
+    iconsMobileShowDesc: (cfg as { mobileShowDesc?: boolean }).mobileShowDesc ?? true,
+    activeTemplate:      cfg.template as TemplateId,
+    activeFormat:        'desktop',
+  }
+}
+
+function buildTemplateGalleryDesign(
+  productId: string,
+  galleryIdx: number,
+  tState: TemplateShareState,
+  baseDesign: DesignState,
+): DesignState {
+  const s = (tState.allGallerySlots[productId] ?? [])[galleryIdx] ?? emptyTplSlot()
+  const cfg = tState.galleryConfigs[galleryIdx] ?? { template: 'gallery-hero' }
+  return {
+    ...baseDesign,
+    assets: [
+      s.photoAsset,
+      tState.textureAsset,
+      tState.logoAsset,
+      s.iconAssets[0], s.iconAssets[1], s.iconAssets[2], s.iconAssets[3],
+    ] as DesignState['assets'],
+    title:                       s.title || '<p></p>',
+    subtitleHtml:                s.desc || '',
+    iconLabels:                  s.iconLabels,
+    iconCount:                   s.iconCount,
+    activeGalleryTemplate:       cfg.template as GalleryTemplateId,
+    galleryIconsShowDescription: cfg.template === 'gallery-icons-text',
+  }
+}
+
+// ─── Template Mode canvas item (A+ slot) ─────────────────────────────────────
+
+function TemplateModeAplusItem({
+  productId, slotIdx, tState, baseDesign, scale, blockId,
+  selected, onClick, feedback,
+}: {
+  productId: string
+  slotIdx: number
+  tState: TemplateShareState
+  baseDesign: DesignState
+  scale: number
+  blockId: string
+  selected: boolean
+  onClick: () => void
+  feedback: Feedback
+}) {
+  const sd  = buildTemplateSlotDesign(productId, slotIdx, tState, baseDesign)
+  const cfg = tState.slotConfigs[slotIdx] ?? { template: '5050-right' }
+  const isIcons = cfg.template === 'icons' || cfg.template === 'icons-text'
+  const flip    = cfg.template === '5050-left'
+  const W = 1464
+  const H = 600
+  return (
+    <BlockWrapper blockId={blockId} selected={selected} onClick={onClick} feedback={feedback}>
+      <div style={{ width: '100%', height: H * scale, position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ width: W, height: H, transform: `scale(${scale})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+          <div style={{ width: W, height: H, position: 'relative' }}>
+            {isIcons
+              ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...baseDesign.desktop, layoutFlipped: flip }} />
+              : <CanvasContent      design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...baseDesign.desktop, layoutFlipped: flip }} />
+            }
+          </div>
+        </div>
+      </div>
+    </BlockWrapper>
+  )
+}
+
+function TemplateModeAplusMobileItem({
+  productId, slotIdx, tState, baseDesign, scale, blockId,
+  selected, onClick, feedback,
+}: {
+  productId: string
+  slotIdx: number
+  tState: TemplateShareState
+  baseDesign: DesignState
+  scale: number
+  blockId: string
+  selected: boolean
+  onClick: () => void
+  feedback: Feedback
+}) {
+  const sd  = buildTemplateSlotDesign(productId, slotIdx, tState, baseDesign)
+  const cfg = tState.slotConfigs[slotIdx] ?? { template: '5050-right' }
+  const isIcons = cfg.template === 'icons' || cfg.template === 'icons-text'
+  const flip    = cfg.template === '5050-left'
+  const W = 600
+  const H = 450
+  return (
+    <BlockWrapper blockId={blockId} selected={selected} onClick={onClick} feedback={feedback}>
+      <div style={{ width: '100%', height: H * scale, position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ width: W, height: H, transform: `scale(${scale})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+          <div style={{ width: W, height: H, position: 'relative' }}>
+            {isIcons
+              ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...baseDesign.mobile, layoutFlipped: flip }} />
+              : <CanvasContent      design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...baseDesign.mobile, layoutFlipped: flip }} />
+            }
+          </div>
+        </div>
+      </div>
+    </BlockWrapper>
+  )
+}
+
+function TemplateModeGalleryItem({
+  productId, galleryIdx, tState, baseDesign, scale, blockId,
+  selected, onClick, feedback,
+}: {
+  productId: string
+  galleryIdx: number
+  tState: TemplateShareState
+  baseDesign: DesignState
+  scale: number
+  blockId: string
+  selected: boolean
+  onClick: () => void
+  feedback: Feedback
+}) {
+  const gd  = buildTemplateGalleryDesign(productId, galleryIdx, tState, baseDesign)
+  const cfg = tState.galleryConfigs[galleryIdx] ?? { template: 'gallery-hero' }
+  const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
+  const W = 1500
+  const H = 1500
+  return (
+    <BlockWrapper blockId={blockId} selected={selected} onClick={onClick} feedback={feedback}>
+      <div style={{ width: '100%', height: H * scale, position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ width: W, height: H, transform: `scale(${scale})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+          <div style={{ width: W, height: H, position: 'relative' }}>
+            {isGIcons
+              ? <CanvasContentGalleryIcons design={gd} settings={{ ...baseDesign.gallery, layoutFlipped: false }} />
+              : <CanvasContentGallery      design={gd} settings={{ ...baseDesign.gallery, layoutFlipped: false }} />
+            }
+          </div>
+        </div>
+      </div>
+    </BlockWrapper>
   )
 }
 
@@ -561,6 +729,9 @@ export default function ShareView({ token }: { token: string }) {
   const [feedback,         setFeedback]         = useState<Feedback>({ comments: [], approvals: [] })
   const [feedbackLoading,  setFeedbackLoading]  = useState(false)
 
+  // Template Mode state
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
+
   const desktopRef = useRef<HTMLDivElement>(null)
   const mobileRef  = useRef<HTMLDivElement>(null)
   const [desktopScale, setDesktopScale] = useState(0.5)
@@ -600,10 +771,14 @@ export default function ShareView({ token }: { token: string }) {
       .then((d: ShareData) => {
         setData(d)
         setDesign(d.state)
-        const firstId = d.state.activeCategory === 'gallery'
-          ? d.state.galleryBlocks?.[0]?.id
-          : d.state.blocks?.[0]?.id
-        if (firstId) setSelectedBlockId(firstId)
+        if (d.templateState?.products.length) {
+          setSelectedProductId(d.templateState.products[0].id)
+        } else {
+          const firstId = d.state.activeCategory === 'gallery'
+            ? d.state.galleryBlocks?.[0]?.id
+            : d.state.blocks?.[0]?.id
+          if (firstId) setSelectedBlockId(firstId)
+        }
         loadFeedback()
       })
       .catch(() => setError('This share link is invalid or has been revoked.'))
@@ -611,6 +786,17 @@ export default function ShareView({ token }: { token: string }) {
   }, [token, loadFeedback])
 
   useEffect(() => {
+    const tState = data?.templateState
+    if (tState) {
+      // Template mode: desktop col = 1464, gallery col = 1500
+      const measure = () => {
+        if (desktopRef.current) setDesktopScale(desktopRef.current.clientWidth / 1464)
+        if (mobileRef.current)  setMobileScale(mobileRef.current.clientWidth  / 1500)
+      }
+      const t = setTimeout(measure, 30)
+      window.addEventListener('resize', measure)
+      return () => { clearTimeout(t); window.removeEventListener('resize', measure) }
+    }
     const isG = design?.activeCategory === 'gallery'
     const dW = isG ? 1500 : 1464
     const mW = isG ? 1500 : 600
@@ -621,7 +807,7 @@ export default function ShareView({ token }: { token: string }) {
     const t = setTimeout(measure, 30)
     window.addEventListener('resize', measure)
     return () => { clearTimeout(t); window.removeEventListener('resize', measure) }
-  }, [design])
+  }, [design, data?.templateState])
 
   // ── Loading / error states ────────────────────────────────────────────────
 
@@ -647,7 +833,156 @@ export default function ShareView({ token }: { token: string }) {
     )
   }
 
-  // ── Data derivation ───────────────────────────────────────────────────────
+  // ── Template Mode rendering ───────────────────────────────────────────────
+
+  const tState = data.templateState
+  if (tState && selectedProductId !== null) {
+    const productId = selectedProductId
+    const aplusBlockItems: BlockItem[] = Array.from({ length: tState.aplusSlots }, (_, i) => ({
+      id: `${productId}:aplus:${i}`,
+      label: String.fromCharCode(65 + i) + '1',
+    }))
+    const galleryBlockItems: BlockItem[] = Array.from({ length: tState.galleryCount }, (_, i) => ({
+      id: `${productId}:gallery:${i}`,
+      label: `G${i + 1}`,
+    }))
+    const blockItems: BlockItem[] = [...aplusBlockItems, ...galleryBlockItems]
+    const effectiveBlockId = selectedBlockId ?? blockItems[0]?.id ?? null
+
+    return (
+      <div className="flex flex-col h-screen overflow-hidden bg-white">
+        {/* Header */}
+        <header className="shrink-0 bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shadow-sm z-10">
+          <img src="/Favicon.png" alt="" className="w-6 h-6 rounded object-contain shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-900 truncate">{data.projectName}</p>
+            {data.ownerEmail && (
+              <p className="text-[10px] text-gray-400">Shared by {data.ownerEmail}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <PeerAvatars peers={peers} />
+            {peers.length > 0 && (
+              <span className="text-[10px] text-gray-400">{peers.length} viewing</span>
+            )}
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+              data.accessLevel === 'edit' ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {data.accessLevel === 'edit' ? 'Can edit' : 'View only'}
+            </span>
+          </div>
+        </header>
+
+        {/* Product tab bar */}
+        <div className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-gray-50 border-b border-gray-100 overflow-x-auto">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-1">Product:</span>
+          {tState.products.map(p => (
+            <button
+              key={p.id}
+              onClick={() => {
+                setSelectedProductId(p.id)
+                setSelectedBlockId(null)
+              }}
+              className={`shrink-0 h-7 px-3 rounded-full text-[11px] font-semibold transition-all whitespace-nowrap ${
+                p.id === productId
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+              }`}
+            >
+              {p.productName || p.sku || p.id}
+            </button>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* A+ slots column */}
+          <div className="flex flex-col border-r border-gray-100 min-w-0" style={{ flex: '6 1 0%' }}>
+            <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
+              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <rect x="2" y="4" width="20" height="14" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 20h8M12 18v2" />
+              </svg>
+              <span className="text-[11px] font-semibold text-gray-500">A+ Content</span>
+              <span className="text-[10px] text-gray-400">1464 × 600 px</span>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="px-4 pt-4 pb-6">
+                <div ref={desktopRef}>
+                  {Array.from({ length: tState.aplusSlots }, (_, i) => {
+                    const bid = `${productId}:aplus:${i}`
+                    return (
+                      <TemplateModeAplusItem
+                        key={bid}
+                        productId={productId}
+                        slotIdx={i}
+                        tState={tState}
+                        baseDesign={design}
+                        scale={desktopScale}
+                        blockId={bid}
+                        selected={effectiveBlockId === bid}
+                        onClick={() => setSelectedBlockId(bid)}
+                        feedback={feedback}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Gallery column */}
+          {tState.galleryCount > 0 && (
+            <div className="flex flex-col border-r border-gray-100 min-w-0" style={{ flex: '2.5 1 0%' }}>
+              <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
+                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-[11px] font-semibold text-gray-500">Gallery</span>
+                <span className="text-[10px] text-gray-400">1500 × 1500 px</span>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <div className="px-3 pt-4 pb-6">
+                  <div ref={mobileRef}>
+                    {Array.from({ length: tState.galleryCount }, (_, i) => {
+                      const bid = `${productId}:gallery:${i}`
+                      return (
+                        <TemplateModeGalleryItem
+                          key={bid}
+                          productId={productId}
+                          galleryIdx={i}
+                          tState={tState}
+                          baseDesign={design}
+                          scale={mobileScale}
+                          blockId={bid}
+                          selected={effectiveBlockId === bid}
+                          onClick={() => setSelectedBlockId(bid)}
+                          feedback={feedback}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Comments sidebar */}
+          <CommentsSidebar
+            token={token}
+            blocks={blockItems}
+            selectedBlockId={effectiveBlockId}
+            onSelectBlock={setSelectedBlockId}
+            feedback={feedback}
+            feedbackLoading={feedbackLoading}
+            onRefresh={loadFeedback}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // ── Data derivation (Design Mode) ─────────────────────────────────────────
 
   const isGallery    = design.activeCategory === 'gallery'
   const aplusBlocks  = design.blocks      ?? []

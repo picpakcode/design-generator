@@ -1,6 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { DesignState, UploadedAsset } from '@/types'
+import type { DesignState, UploadedAsset, TemplateShareState, TemplateShareSlotState } from '@/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Client = SupabaseClient<any>
@@ -137,6 +137,13 @@ export async function saveProject(db: Client, id: string, state: DesignState): P
     .eq('id', id)
 }
 
+export async function saveTemplateState(db: Client, id: string, state: TemplateShareState): Promise<void> {
+  await db
+    .from('projects')
+    .update({ template_state: state, updated_at: new Date().toISOString() })
+    .eq('id', id)
+}
+
 export async function renameProject(db: Client, id: string, name: string): Promise<void> {
   await db
     .from('projects')
@@ -176,6 +183,22 @@ export function stripProjectBlobUrls(state: DesignState): DesignState {
       ...b,
       assets: (b.assets ?? []).map(wipeBlob) as DesignState['assets'],
     })),
+  }
+}
+
+export function stripTemplateBlobUrls(state: TemplateShareState): TemplateShareState {
+  const stripSlots = (record: Record<string, TemplateShareSlotState[]>) =>
+    Object.fromEntries(Object.entries(record).map(([k, slots]) => [k, slots.map(s => ({
+      ...s,
+      photoAsset: s.photoAsset ? wipeBlob(s.photoAsset) as UploadedAsset : undefined,
+      iconAssets: s.iconAssets.map(a => a ? wipeBlob(a) as UploadedAsset : undefined),
+    }))]))
+  return {
+    ...state,
+    allSlots:        stripSlots(state.allSlots),
+    allGallerySlots: stripSlots(state.allGallerySlots),
+    logoAsset:    state.logoAsset    ? wipeBlob(state.logoAsset)    as UploadedAsset : null,
+    textureAsset: state.textureAsset ? wipeBlob(state.textureAsset) as UploadedAsset : null,
   }
 }
 

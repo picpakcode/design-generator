@@ -117,3 +117,29 @@ export interface DesignState {
   galleryIconsShowDescription: boolean
   iconsMobileShowDesc?: boolean   // show description in mobile icons-text layout
 }
+
+// ── Template Mode share types ─────────────────────────────────────────────────
+
+export interface TemplateShareSlotState {
+  title: string
+  desc: string
+  iconLabels: [string, string, string, string]
+  iconCount: 2 | 3 | 4
+  photoAsset?: UploadedAsset
+  iconAssets: (UploadedAsset | undefined)[]
+}
+
+export interface TemplateShareSlotConfig { template: string; mobileShowDesc?: boolean }
+export interface TemplateShareGalleryConfig { template: string }
+
+export interface TemplateShareState {
+  products: import('@/lib/csv').BulkProduct[]
+  allSlots: Record<string, TemplateShareSlotState[]>
+  allGallerySlots: Record<string, TemplateShareSlotState[]>
+  slotConfigs: TemplateShareSlotConfig[]
+  galleryConfigs: TemplateShareGalleryConfig[]
+  aplusSlots: number
+  galleryCount: number
+  logoAsset: UploadedAsset | null
+  textureAsset: UploadedAsset | null
+}

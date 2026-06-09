@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 type ShareRow = { project_id: string; access_level: 'view' | 'edit'; is_public: boolean; created_by: string }
-type ProjectRow = { id: string; name: string; state: unknown; updated_at: string }
+type ProjectRow = { id: string; name: string; state: unknown; template_state: unknown; updated_at: string }
 
 export async function GET(_req: Request, { params }: { params: { token: string } }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -20,7 +20,7 @@ export async function GET(_req: Request, { params }: { params: { token: string }
 
   const { data: project }: { data: ProjectRow | null } = await supabase
     .from('projects')
-    .select('id, name, state, updated_at')
+    .select('id, name, state, template_state, updated_at')
     .eq('id', share.project_id)
     .single()
 
@@ -36,6 +36,7 @@ export async function GET(_req: Request, { params }: { params: { token: string }
     projectName: project.name,
     ownerEmail: owner?.user?.email ?? null,
     state: project.state,
+    templateState: project.template_state ?? null,
     updatedAt: project.updated_at,
   })
 }

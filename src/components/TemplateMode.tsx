@@ -6,7 +6,9 @@ import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { toPng, toJpeg } from 'html-to-image'
 import { BulkProduct, ParseResult, parseCSV, downloadTemplate } from '@/lib/csv'
-import { DesignState, UploadedAsset } from '@/types'
+import { DesignState, UploadedAsset, TemplateShareState } from '@/types'
+import { saveTemplateState, stripTemplateBlobUrls } from '@/lib/db'
+import { createClient } from '@/lib/supabase/client'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import CantoPhotoPickerModal, { PhotoPick } from './CantoPhotoPickerModal'
 import CantoIconPickerModal from './CantoIconPickerModal'
@@ -753,6 +755,30 @@ export default function TemplateMode({
     } catch { /* ignore quota errors */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parseResult, csvFilename, allSlots, allGallerySlots, productNames, aplusSlots, galleryCount, slotConfigs, galleryConfigs, outputFormat, selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx, logoAsset, textureAsset])
+
+  // Auto-save template state to Supabase for sharing (debounced 4s)
+  useEffect(() => {
+    if (!projectId || !parseResult?.products.length) return
+    const timer = setTimeout(async () => {
+      try {
+        const supabase = createClient()
+        const raw: TemplateShareState = {
+          products: parseResult.products,
+          allSlots,
+          allGallerySlots,
+          slotConfigs,
+          galleryConfigs,
+          aplusSlots,
+          galleryCount,
+          logoAsset,
+          textureAsset,
+        }
+        await saveTemplateState(supabase, projectId, stripTemplateBlobUrls(raw))
+      } catch { /* silent */ }
+    }, 4000)
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, parseResult, allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAsset, textureAsset])
 
   useEffect(() => {
     setSlotConfigs(prev => defaultSlotConfigs(aplusSlots).map((d, i) => prev[i] ?? d))
