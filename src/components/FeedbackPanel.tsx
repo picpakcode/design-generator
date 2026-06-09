@@ -294,15 +294,18 @@ function ThreadCard({
 
 // ─── Main panel ───────────────────────────────────────────────────────────────
 
+export type BlockCommentStatus = Record<string, { open: number; resolved: number }>
+
 interface Props {
   projectId: string
   user: User
   isOpen: boolean
   onClose: () => void
   onUnreadCount: (n: number) => void
+  onBlockStatus?: (status: BlockCommentStatus) => void
 }
 
-export default function FeedbackPanel({ projectId, user, isOpen, onClose, onUnreadCount }: Props) {
+export default function FeedbackPanel({ projectId, user, isOpen, onClose, onUnreadCount, onBlockStatus }: Props) {
   const [comments, setComments]   = useState<FeedbackComment[]>([])
   const [approvals, setApprovals] = useState<Approval[]>([])
   const [loading, setLoading]     = useState(false)
@@ -322,6 +325,9 @@ export default function FeedbackPanel({ projectId, user, isOpen, onClose, onUnre
       setLoading(false)
     }
   }, [projectId])
+
+  // Initial load on mount so block status indicators appear before panel is opened
+  useEffect(() => { load() }, [load])
 
   // Load when opened; poll every 20s while open
   useEffect(() => {
@@ -343,6 +349,22 @@ export default function FeedbackPanel({ projectId, user, isOpen, onClose, onUnre
     ).length
     onUnreadCount(unread)
   }, [comments, projectId, onUnreadCount])
+
+  // Emit block-level status whenever comments change
+  useEffect(() => {
+    if (!onBlockStatus) return
+    const roots = comments.filter(c => !c.parent_id)
+    const blockIds = Array.from(new Set(roots.map(c => c.block_id)))
+    const status: BlockCommentStatus = {}
+    for (const bid of blockIds) {
+      const blockRoots = roots.filter(c => c.block_id === bid)
+      status[bid] = {
+        open: blockRoots.filter(c => !c.resolved_at).length,
+        resolved: blockRoots.filter(c => !!c.resolved_at).length,
+      }
+    }
+    onBlockStatus(status)
+  }, [comments, onBlockStatus])
 
   // Mark as read when panel is opened
   useEffect(() => {

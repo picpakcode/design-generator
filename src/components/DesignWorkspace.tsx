@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { loadProject, saveProject, saveProjectThumbnail, renameProject, createProject, loadProjectShare } from '@/lib/db'
 import { usePresence, presenceColor } from '@/hooks/usePresence'
 import ShareModal from './ShareModal'
-import FeedbackPanel from './FeedbackPanel'
+import FeedbackPanel, { type BlockCommentStatus } from './FeedbackPanel'
 import Btn from './ui/Btn'
 import { getGalleryTemplate, getTemplate } from '@/lib/templates'
 import AssetUploader from './AssetUploader'
@@ -327,6 +327,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const [saveToShareOpen, setSaveToShareOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackUnread, setFeedbackUnread] = useState(0)
+  const [blockCommentStatus, setBlockCommentStatus] = useState<BlockCommentStatus>({})
   const [saveToShareName, setSaveToShareName] = useState('')
   const [saveToShareSaving, setSaveToShareSaving] = useState(false)
   const isApplyingRemoteRef = useRef(false)
@@ -2734,6 +2735,36 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                             title="Block label — used in export filename"
                             style={{ fontSize: 11, fontWeight: 600, color: '#111827', background: 'transparent', border: 'none', outline: 'none', width: 120 }}
                           />
+                          {/* Comment status badge */}
+                          {(() => {
+                            const st = blockCommentStatus[block.id]
+                            if (!st) return null
+                            if (st.open > 0) return (
+                              <button
+                                onClick={e => { e.stopPropagation(); setFeedbackOpen(true) }}
+                                title={`${st.open} open comment${st.open !== 1 ? 's' : ''}`}
+                                style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#FEF3C7', border: '1px solid #FDE68A', cursor: 'pointer' }}
+                              >
+                                <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#D97706" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                                <span style={{ fontSize: 9, fontWeight: 700, color: '#D97706', lineHeight: 1 }}>{st.open}</span>
+                              </button>
+                            )
+                            if (st.resolved > 0) return (
+                              <button
+                                onClick={e => { e.stopPropagation(); setFeedbackOpen(true) }}
+                                title={`${st.resolved} resolved`}
+                                style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#ECFDF5', border: '1px solid #A7F3D0', cursor: 'pointer' }}
+                              >
+                                <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#059669" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                                <span style={{ fontSize: 9, fontWeight: 700, color: '#059669', lineHeight: 1 }}>{st.resolved}</span>
+                              </button>
+                            )
+                            return null
+                          })()}
                         </div>
                         {/* Right: template switcher + delete — both scale from top-right */}
                         <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', gap: 4, transform: `scale(${1/zoom})`, transformOrigin: 'top right' }}>
@@ -2946,6 +2977,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           isOpen={feedbackOpen}
           onClose={() => setFeedbackOpen(false)}
           onUnreadCount={setFeedbackUnread}
+          onBlockStatus={setBlockCommentStatus}
         />
       )}
 
