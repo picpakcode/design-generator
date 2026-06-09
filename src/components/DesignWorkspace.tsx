@@ -1946,6 +1946,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           onCanExportCurrentChange={setTemplateCanExportCurrent}
           onRenderingAllChange={setTemplateRenderingAll}
           onStatsChange={(rendered, total) => setTemplateStats({ rendered, total })}
+          blockCommentStatus={blockCommentStatus}
+          onOpenFeedback={() => setFeedbackOpen(true)}
         />
       </div>
 
