@@ -32,6 +32,16 @@ export type Database = {
         Insert: { id?: string; project_id: string; created_by: string; token?: string; access_level?: 'view' | 'edit'; is_public?: boolean }
         Update: { access_level?: 'view' | 'edit'; is_public?: boolean; updated_at?: string }
       }
+      project_comments: {
+        Row:    { id: string; project_id: string; block_id: string; share_token: string; author_name: string; body: string; created_at: string }
+        Insert: { id?: string; project_id: string; block_id: string; share_token: string; author_name: string; body: string }
+        Update: { body?: string }
+      }
+      block_approvals: {
+        Row:    { id: string; project_id: string; block_id: string; share_token: string; author_name: string; status: 'approved' | 'changes_requested'; created_at: string }
+        Insert: { id?: string; project_id: string; block_id: string; share_token: string; author_name: string; status: 'approved' | 'changes_requested' }
+        Update: { status?: 'approved' | 'changes_requested' }
+      }
     }
   }
 }
