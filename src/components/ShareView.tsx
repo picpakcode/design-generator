@@ -245,7 +245,7 @@ function buildTemplateSlotDesign(
     iconLabels:          s.iconLabels,
     iconCount:           s.iconCount,
     iconsMobileShowDesc: (cfg as { mobileShowDesc?: boolean }).mobileShowDesc ?? true,
-    activeTemplate:      cfg.template as TemplateId,
+    activeTemplate:      (cfg.template === 'icons' || cfg.template === 'icons-text') ? 'aplus-icons' : 'aplus-5050',
     activeFormat:        'desktop',
   }
 }
