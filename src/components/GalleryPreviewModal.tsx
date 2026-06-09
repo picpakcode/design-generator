@@ -71,7 +71,7 @@ export default function GalleryPreviewModal({ open, onClose, design }: Props) {
       <div className={`fixed inset-0 z-50 ${t.backdrop} backdrop-blur-sm`} onClick={onClose} />
 
       {/* Modal panel */}
-      <div className={`fixed inset-4 z-50 flex flex-col rounded-2xl overflow-hidden shadow-2xl ${t.panel}`}>
+      <div className={`fixed left-4 right-4 bottom-4 top-14 z-50 flex flex-col rounded-2xl overflow-hidden shadow-2xl ${t.panel}`}>
 
         {/* Header */}
         <div className={`shrink-0 flex items-center justify-between px-5 py-3.5 ${t.header}`}>

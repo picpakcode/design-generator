@@ -190,7 +190,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
   return (
     <>
       <div className={`fixed inset-0 z-50 ${dark ? 'bg-black/80' : 'bg-black/40'} backdrop-blur-sm`} onClick={onClose} />
-      <div className={`fixed inset-4 z-50 flex flex-col rounded-2xl overflow-hidden shadow-2xl border ${panelBg}`}>
+      <div className={`fixed left-4 right-4 bottom-4 top-14 z-50 flex flex-col rounded-2xl overflow-hidden shadow-2xl border ${panelBg}`}>
         {/* Header */}
         <div className={`shrink-0 flex items-center justify-between px-5 py-3.5 border-b ${hdrBg}`}>
           <div className="flex items-center gap-3">
@@ -333,7 +333,7 @@ function CSVGuideModal({ open, onClose }: { open: boolean; onClose: () => void }
   return (
     <>
       <div className={`fixed inset-0 z-50 ${dark ? 'bg-black/80' : 'bg-black/50'} backdrop-blur-sm`} onClick={onClose} />
-      <div className={`fixed inset-x-6 top-6 bottom-6 z-50 max-w-2xl mx-auto flex flex-col rounded-2xl overflow-hidden shadow-2xl border ${panelBg}`}>
+      <div className={`fixed inset-x-6 bottom-6 top-14 z-50 max-w-2xl mx-auto flex flex-col rounded-2xl overflow-hidden shadow-2xl border ${panelBg}`}>
 
         {/* Header */}
         <div className={`shrink-0 flex items-center justify-between px-6 py-4 border-b ${hdrBg}`}>
@@ -1334,6 +1334,7 @@ export default function TemplateMode({
   // ─── Main layout ──────────────────────────────────────────────────────────────
 
   return (
+    <>
     <div className="flex flex-1 min-h-0 overflow-hidden animate-fade-in">
 
       {/* ══ LEFT SIDEBAR ══════════════════════════════════════════════════════════ */}
@@ -1526,9 +1527,9 @@ export default function TemplateMode({
                           <button
                             onClick={() => setSlotConfigs(prev => prev.map((c, i) => i === activeSlotIdx ? { ...c, mobileShowDesc: !(c.mobileShowDesc ?? true) } : c))}
                             title="Show description on mobile"
-                            className={`relative w-8 h-4 rounded-full transition-colors ${(activeCfgAplus.mobileShowDesc ?? true) ? 'bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'}`}
+                            className={`relative w-8 h-[18px] rounded-full transition-colors ${(activeCfgAplus.mobileShowDesc ?? true) ? 'bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'}`}
                           >
-                            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${(activeCfgAplus.mobileShowDesc ?? true) ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                            <div className={`absolute top-[3px] w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${(activeCfgAplus.mobileShowDesc ?? true) ? 'translate-x-[17px]' : 'translate-x-[3px]'}`} />
                           </button>
                         </div>
                       )}
@@ -1801,7 +1802,10 @@ export default function TemplateMode({
                               <button
                                 onClick={e => { e.stopPropagation(); deleteAplusSlot(slotIdx) }}
                                 title="Remove slot"
-                                style={{ width: 20, height: 20, borderRadius: 5, border: '1px solid #E5E7EB', background: 'white', color: '#9CA3AF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                                className="group/del flex items-center justify-center shrink-0 transition-colors"
+                                style={{ width: 20, height: 20, borderRadius: 5, border: '1px solid #E5E7EB', background: 'white', color: '#9CA3AF', cursor: 'pointer' }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#EF4444'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#EF4444'; (e.currentTarget as HTMLButtonElement).style.color = 'white' }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'white'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#E5E7EB'; (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF' }}
                               >
                                 <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1882,7 +1886,10 @@ export default function TemplateMode({
                                   <button
                                     onClick={e => { e.stopPropagation(); deleteGallerySlot(gIdx) }}
                                     title="Remove slide"
-                                    style={{ width: 20, height: 20, borderRadius: 5, border: '1px solid #E5E7EB', background: 'white', color: '#9CA3AF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                                    className="flex items-center justify-center shrink-0"
+                                    style={{ width: 20, height: 20, borderRadius: 5, border: '1px solid #E5E7EB', background: 'white', color: '#9CA3AF', cursor: 'pointer' }}
+                                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#EF4444'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#EF4444'; (e.currentTarget as HTMLButtonElement).style.color = 'white' }}
+                                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'white'; (e.currentTarget as HTMLButtonElement).style.borderColor = '#E5E7EB'; (e.currentTarget as HTMLButtonElement).style.color = '#9CA3AF' }}
                                   >
                                     <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1951,6 +1958,8 @@ export default function TemplateMode({
         }}
       />
 
+    </div>
+
       <TemplateModePreviewModal
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
@@ -1960,6 +1969,6 @@ export default function TemplateMode({
       />
 
       <CSVGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
-    </div>
+    </>
   )
 }
