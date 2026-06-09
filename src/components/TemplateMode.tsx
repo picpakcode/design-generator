@@ -1334,7 +1334,7 @@ export default function TemplateMode({
   // ─── Main layout ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-1 min-h-0 overflow-hidden animate-fade-in">
 
       {/* ══ LEFT SIDEBAR ══════════════════════════════════════════════════════════ */}
       <aside className="w-72 shrink-0 flex flex-col border-r border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm z-10">

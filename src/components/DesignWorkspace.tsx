@@ -1501,16 +1501,27 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
         </span>
 
         {/* Mode tabs */}
-        <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5 shrink-0">
+        <div className="relative flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5 shrink-0">
+          {/* Sliding active pill */}
+          <div
+            className="absolute top-0.5 bottom-0.5 rounded-sm bg-white dark:bg-gray-700 shadow-sm pointer-events-none"
+            style={{
+              width: 'calc(50% - 2px)',
+              left: 2,
+              transform: `translateX(${appMode === 'bulk' ? '100%' : '0'})`,
+              transition: 'transform 220ms cubic-bezier(0.16,1,0.3,1), opacity 150ms ease',
+              opacity: (appMode === 'template' || appMode === 'bulk') ? 1 : 0,
+            }}
+          />
           {(['template', 'bulk'] as const).map(mode => (
             <button
               key={mode}
               onClick={() => setAppMode(mode)}
               title={mode === 'bulk' ? 'Coming soon' : undefined}
               disabled={mode === 'bulk'}
-              className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${
+              className={`relative z-10 flex-1 h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-colors duration-150 ${
                 appMode === mode
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                  ? 'text-gray-900 dark:text-white'
                   : mode === 'bulk'
                   ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -2795,6 +2806,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                                       ? `0 0 0 4px ${peer.color}22, 0 2px 12px rgba(0,0,0,0.10)`
                                       : '0 2px 12px rgba(0,0,0,0.10)',
                                   cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
+                                  transition: 'box-shadow 180ms ease, outline-color 180ms ease',
                                 }}
                               >
                                 <div

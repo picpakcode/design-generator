@@ -233,9 +233,11 @@ function CommentsSidebar({
   const [editingName, setEditingName]   = useState(false)
   const [nameInput,   setNameInput]     = useState('')
   const [commentInput, setCommentInput] = useState('')
-  const [submitting,  setSubmitting]    = useState(false)
-  const [approving,   setApproving]     = useState(false)
-  const [submitError, setSubmitError]   = useState<string | null>(null)
+  const [submitting,   setSubmitting]   = useState(false)
+  const [approving,    setApproving]    = useState(false)
+  const [approveFlash, setApproveFlash] = useState<'approved' | 'changes_requested' | null>(null)
+  const [postFlash,    setPostFlash]    = useState(false)
+  const [submitError,  setSubmitError]  = useState<string | null>(null)
   const commentsEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -297,6 +299,8 @@ function CommentsSidebar({
       if (!res.ok) throw new Error('Post failed')
       setCommentInput('')
       onRefresh()
+      setPostFlash(true)
+      setTimeout(() => setPostFlash(false), 350)
       setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch {
       setSubmitError('Failed to post. Please try again.')
@@ -315,6 +319,8 @@ function CommentsSidebar({
         body:    JSON.stringify({ blockId: effectiveBlockId, authorName, status }),
       })
       onRefresh()
+      setApproveFlash(status)
+      setTimeout(() => setApproveFlash(null), 350)
     } finally {
       setApproving(false)
     }
@@ -376,6 +382,7 @@ function CommentsSidebar({
 
       {/* Scrollable content: approval + comments */}
       <div className="flex-1 min-h-0 overflow-y-auto">
+      <div key={effectiveBlockId ?? ''} className="animate-fade-in">
 
         {/* Approval section */}
         <div className="px-4 pt-4 pb-3 border-b border-gray-100">
@@ -389,7 +396,7 @@ function CommentsSidebar({
                 myLatest?.status === 'approved'
                   ? 'bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600'
                   : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
-              }`}
+              } ${approveFlash === 'approved' ? 'animate-bounce-once' : ''}`}
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -404,7 +411,7 @@ function CommentsSidebar({
                 myLatest?.status === 'changes_requested'
                   ? 'bg-amber-500 border-amber-500 text-white hover:bg-amber-600'
                   : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
-              }`}
+              } ${approveFlash === 'changes_requested' ? 'animate-bounce-once' : ''}`}
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -438,7 +445,7 @@ function CommentsSidebar({
         </div>
 
         {/* Comments */}
-        <div className="px-4 pt-3 pb-2">
+        <div className="px-4 pt-3 pb-4">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">
             Comments {blockComments.length > 0 && `(${blockComments.length})`}
           </p>
@@ -466,6 +473,7 @@ function CommentsSidebar({
             </div>
           )}
         </div>
+      </div>{/* end keyed crossfade wrapper */}
       </div>
 
       {/* Add comment / identity form */}
@@ -523,7 +531,7 @@ function CommentsSidebar({
               <button
                 onClick={handlePostComment}
                 disabled={submitting || !commentInput.trim()}
-                className="shrink-0 h-7 px-3 rounded bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-500 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+                className={`shrink-0 h-7 px-3 rounded bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-500 disabled:opacity-40 transition-colors flex items-center gap-1.5 ${postFlash ? 'animate-bounce-once' : ''}`}
               >
                 {submitting && (
                   <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
