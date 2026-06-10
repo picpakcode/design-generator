@@ -1532,26 +1532,23 @@ export default function TemplateMode({
           <div>
             <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">A+ Slots</p>
             <div className="flex gap-1 flex-wrap">
-              {slotConfigs.slice(0, aplusSlots).map((cfg, idx) => (
+              {slotConfigs.slice(0, aplusSlots).map((_, idx) => (
                 <div key={idx} className="relative group">
                   <button
                     onClick={() => { setActiveSlotIdx(idx); setActiveIsGallery(false) }}
-                    className={`flex flex-col items-center px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                    className={`flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all ${
                       !activeIsGallery && idx === activeSlotIdx
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
-                    <span>{slotLabel(idx)}</span>
-                    <span className={`text-[8px] mt-0.5 font-medium ${!activeIsGallery && idx === activeSlotIdx ? 'text-blue-200' : 'text-gray-400 dark:text-gray-500'}`}>
-                      {APLUS_LABELS[cfg.template]}
-                    </span>
+                    {slotLabel(idx)}
                   </button>
                   {aplusSlots > 1 && (
                     <button
                       onClick={e => { e.stopPropagation(); deleteAplusSlot(idx) }}
                       title="Remove slot"
-                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors"
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors"
                     >
                       <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1575,26 +1572,23 @@ export default function TemplateMode({
           <div>
             <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">Gallery</p>
             <div className="flex gap-1 flex-wrap">
-              {galleryConfigs.slice(0, galleryCount).map((cfg, idx) => (
+              {galleryConfigs.slice(0, galleryCount).map((_, idx) => (
                 <div key={idx} className="relative group">
                   <button
                     onClick={() => { setActiveGalleryIdx(idx); setActiveIsGallery(true) }}
-                    className={`flex flex-col items-center px-2.5 py-1 rounded text-[10px] font-bold transition-all ${
+                    className={`flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all ${
                       activeIsGallery && idx === activeGalleryIdx
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
-                    <span>{galleryLabel(idx)}</span>
-                    <span className={`text-[8px] mt-0.5 font-medium ${activeIsGallery && idx === activeGalleryIdx ? 'text-blue-200' : 'text-gray-400 dark:text-gray-500'}`}>
-                      {GALLERY_LABELS[cfg.template]}
-                    </span>
+                    {galleryLabel(idx)}
                   </button>
                   {galleryCount > 1 && (
                     <button
                       onClick={e => { e.stopPropagation(); deleteGallerySlot(idx) }}
                       title="Remove slide"
-                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors"
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors"
                     >
                       <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
