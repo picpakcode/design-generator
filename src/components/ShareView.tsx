@@ -863,9 +863,13 @@ export default function ShareView({ token }: { token: string }) {
   // Template Mode state
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
 
-  const desktopRef       = useRef<HTMLDivElement>(null)
-  const tplMobileRef     = useRef<HTMLDivElement>(null)
-  const mobileRef        = useRef<HTMLDivElement>(null)
+  const desktopRef            = useRef<HTMLDivElement>(null)
+  const tplMobileRef          = useRef<HTMLDivElement>(null)
+  const mobileRef             = useRef<HTMLDivElement>(null)
+  // Timestamp (Date.now()) of the last broadcast-applied update.
+  // loadShareData uses this to discard responses that started before the broadcast,
+  // which would otherwise overwrite fresher broadcast-applied state.
+  const broadcastAppliedAtRef = useRef<number>(0)
   const [desktopScale,    setDesktopScale]    = useState(0.5)
   const [tplMobileScale,  setTplMobileScale]  = useState(0.5)
   const [mobileScale,     setMobileScale]     = useState(0.5)
@@ -899,11 +903,16 @@ export default function ShareView({ token }: { token: string }) {
   }, [token])
 
   const loadShareData = useCallback(async () => {
+    // Snapshot when this request was fired so we can compare against broadcast timestamp
+    const startedAt = Date.now()
     try {
       // _t cache-buster bypasses CDN / Next.js Data Cache on every call
-      const res = await fetch(`/api/share/${token}?_t=${Date.now()}`, { cache: 'no-store' })
+      const res = await fetch(`/api/share/${token}?_t=${startedAt}`, { cache: 'no-store' })
       if (!res.ok) return
       const d: ShareData = await res.json()
+      // If a broadcast applied newer state after this request was fired, discard this
+      // response — it was in-flight before the DB write and carries the old data.
+      if (broadcastAppliedAtRef.current > startedAt) return
       setData(d)
       // do NOT call setDesign here — presence manages live design state
     } catch { /* silent — keep showing existing data */ }
@@ -969,6 +978,9 @@ export default function ShareView({ token }: { token: string }) {
         { event: 'saved' },
         (msg: { payload?: { sessionId?: string; templateState?: TemplateShareState } }) => {
           if (msg.payload?.templateState) {
+            // Record when this broadcast was applied so loadShareData can discard
+            // any in-flight responses that started before this broadcast.
+            broadcastAppliedAtRef.current = Date.now()
             // Apply state directly — no HTTP needed, definitely not stale
             setData(prev => prev ? { ...prev, templateState: msg.payload!.templateState! } : prev)
           } else {
