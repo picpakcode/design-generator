@@ -53,6 +53,10 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
     const updated = await upsertProjectShare(supabase, projectId, userId, { access_level: accessLevel, is_public: isPublic })
     setShare(updated)
     setSaving(false)
+    if (updated) {
+      const url = `${origin}/share/${updated.token}`
+      try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch { /* ignore */ }
+    }
   }
 
   async function handleRevoke() {
@@ -111,7 +115,7 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className={`absolute inset-0 ${t.backdrop} backdrop-blur-sm`} onClick={onClose} />
-      <div className={`relative z-10 w-full max-w-md mx-4 rounded-2xl shadow-2xl overflow-hidden ${t.panel} animate-scale-in`}>
+      <div className={`relative z-10 w-full max-w-md mx-4 rounded shadow-2xl overflow-hidden ${t.panel} animate-scale-in`}>
 
         {/* Header */}
         <div className={`flex items-center justify-between px-5 py-3.5 ${t.header}`}>
@@ -138,48 +142,11 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
             </div>
           ) : (
             <>
-              {/* Access level */}
-              <div>
-                <p className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${t.label}`}>Access level</p>
-                <div className={`flex items-center rounded-lg p-0.5 ${t.toggle}`}>
-                  {(['view', 'edit'] as AccessLevel[]).map(level => (
-                    <button
-                      key={level}
-                      onClick={() => setAccessLevel(level)}
-                      className={`flex-1 h-7 rounded-md text-[11px] font-semibold transition-all capitalize ${t.pill(accessLevel === level)}`}
-                    >
-                      {level === 'view' ? 'View only' : 'Can edit'}
-                    </button>
-                  ))}
-                </div>
-                <p className={`text-[10px] mt-1.5 ${t.subText}`}>
-                  {accessLevel === 'view'
-                    ? 'Viewers see live updates but cannot make changes.'
-                    : 'Editors can make changes that sync to everyone in the session.'}
-                </p>
-              </div>
-
-              {/* Public toggle */}
-              <div className={`flex items-center justify-between rounded-xl px-3.5 py-3 ${t.row}`}>
-                <div>
-                  <p className={`text-xs font-medium ${t.headerText}`}>Anyone with the link</p>
-                  <p className={`text-[10px] ${t.subText}`}>
-                    {isPublic ? 'No sign-in required' : 'Requires sign-in to access'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsPublic(v => !v)}
-                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isPublic ? t.toggleActive : t.toggle}`}
-                >
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${isPublic ? 'translate-x-5' : 'translate-x-0'}`} />
-                </button>
-              </div>
-
               {/* Share link area */}
               {share ? (
                 <div className="space-y-2">
                   <p className={`text-[10px] font-bold uppercase tracking-wider ${t.label}`}>Share link</p>
-                  <div className={`flex items-center gap-2 rounded-xl px-3 py-2.5 ${t.urlBox}`}>
+                  <div className={`flex items-center gap-2 rounded px-3 py-2.5 ${t.urlBox}`}>
                     <span className="flex-1 text-[11px] font-mono truncate">{shareUrl}</span>
                     <button
                       onClick={copyLink}
@@ -216,19 +183,22 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
                   </button>
                 ) : <div />}
 
-                <button
-                  onClick={handleCreateOrUpdate}
-                  disabled={saving}
-                  className="h-8 px-4 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                  {saving && (
-                    <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  )}
-                  {share ? 'Update link' : 'Create link'}
-                </button>
+                <div className="flex items-center gap-2.5">
+                  {copied && <span className={`text-[11px] font-medium text-emerald-600`}>Link copied!</span>}
+                  <button
+                    onClick={handleCreateOrUpdate}
+                    disabled={saving}
+                    className="h-8 px-4 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {saving && (
+                      <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                    )}
+                    {share ? 'Update link' : 'Create link'}
+                  </button>
+                </div>
               </div>
             </>
           )}
