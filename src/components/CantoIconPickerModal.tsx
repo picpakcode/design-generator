@@ -18,7 +18,18 @@ export default function CantoIconPickerModal({ albumId, open, onClose, onSelect,
   const [assets, setAssets] = useState<CantoPick[]>([])
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState('')
+  const [mounted, setMounted] = useState(false)
+  const [closing, setClosing] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (open) { setClosing(false); setMounted(true) }
+  }, [open])
+
+  function handleClose() {
+    setClosing(true)
+    setTimeout(() => { setMounted(false); onClose() }, 180)
+  }
 
   useEffect(() => {
     if (!open || !albumId) return
@@ -37,13 +48,14 @@ export default function CantoIconPickerModal({ albumId, open, onClose, onSelect,
   }, [open])
 
   useEffect(() => {
-    if (!open) return
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    if (!mounted) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose() }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [open, onClose])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted])
 
-  if (!open) return null
+  if (!mounted) return null
 
   const filtered = query.trim()
     ? assets.filter(a =>
@@ -52,15 +64,18 @@ export default function CantoIconPickerModal({ albumId, open, onClose, onSelect,
       )
     : assets
 
+  const backdropAnim = closing ? 'animate-fade-out'  : 'animate-fade-in'
+  const panelAnim    = closing ? 'animate-scale-out' : 'animate-scale-in'
+
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] animate-fade-in" onClick={onClose} />
+      <div className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] ${backdropAnim}`} onClick={handleClose} />
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
         <div
-          className="pointer-events-auto w-full max-w-2xl bg-white dark:bg-gray-900 rounded-[4px] shadow-[0_8px_48px_rgba(0,0,0,0.22)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden animate-scale-in"
+          className={`pointer-events-auto w-full max-w-2xl bg-white dark:bg-gray-900 rounded-[4px] shadow-[0_8px_48px_rgba(0,0,0,0.22)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden ${panelAnim}`}
           style={{ maxHeight: '84vh' }}
           onClick={e => e.stopPropagation()}
         >
@@ -78,7 +93,7 @@ export default function CantoIconPickerModal({ albumId, open, onClose, onSelect,
               </div>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-7 h-7 flex items-center justify-center rounded text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -139,7 +154,7 @@ export default function CantoIconPickerModal({ albumId, open, onClose, onSelect,
                 {filtered.map(a => (
                   <button
                     key={a.id}
-                    onClick={() => { onSelect(a); onClose() }}
+                    onClick={() => { onSelect(a); handleClose() }}
                     className="flex flex-col items-center gap-1.5 p-2 rounded-[4px] border border-transparent hover:border-accent-200 dark:hover:border-accent-800 hover:bg-accent-50/60 dark:hover:bg-accent-900/20 active:border-accent-300 transition-all group"
                     title={a.name}
                   >

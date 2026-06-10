@@ -23,8 +23,19 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
   const [loading, setLoading]       = useState(false)
   const [searched, setSearched]     = useState(false)
   const [page, setPage]             = useState(0)
+  const [mounted, setMounted]       = useState(false)
+  const [closing, setClosing]       = useState(false)
   const inputRef  = useRef<HTMLInputElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (open) { setClosing(false); setMounted(true) }
+  }, [open])
+
+  function handleClose() {
+    setClosing(true)
+    setTimeout(() => { setMounted(false); onClose() }, 180)
+  }
 
   const totalPages  = Math.ceil(allResults.length / PAGE_SIZE)
   const pageResults = allResults.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -44,15 +55,22 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
   }, [open])
 
   useEffect(() => {
+    if (!mounted) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted])
+
+  useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
       if (e.key === 'Enter' && document.activeElement === inputRef.current) runSearch(query)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, onClose, query])
+  }, [open, query])
 
   function runSearch(q: string) {
     const trimmed = q.trim()
@@ -74,20 +92,23 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  if (!open) return null
+  if (!mounted) return null
+
+  const backdropAnim = closing ? 'animate-fade-out'  : 'animate-fade-in'
+  const panelAnim    = closing ? 'animate-scale-out' : 'animate-scale-in'
 
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] animate-fade-in"
-        onClick={onClose}
+        className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] ${backdropAnim}`}
+        onClick={handleClose}
       />
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
         <div
-          className="pointer-events-auto w-full max-w-3xl bg-white dark:bg-gray-900 rounded-[4px] shadow-[0_8px_48px_rgba(0,0,0,0.22)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden animate-scale-in"
+          className={`pointer-events-auto w-full max-w-3xl bg-white dark:bg-gray-900 rounded-[4px] shadow-[0_8px_48px_rgba(0,0,0,0.22)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden ${panelAnim}`}
           style={{ maxHeight: '88vh' }}
           onClick={e => e.stopPropagation()}
         >
@@ -105,7 +126,7 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
               </div>
             </div>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-7 h-7 flex items-center justify-center rounded text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -178,7 +199,7 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
                 {pageResults.map(photo => (
                   <button
                     key={photo.id}
-                    onClick={() => { onSelect(photo); onClose() }}
+                    onClick={() => { onSelect(photo); handleClose() }}
                     className="group flex flex-col rounded-[4px] overflow-hidden border border-gray-100 dark:border-gray-800 hover:border-accent-300 dark:hover:border-accent-700 bg-gray-50 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:shadow-md transition-all text-left"
                     title={photo.name}
                   >
