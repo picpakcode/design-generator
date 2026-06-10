@@ -5,6 +5,7 @@ import type { DesignState, TemplateShareState, TemplateShareSlotState, TemplateI
 import { getTemplate, getGalleryTemplate } from '@/lib/templates'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import { usePresence, type Peer } from '@/hooks/usePresence'
+import { createClient } from '@/lib/supabase/client'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -949,6 +950,18 @@ export default function ShareView({ token }: { token: string }) {
     document.addEventListener('visibilitychange', onVisibility)
     return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
   }, [token, loadShareData])
+
+  // Subscribe to the same broadcast channel editors use — reload instantly on any save
+  useEffect(() => {
+    const projectId = data?.projectId
+    if (!projectId) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`tmpl-sync-${projectId}`)
+      .on('broadcast' as const, { event: 'saved' }, () => { loadShareData() })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [data?.projectId, loadShareData])
 
   useEffect(() => {
     const tState = data?.templateState
