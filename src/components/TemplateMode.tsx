@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { toPng, toJpeg } from 'html-to-image'
-import { BulkProduct, ParseResult, parseCSV, downloadTemplate } from '@/lib/csv'
+import { BulkProduct, ParseResult, parseCSV, productsToCSV, downloadTemplate } from '@/lib/csv'
 import { DesignState, UploadedAsset, TemplateShareState } from '@/types'
 import { saveTemplateState, loadTemplateState, stripTemplateBlobUrls } from '@/lib/db'
 import { createClient } from '@/lib/supabase/client'
@@ -19,6 +19,7 @@ import type { CantoPick } from './CantoAssetPicker'
 import { FolderConfig } from '@/lib/canto-folders'
 import { useAppSettings } from '@/hooks/useAppSettings'
 import DocsDrawer from './DocsDrawer'
+import CsvEditorModal from './CsvEditorModal'
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
 
@@ -719,6 +720,8 @@ export default function TemplateMode({
   // CSV
   const [parseResult, setParseResult] = useState<ParseResult | null>((sv.parseResult as ParseResult) ?? null)
   const [csvFilename, setCsvFilename] = useState<string>(typeof sv.csvFilename === 'string' ? sv.csvFilename : '')
+  const [rawCsv,      setRawCsv]      = useState<string>(typeof sv.rawCsv === 'string' ? sv.rawCsv : '')
+  const [csvEditorOpen, setCsvEditorOpen] = useState(false)
   const [isDragging, setIsDragging]   = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -755,8 +758,16 @@ export default function TemplateMode({
   const [iconPickerSlotIdx, setIconPickerSlotIdx] = useState(0)
 
   // Preview / guide
-  const [previewOpen, setPreviewOpen] = useState(false)
-  const [guideOpen, setGuideOpen]     = useState(false)
+  const [previewOpen, setPreviewOpen]         = useState(false)
+  const [guideOpen, setGuideOpen]             = useState(false)
+  const [showClearConfirm,    setShowClearConfirm]    = useState(false)
+  const [clearConfirmClosing, setClearConfirmClosing] = useState(false)
+
+  // Drag-reorder state for slot tabs
+  const [aplusDragIdx,   setAplusDragIdx]   = useState<number | null>(null)
+  const [aplusDragOver,  setAplusDragOver]  = useState<number | null>(null)
+  const [galleryDragIdx, setGalleryDragIdx] = useState<number | null>(null)
+  const [galleryDragOver,setGalleryDragOver]= useState<number | null>(null)
 
   // Render / export
   const [renderingAll, setRenderingAll] = useState(false)
@@ -894,13 +905,13 @@ export default function TemplateMode({
     try {
       if (!parseResult) { sessionStorage.removeItem(storageKeyRef.current); return }
       sessionStorage.setItem(storageKeyRef.current, JSON.stringify({
-        parseResult, csvFilename, allSlots, allGallerySlots, productNames,
+        parseResult, csvFilename, rawCsv, allSlots, allGallerySlots, productNames,
         aplusSlots, galleryCount, slotConfigs, galleryConfigs, outputFormat,
         selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx, logoAsset, textureAsset,
       }))
     } catch { /* ignore quota errors */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parseResult, csvFilename, allSlots, allGallerySlots, productNames, aplusSlots, galleryCount, slotConfigs, galleryConfigs, outputFormat, selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx, logoAsset, textureAsset])
+  }, [parseResult, csvFilename, rawCsv, allSlots, allGallerySlots, productNames, aplusSlots, galleryCount, slotConfigs, galleryConfigs, outputFormat, selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx, logoAsset, textureAsset])
 
   // Auto-save template state to Supabase for sharing (debounced 4s)
   useEffect(() => {
@@ -1116,7 +1127,9 @@ export default function TemplateMode({
     setCsvFilename(file.name)
     const reader = new FileReader()
     reader.onload = e => {
-      const result = parseCSV(e.target?.result as string, { requireSku: false })
+      const text = e.target?.result as string
+      setRawCsv(text)
+      const result = parseCSV(text, { requireSku: false })
 
       // Derive slot/gallery counts from the new CSV — never inherit from a previous project
       const first = result.products[0]
@@ -1209,7 +1222,7 @@ export default function TemplateMode({
   }, [handleFile])
 
   const handleClear = () => {
-    setParseResult(null); setCsvFilename(''); setSelectedId(null)
+    setParseResult(null); setCsvFilename(''); setRawCsv(''); setSelectedId(null)
     setAllSlots({}); setAllGallerySlots({}); setStatuses({})
     setProductNames({})
     setAplusSlots(5); setSlotConfigs(defaultSlotConfigs(5))
@@ -1275,6 +1288,135 @@ export default function TemplateMode({
     })
     setActiveGalleryIdx(a => a > idx ? a - 1 : Math.min(a, Math.max(0, galleryCount - 2)))
   }
+
+  const reorderAplusSlots = (from: number, to: number) => {
+    if (from === to) return
+    const move = <T,>(arr: T[]): T[] => {
+      const next = [...arr]
+      const [item] = next.splice(from, 1)
+      next.splice(to, 0, item)
+      return next
+    }
+    setSlotConfigs(prev => move(prev))
+    setAllSlots(prev => {
+      const result: Record<string, TemplateSlotState[]> = {}
+      for (const pid of Object.keys(prev)) result[pid] = move(prev[pid] ?? [])
+      return result
+    })
+    setActiveSlotIdx(a => {
+      if (a === from) return to
+      if (from < to && a > from && a <= to) return a - 1
+      if (from > to && a >= to && a < from) return a + 1
+      return a
+    })
+    // Invalidate cached renders — slot labels (a1, b1…) now map to different content
+    capturedRef.current.clear()
+    setStatuses(prev => Object.fromEntries(Object.keys(prev).map(k => [k, 'draft'])) as Record<string, ProductStatus>)
+    setCaptureVersion(v => v + 1)
+  }
+
+  const reorderGallerySlots = (from: number, to: number) => {
+    if (from === to) return
+    const move = <T,>(arr: T[]): T[] => {
+      const next = [...arr]
+      const [item] = next.splice(from, 1)
+      next.splice(to, 0, item)
+      return next
+    }
+    setGalleryConfigs(prev => move(prev))
+    setAllGallerySlots(prev => {
+      const result: Record<string, TemplateSlotState[]> = {}
+      for (const pid of Object.keys(prev)) result[pid] = move(prev[pid] ?? [])
+      return result
+    })
+    setActiveGalleryIdx(a => {
+      if (a === from) return to
+      if (from < to && a > from && a <= to) return a - 1
+      if (from > to && a >= to && a < from) return a + 1
+      return a
+    })
+    // Invalidate cached renders — slide labels (g1, g2…) now map to different content
+    capturedRef.current.clear()
+    setStatuses(prev => Object.fromEntries(Object.keys(prev).map(k => [k, 'draft'])) as Record<string, ProductStatus>)
+    setCaptureVersion(v => v + 1)
+  }
+
+  const applyEditedCsv = useCallback((csvText: string, result: ParseResult) => {
+    const first = result.products[0]
+    const newAplusSlots   = Math.max(1, first?.slots.length ?? 5)
+    const newGalleryCount = Math.max(0, first?.gallerySlots?.length ?? 0)
+
+    setRawCsv(csvText)
+    setParseResult(result)
+    setAplusSlots(newAplusSlots)
+    setGalleryCount(newGalleryCount)
+    onStatsChange(0, result.products.length)
+
+    const initSlot = (product: BulkProduct, j: number): TemplateSlotState => {
+      const s = product.slots[j]
+      const callouts = (s?.iconCallouts ?? ['', '', '', '']) as [string, string, string, string]
+      const filled = callouts.filter(Boolean).length
+      return {
+        title: s?.title ? `<p>${s.title}</p>` : '',
+        desc:  s?.desc  ? `<p>${s.desc}</p>`  : '',
+        iconLabels: callouts,
+        iconCount:  Math.min(Math.max(filled, 2), 4) as 2 | 3 | 4,
+        iconAssets: [undefined, undefined, undefined, undefined],
+      }
+    }
+
+    const initGallerySlot = (product: BulkProduct, g: number): TemplateSlotState => {
+      const s = product.gallerySlots?.[g]
+      const callouts = (s?.iconCallouts ?? ['', '', '', '']) as [string, string, string, string]
+      const filled = callouts.filter(Boolean).length
+      return {
+        title: s?.title ? `<p>${s.title}</p>` : '',
+        desc:  s?.desc  ? `<p>${s.desc}</p>`  : '',
+        iconLabels: callouts,
+        iconCount:  Math.min(Math.max(filled, 2), 4) as 2 | 3 | 4,
+        iconAssets: [undefined, undefined, undefined, undefined],
+      }
+    }
+
+    // Merge: text/icons always come from CSV (so edits take effect on canvas),
+    // uploaded image assets are preserved from the existing state.
+    setAllSlots(prev => {
+      const merged: Record<string, TemplateSlotState[]> = {}
+      for (const product of result.products) {
+        const existing = prev[product.id]
+        merged[product.id] = Array.from({ length: newAplusSlots }, (_, j) => ({
+          ...initSlot(product, j),
+          photoAsset: existing?.[j]?.photoAsset,
+          iconAssets: existing?.[j]?.iconAssets ?? [undefined, undefined, undefined, undefined],
+        }))
+      }
+      return merged
+    })
+
+    setAllGallerySlots(prev => {
+      const merged: Record<string, TemplateSlotState[]> = {}
+      for (const product of result.products) {
+        const existing = prev[product.id]
+        merged[product.id] = Array.from({ length: newGalleryCount }, (_, g) => ({
+          ...initGallerySlot(product, g),
+          photoAsset: existing?.[g]?.photoAsset,
+          iconAssets: existing?.[g]?.iconAssets ?? [undefined, undefined, undefined, undefined],
+        }))
+      }
+      return merged
+    })
+
+    // Keep current selection if it still exists, else select first product
+    setSelectedId(prev =>
+      prev && result.products.some(p => p.id === prev) ? prev : (result.products[0]?.id ?? null)
+    )
+
+    setStatuses({})
+    capturedRef.current.clear()
+    setCaptureVersion(0)
+    onCanExportChange(false)
+    onCanExportCurrentChange(false)
+  }, [onStatsChange, onCanExportChange, onCanExportCurrentChange])
 
   const fallbackAsset = (slotIndex: number): UploadedAsset | undefined => {
     const blocks = [...(designState.blocks ?? []), ...(designState.galleryBlocks ?? [])]
@@ -1689,12 +1831,23 @@ export default function TemplateMode({
             <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">A+ Slots</p>
             <div className="flex gap-1 flex-wrap">
               {slotConfigs.slice(0, aplusSlots).map((_, idx) => (
-                <div key={idx} className="relative group">
+                <div
+                  key={idx}
+                  className="relative group"
+                  draggable
+                  onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setAplusDragIdx(idx) }}
+                  onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setAplusDragOver(idx) }}
+                  onDrop={e => { e.preventDefault(); if (aplusDragIdx !== null) reorderAplusSlots(aplusDragIdx, idx); setAplusDragIdx(null); setAplusDragOver(null) }}
+                  onDragEnd={() => { setAplusDragIdx(null); setAplusDragOver(null) }}
+                  style={{ opacity: aplusDragIdx === idx ? 0.35 : 1 }}
+                >
                   <button
                     onClick={() => { setActiveSlotIdx(idx); setActiveIsGallery(false) }}
-                    className={`flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all ${
+                    className={`flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all cursor-grab active:cursor-grabbing ${
                       !activeIsGallery && idx === activeSlotIdx
                         ? 'bg-accent-600 text-white'
+                        : aplusDragOver === idx && aplusDragIdx !== idx
+                        ? 'bg-accent-100 dark:bg-accent-900/50 text-accent-700 dark:text-accent-300 ring-1 ring-accent-400 dark:ring-accent-600'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
@@ -1729,12 +1882,23 @@ export default function TemplateMode({
             <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">Gallery</p>
             <div className="flex gap-1 flex-wrap">
               {galleryConfigs.slice(0, galleryCount).map((_, idx) => (
-                <div key={idx} className="relative group">
+                <div
+                  key={idx}
+                  className="relative group"
+                  draggable
+                  onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setGalleryDragIdx(idx) }}
+                  onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setGalleryDragOver(idx) }}
+                  onDrop={e => { e.preventDefault(); if (galleryDragIdx !== null) reorderGallerySlots(galleryDragIdx, idx); setGalleryDragIdx(null); setGalleryDragOver(null) }}
+                  onDragEnd={() => { setGalleryDragIdx(null); setGalleryDragOver(null) }}
+                  style={{ opacity: galleryDragIdx === idx ? 0.35 : 1 }}
+                >
                   <button
                     onClick={() => { setActiveGalleryIdx(idx); setActiveIsGallery(true) }}
-                    className={`flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all ${
+                    className={`flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all cursor-grab active:cursor-grabbing ${
                       activeIsGallery && idx === activeGalleryIdx
                         ? 'bg-accent-600 text-white'
+                        : galleryDragOver === idx && galleryDragIdx !== idx
+                        ? 'bg-accent-100 dark:bg-accent-900/50 text-accent-700 dark:text-accent-300 ring-1 ring-accent-400 dark:ring-accent-600'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
@@ -1985,13 +2149,24 @@ export default function TemplateMode({
                 </div>
               </div>
 
-              {/* CSV info + clear */}
+              {/* CSV info + edit + clear */}
               <div>
                 <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">CSV File</label>
                 <div className="flex items-center gap-2 p-2.5 rounded bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
                   <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   <span className="flex-1 min-w-0 text-[10px] text-gray-600 dark:text-gray-400 truncate">{csvFilename}</span>
-                  <button onClick={handleClear} className="text-[10px] text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors shrink-0 font-semibold">Clear</button>
+                  <button
+                    onClick={() => setCsvEditorOpen(true)}
+                    title="Edit CSV data"
+                    className="text-[10px] text-gray-400 hover:text-accent-600 dark:hover:text-accent-400 transition-colors shrink-0 font-semibold"
+                  >
+                    Edit
+                  </button>
+                  <span className="text-gray-200 dark:text-gray-700 text-[10px]">·</span>
+                  <button
+                    onClick={() => setShowClearConfirm(true)}
+                    className="text-[10px] text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors shrink-0 font-semibold"
+                  >Clear</button>
                 </div>
               </div>
             </div>
@@ -2316,6 +2491,69 @@ export default function TemplateMode({
       />
 
       <DocsDrawer open={guideOpen} onClose={() => setGuideOpen(false)} />
+
+      {/* Clear CSV confirmation */}
+      {showClearConfirm && (() => {
+        const dismissClear = () => {
+          setClearConfirmClosing(true)
+          setTimeout(() => { setShowClearConfirm(false); setClearConfirmClosing(false) }, 160)
+        }
+        const confirmClear = () => {
+          setClearConfirmClosing(true)
+          setTimeout(() => { setShowClearConfirm(false); setClearConfirmClosing(false); handleClear() }, 160)
+        }
+        return (
+          <div
+            className={`fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm ${clearConfirmClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
+            onClick={dismissClear}
+          >
+            <div
+              className={`relative w-full max-w-sm bg-white dark:bg-gray-900 rounded border border-gray-100 dark:border-gray-700 overflow-hidden shadow-2xl mx-4 ${clearConfirmClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="px-5 pt-5 pb-4 flex items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-950/40 flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-[14px] font-bold text-gray-900 dark:text-white">Clear CSV data?</h2>
+                  <p className="text-[12px] text-gray-400 dark:text-gray-500 mt-1 leading-relaxed">
+                    This will remove all {parseResult?.products.length ?? 0} products and their content. This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+              <div className="px-5 pb-5 flex gap-2.5">
+                <button
+                  onClick={dismissClear}
+                  className="flex-1 h-9 rounded border border-gray-200 dark:border-gray-700 text-[13px] font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmClear}
+                  className="flex-1 h-9 rounded bg-red-500 hover:bg-red-600 text-white text-[13px] font-semibold transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Clear All Data
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      <CsvEditorModal
+        open={csvEditorOpen}
+        onClose={() => setCsvEditorOpen(false)}
+        initialCsv={rawCsv || (parseResult ? productsToCSV(parseResult.products, aplusSlots, galleryCount) : '')}
+        aplusSlots={aplusSlots}
+        galleryCount={galleryCount}
+        onApply={applyEditedCsv}
+      />
     </>
   )
 }

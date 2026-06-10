@@ -170,6 +170,45 @@ export function parseCSV(text: string, options?: { requireSku?: boolean }): Pars
   return { products, errors }
 }
 
+// ─── Reconstruct CSV from parsed products ────────────────────────────────────
+
+export function productsToCSV(products: BulkProduct[], aplusSlots: number, galleryCount: number): string {
+  const esc = (v: string) =>
+    (v.includes(',') || v.includes('"') || v.includes('\n'))
+      ? `"${v.replace(/"/g, '""')}"`
+      : v
+
+  const headers: string[] = ['sku', 'product_name']
+  for (let p = 1; p <= 5; p++) headers.push(`photo_${p}`)
+  for (let j = 0; j < Math.min(aplusSlots, 8); j++) {
+    const l = String.fromCharCode(97 + j)
+    headers.push(`${l}1_title`, `${l}1_desc`, `${l}1_icon1`, `${l}1_icon2`, `${l}1_icon3`, `${l}1_icon4`)
+  }
+  for (let g = 1; g <= galleryCount; g++) {
+    headers.push(`g${g}_title`, `g${g}_desc`, `g${g}_icon1`, `g${g}_icon2`, `g${g}_icon3`, `g${g}_icon4`)
+  }
+
+  const rows = products.map(p => {
+    const cells: string[] = [p.sku, p.productName]
+    for (let i = 0; i < 5; i++) cells.push(p.photos[i] ?? '')
+    for (let j = 0; j < Math.min(aplusSlots, 8); j++) {
+      const s = p.slots[j]
+      cells.push(s?.title ?? '', s?.desc ?? '',
+        s?.iconCallouts[0] ?? '', s?.iconCallouts[1] ?? '',
+        s?.iconCallouts[2] ?? '', s?.iconCallouts[3] ?? '')
+    }
+    for (let g = 0; g < galleryCount; g++) {
+      const s = p.gallerySlots?.[g]
+      cells.push(s?.title ?? '', s?.desc ?? '',
+        s?.iconCallouts?.[0] ?? '', s?.iconCallouts?.[1] ?? '',
+        s?.iconCallouts?.[2] ?? '', s?.iconCallouts?.[3] ?? '')
+    }
+    return cells.map(esc).join(',')
+  })
+
+  return [headers.map(esc).join(','), ...rows].join('\n')
+}
+
 // ─── Template CSV download ────────────────────────────────────────────────────
 
 export function downloadTemplate() {
