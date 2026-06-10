@@ -850,13 +850,17 @@ export default function TemplateMode({
           galleryCount,
           logoAsset,
           textureAsset,
+          selectedId,
+          activeSlotIdx,
+          activeIsGallery,
+          activeGalleryIdx,
         }
         await saveTemplateState(supabase, projectId, stripTemplateBlobUrls(raw))
       } catch { /* silent */ }
     }, 4000)
     return () => clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, parseResult, allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAsset, textureAsset])
+  }, [projectId, parseResult, allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAsset, textureAsset, selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx])
 
   useEffect(() => {
     setSlotConfigs(prev => defaultSlotConfigs(aplusSlots).map((d, i) => prev[i] ?? d))
@@ -890,6 +894,11 @@ export default function TemplateMode({
         if (tState.galleryConfigs?.length) setGalleryConfigs(tState.galleryConfigs as unknown as GallerySlotConfig[])
         if (tState.logoAsset) setLogoAsset(tState.logoAsset)
         if (tState.textureAsset) setTextureAsset(tState.textureAsset)
+        // Restore navigation state — fall back to first product if selectedId wasn't saved yet
+        setSelectedId(tState.selectedId ?? tState.products[0].id)
+        if (typeof tState.activeSlotIdx === 'number') setActiveSlotIdx(tState.activeSlotIdx)
+        if (typeof tState.activeIsGallery === 'boolean') setActiveIsGallery(tState.activeIsGallery)
+        if (typeof tState.activeGalleryIdx === 'number') setActiveGalleryIdx(tState.activeGalleryIdx)
       })
       .catch(() => {})
       .finally(() => setIsLoadingFromDb(false))
