@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+export const dynamic = 'force-dynamic'
+
 type ShareRow = { project_id: string; access_level: 'view' | 'edit'; is_public: boolean; created_by: string }
 type ProjectRow = { id: string; name: string; state: unknown; template_state: unknown; updated_at: string }
 
