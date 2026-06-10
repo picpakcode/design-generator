@@ -142,7 +142,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
     if (open) { setMounted(true); setClosing(false) }
     else if (mounted) {
       setClosing(true)
-      const t = setTimeout(() => { setMounted(false); setClosing(false) }, 260)
+      const t = setTimeout(() => { setMounted(false); setClosing(false) }, 300)
       return () => clearTimeout(t)
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -186,9 +186,10 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
         onClick={onClose}
       />
 
-      {/* Panel */}
+      {/* Panel — centered with max-width */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center">
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 flex flex-col bg-white dark:bg-gray-950 rounded-t-2xl shadow-2xl overflow-hidden ${
+        className={`w-full max-w-[1400px] flex flex-col bg-white dark:bg-gray-950 rounded-t-[4px] shadow-[0_-8px_40px_rgba(0,0,0,0.18)] overflow-hidden ${
           closing ? 'animate-slide-down-full' : 'animate-slide-up-full'
         }`}
         style={{ height: 'calc(100vh - 3rem)' }}
@@ -487,6 +488,7 @@ SB-002,Recovery Snatch Block,Maximum Pull,Rated for 8000 lb working load,High st
 
           </div>
         </div>
+      </div>
       </div>
     </>
   )

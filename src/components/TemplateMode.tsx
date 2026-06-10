@@ -2274,7 +2274,7 @@ export default function TemplateMode({
         designState={designState}
       />
 
-      <CSVGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} isDark={isDark} />
+      <DocsDrawer open={guideOpen} onClose={() => setGuideOpen(false)} />
     </>
   )
 }
