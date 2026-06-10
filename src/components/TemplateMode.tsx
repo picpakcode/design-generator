@@ -18,6 +18,7 @@ import TexturePicker from './TexturePicker'
 import type { CantoPick } from './CantoAssetPicker'
 import { FolderConfig } from '@/lib/canto-folders'
 import { useAppSettings } from '@/hooks/useAppSettings'
+import DocsDrawer from './DocsDrawer'
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
 
@@ -388,7 +389,7 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
   const mutedTxt = dark ? 'text-gray-500'   : 'text-gray-400'
 
   const C = ({ children }: { children: string }) => (
-    <code className={`font-mono text-[11px] px-1.5 py-0.5 rounded border whitespace-nowrap ${dark ? 'bg-gray-800 border-gray-700 text-indigo-300' : 'bg-indigo-50 border-indigo-100 text-indigo-600'}`}>{children}</code>
+    <code className={`font-mono text-[11px] px-1.5 py-0.5 rounded border whitespace-nowrap ${dark ? 'bg-gray-800 border-gray-700 text-accent-300' : 'bg-accent-50 border-accent-100 text-accent-600'}`}>{children}</code>
   )
 
   const aplusTemplates = [
@@ -411,8 +412,8 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
         {/* Header */}
         <div className={`shrink-0 flex items-center justify-between px-6 py-4 border-b ${hdrBg}`}>
           <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${dark ? 'bg-indigo-900/50' : 'bg-indigo-100'}`}>
-              <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${dark ? 'bg-accent-900/50' : 'bg-accent-100'}`}>
+              <svg className="w-4 h-4 text-accent-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
             </div>
@@ -436,7 +437,7 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
 
           {/* How it works */}
           <section>
-            <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b ${dark ? 'text-indigo-400 border-indigo-900/40' : 'text-indigo-600 border-indigo-100'}`}>How it works</h3>
+            <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b ${dark ? 'text-accent-400 border-accent-900/40' : 'text-accent-600 border-accent-100'}`}>How it works</h3>
             <div className="space-y-4">
               {([
                 { n: '1', title: 'Prepare your CSV', body: 'Fill in product data using the column structure below. Download the template CSV to get started — each row is one product.' },
@@ -444,7 +445,7 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
                 { n: '3', title: 'Export', body: 'Click Export All in the top toolbar. Slides auto-render and download as a ZIP — one folder per product, named by product name.' },
               ] as const).map(s => (
                 <div key={s.n} className="flex gap-4">
-                  <div className="w-7 h-7 rounded-full bg-indigo-500 text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">{s.n}</div>
+                  <div className="w-7 h-7 rounded-full bg-accent-500 text-white text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">{s.n}</div>
                   <div>
                     <p className={`text-sm font-semibold mb-0.5 ${hdrTxt}`}>{s.title}</p>
                     <p className={`text-[12px] leading-relaxed ${txt}`}>{s.body}</p>
@@ -456,7 +457,7 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
 
           {/* Required columns */}
           <section>
-            <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b ${dark ? 'text-indigo-400 border-indigo-900/40' : 'text-indigo-600 border-indigo-100'}`}>Required columns</h3>
+            <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b ${dark ? 'text-accent-400 border-accent-900/40' : 'text-accent-600 border-accent-100'}`}>Required columns</h3>
             <div className={`rounded-xl border ${cardBg} overflow-hidden`}>
               {([
                 { col: 'sku',          note: 'Unique product identifier. Used as the export folder name and file prefix.' },
@@ -472,9 +473,9 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
 
           {/* A+ Content Slots */}
           <section>
-            <div className={`flex items-center gap-2 mb-4 pb-2 border-b ${dark ? 'border-indigo-900/40' : 'border-indigo-100'}`}>
-              <h3 className={`text-[10px] font-bold uppercase tracking-widest ${dark ? 'text-indigo-400' : 'text-indigo-600'}`}>A+ Content Slots</h3>
-              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${dark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-600'}`}>a1 → h1</span>
+            <div className={`flex items-center gap-2 mb-4 pb-2 border-b ${dark ? 'border-accent-900/40' : 'border-accent-100'}`}>
+              <h3 className={`text-[10px] font-bold uppercase tracking-widest ${dark ? 'text-accent-400' : 'text-accent-600'}`}>A+ Content Slots</h3>
+              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${dark ? 'bg-accent-900/40 text-accent-300' : 'bg-accent-50 text-accent-600'}`}>a1 → h1</span>
             </div>
             <p className={`text-[12px] mb-3 leading-relaxed ${txt}`}>
               Each letter (a, b, c…) is one A+ slide. A slot is created for every letter with a non-empty <C>_title</C> column. Stop at the first blank title — later letters are skipped.
@@ -500,9 +501,9 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
 
           {/* Gallery Slides */}
           <section>
-            <div className={`flex items-center gap-2 mb-4 pb-2 border-b ${dark ? 'border-violet-900/40' : 'border-violet-100'}`}>
-              <h3 className={`text-[10px] font-bold uppercase tracking-widest ${dark ? 'text-violet-400' : 'text-violet-600'}`}>Gallery Slides</h3>
-              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${dark ? 'bg-violet-900/40 text-violet-300' : 'bg-violet-50 text-violet-600'}`}>g1 → g20</span>
+            <div className={`flex items-center gap-2 mb-4 pb-2 border-b ${dark ? 'border-accent-900/40' : 'border-accent-100'}`}>
+              <h3 className={`text-[10px] font-bold uppercase tracking-widest ${dark ? 'text-accent-400' : 'text-accent-600'}`}>Gallery Slides</h3>
+              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${dark ? 'bg-accent-900/40 text-accent-300' : 'bg-accent-50 text-accent-600'}`}>g1 → g20</span>
             </div>
             <p className={`text-[12px] mb-3 leading-relaxed ${txt}`}>
               Gallery slides use the <C>g</C> prefix. Up to 20 slides per product, stopping at the first blank title.
@@ -528,7 +529,7 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
 
           {/* Slide layout types */}
           <section>
-            <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b ${dark ? 'text-indigo-400 border-indigo-900/40' : 'text-indigo-600 border-indigo-100'}`}>Slide Layout Types</h3>
+            <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b ${dark ? 'text-accent-400 border-accent-900/40' : 'text-accent-600 border-accent-100'}`}>Slide Layout Types</h3>
             <p className={`text-[12px] mb-4 leading-relaxed ${txt}`}>
               Layout is auto-detected from your icon columns, but you can override it per slot using the canvas toolbar or sidebar.
             </p>
@@ -560,7 +561,7 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
 
           {/* Tips */}
           <section>
-            <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b ${dark ? 'text-indigo-400 border-indigo-900/40' : 'text-indigo-600 border-indigo-100'}`}>Tips</h3>
+            <h3 className={`text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b ${dark ? 'text-accent-400 border-accent-900/40' : 'text-accent-600 border-accent-100'}`}>Tips</h3>
             <ul className="space-y-3">
               {[
                 'Start from the template CSV — it includes sample data for all common slot types.',
@@ -571,8 +572,8 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
                 'For icon callouts, assign the icon images from Canto using the icon picker in the sidebar — then the callout labels come from the CSV.',
               ].map((tip, i) => (
                 <li key={i} className="flex gap-3">
-                  <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${dark ? 'bg-indigo-900/40' : 'bg-indigo-100'}`}>
-                    <svg className="w-2.5 h-2.5 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                  <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${dark ? 'bg-accent-900/40' : 'bg-accent-100'}`}>
+                    <svg className="w-2.5 h-2.5 text-accent-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </div>
@@ -587,7 +588,7 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
         <div className={`shrink-0 flex items-center justify-between px-6 py-3.5 border-t ${hdrBg}`}>
           <button
             onClick={downloadTemplate}
-            className="flex items-center gap-1.5 text-[12px] font-semibold text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            className="flex items-center gap-1.5 text-[12px] font-semibold text-accent-500 hover:text-accent-600 dark:hover:text-accent-400 transition-colors"
           >
             <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17a9 9 0 1118 0H3z" />
@@ -1481,14 +1482,14 @@ export default function TemplateMode({
               onClick={() => fileInputRef.current?.click()}
               className={`w-full rounded-xl border-2 p-8 flex flex-col items-center gap-3 cursor-pointer transition-all ${
                 isDragging
-                  ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 bg-gray-50 dark:bg-gray-800/40 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20'
+                  ? 'border-accent-400 bg-accent-50 dark:bg-accent-950/30'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-accent-300 dark:hover:border-accent-700 bg-gray-50 dark:bg-gray-800/40 hover:bg-accent-50/40 dark:hover:bg-accent-950/20'
               }`}
             >
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-                isDragging ? 'bg-indigo-100 dark:bg-indigo-900/60' : 'bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700'
+                isDragging ? 'bg-accent-100 dark:bg-accent-900/60' : 'bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700'
               }`}>
-                <svg className={`w-6 h-6 transition-colors ${isDragging ? 'text-indigo-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <svg className={`w-6 h-6 transition-colors ${isDragging ? 'text-accent-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                 </svg>
               </div>
@@ -1497,7 +1498,7 @@ export default function TemplateMode({
                   {isDragging ? 'Drop to import' : 'Drop your CSV here'}
                 </p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                  or <span className="text-indigo-500 dark:text-indigo-400 font-medium">click to browse</span>
+                  or <span className="text-accent-500 dark:text-accent-400 font-medium">click to browse</span>
                 </p>
               </div>
               <input ref={fileInputRef} type="file" accept=".csv" className="hidden"
@@ -1522,7 +1523,7 @@ export default function TemplateMode({
             {/* Download template */}
             <button
               onClick={e => { e.stopPropagation(); downloadTemplate() }}
-              className="mt-3 w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-[12px] font-semibold text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 border border-gray-200 dark:border-gray-700 hover:border-indigo-200 dark:hover:border-indigo-800 transition-all"
+              className="mt-3 w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-[12px] font-semibold text-gray-500 dark:text-gray-400 hover:text-accent-600 dark:hover:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-950/30 border border-gray-200 dark:border-gray-700 hover:border-accent-200 dark:hover:border-accent-800 transition-all"
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17a9 9 0 1118 0H3z" />
@@ -1530,24 +1531,24 @@ export default function TemplateMode({
               Download template CSV
             </button>
 
-            {/* Guide link */}
+            {/* Docs link */}
             <button
               onClick={() => setGuideOpen(true)}
-              className="mt-2 w-full flex items-center justify-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-600 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors py-1.5"
+              className="mt-2 w-full flex items-center justify-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-600 hover:text-accent-500 dark:hover:text-accent-400 transition-colors py-1.5"
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
-              How to use Template Mode
+              Docs
             </button>
           </div>
         </div>
 
         {/* ── Right: placeholder ── */}
-        <div className="w-[45%] shrink-0 relative overflow-hidden border-l border-gray-100 dark:border-gray-800 bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 dark:from-indigo-950/50 dark:via-purple-950/30 dark:to-blue-950/40 flex items-center justify-center">
+        <div className="w-[45%] shrink-0 relative overflow-hidden border-l border-gray-100 dark:border-gray-800 bg-gradient-to-br from-accent-50 via-accent-50 to-accent-50 dark:from-accent-950/50 dark:via-accent-950/30 dark:to-accent-950/40 flex items-center justify-center">
           {/* Dot grid */}
           <div className="absolute inset-0 opacity-30 dark:opacity-15" style={{
-            backgroundImage: 'radial-gradient(circle, #6366f1 1px, transparent 1px)',
+            backgroundImage: 'radial-gradient(circle, #af3939 1px, transparent 1px)',
             backgroundSize: '28px 28px',
           }} />
           {/* Fake slide previews */}
@@ -1555,8 +1556,8 @@ export default function TemplateMode({
             {[0, 1, 2].map(i => (
               <div key={i} className="flex items-center gap-3" style={{ opacity: 1 - i * 0.22, transform: `scale(${1 - i * 0.06})` }}>
                 <div className="w-48 h-20 rounded-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border border-white/90 dark:border-gray-700/60 shadow-md flex items-center gap-3 px-3 overflow-hidden">
-                  <div className="w-14 h-14 rounded-md bg-indigo-100 dark:bg-indigo-900/50 shrink-0 flex items-center justify-center">
-                    <svg className="w-6 h-6 text-indigo-300 dark:text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <div className="w-14 h-14 rounded-md bg-accent-100 dark:bg-accent-900/50 shrink-0 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-accent-300 dark:text-accent-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
@@ -1567,17 +1568,17 @@ export default function TemplateMode({
                   </div>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border border-white/90 dark:border-gray-700/60 shadow-md flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5 text-indigo-200 dark:text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <svg className="w-5 h-5 text-accent-200 dark:text-accent-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
               </div>
             ))}
-            <p className="mt-2 text-[11px] font-semibold text-indigo-300 dark:text-indigo-600 uppercase tracking-widest">Your slides will appear here</p>
+            <p className="mt-2 text-[11px] font-semibold text-accent-300 dark:text-accent-600 uppercase tracking-widest">Your slides will appear here</p>
           </div>
         </div>
 
-        <CSVGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} isDark={isDark} />
+        <DocsDrawer open={guideOpen} onClose={() => setGuideOpen(false)} />
       </div>
     )
   }
@@ -1652,7 +1653,7 @@ export default function TemplateMode({
                     onClick={() => { setActiveSlotIdx(idx); setActiveIsGallery(false) }}
                     className={`flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all ${
                       !activeIsGallery && idx === activeSlotIdx
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-accent-600 text-white'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
@@ -1675,7 +1676,7 @@ export default function TemplateMode({
                 <button
                   onClick={() => setAplusSlots(n => Math.min(10, n + 1))}
                   title="Add A+ slot"
-                  className="flex items-center justify-center px-2 py-1 rounded text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 transition-all"
+                  className="flex items-center justify-center px-2 py-1 rounded text-[11px] font-bold bg-accent-50 dark:bg-accent-950/40 text-accent-600 dark:text-accent-400 hover:bg-accent-100 dark:hover:bg-accent-900/40 border border-accent-200 dark:border-accent-800 transition-all"
                 >
                   +
                 </button>
@@ -1692,7 +1693,7 @@ export default function TemplateMode({
                     onClick={() => { setActiveGalleryIdx(idx); setActiveIsGallery(true) }}
                     className={`flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all ${
                       activeIsGallery && idx === activeGalleryIdx
-                        ? 'bg-blue-600 text-white'
+                        ? 'bg-accent-600 text-white'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                   >
@@ -1715,7 +1716,7 @@ export default function TemplateMode({
                 <button
                   onClick={() => setGalleryCount(n => Math.min(10, n + 1))}
                   title="Add gallery slide"
-                  className="flex items-center justify-center px-2 py-1 rounded text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 transition-all"
+                  className="flex items-center justify-center px-2 py-1 rounded text-[11px] font-bold bg-accent-50 dark:bg-accent-950/40 text-accent-600 dark:text-accent-400 hover:bg-accent-100 dark:hover:bg-accent-900/40 border border-accent-200 dark:border-accent-800 transition-all"
                 >
                   +
                 </button>
@@ -1772,7 +1773,7 @@ export default function TemplateMode({
                           <button
                             onClick={() => setSlotConfigs(prev => prev.map((c, i) => i === activeSlotIdx ? { ...c, mobileShowDesc: !(c.mobileShowDesc ?? true) } : c))}
                             title="Show description on mobile"
-                            className={`relative w-8 h-[18px] rounded-full transition-colors ${(activeCfgAplus.mobileShowDesc ?? true) ? 'bg-blue-500' : 'bg-gray-200 dark:bg-gray-700'}`}
+                            className={`relative w-8 h-[18px] rounded-full transition-colors ${(activeCfgAplus.mobileShowDesc ?? true) ? 'bg-accent-600' : 'bg-gray-200 dark:bg-gray-700'}`}
                           >
                             <div className={`absolute top-[3px] w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${(activeCfgAplus.mobileShowDesc ?? true) ? 'translate-x-[17px]' : 'translate-x-[3px]'}`} />
                           </button>
@@ -1955,16 +1956,16 @@ export default function TemplateMode({
             </div>
           </Section>
         </div>
-        {/* Sidebar footer — CSV guide */}
+        {/* Sidebar footer — docs */}
         <div className="shrink-0 border-t border-gray-100 dark:border-gray-700">
           <button
             onClick={() => setGuideOpen(true)}
-            className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-gray-400 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all"
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-gray-400 hover:text-accent-500 dark:hover:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-950/30 transition-all"
           >
             <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
-            CSV Guide & Help
+            Docs
           </button>
         </div>
       </aside>
@@ -2008,7 +2009,7 @@ export default function TemplateMode({
                     const flip     = cfg.template === '5050-left'
                     const sd       = buildSlotDesign(selected.id, slotIdx)
 
-                    const activeOutline  = '2px solid #3B82F6'
+                    const activeOutline  = '2px solid #af3939'
                     const activeShadow   = '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
                     const inactiveOutline= '2px solid transparent'
                     const inactiveShadow = '0 2px 12px rgba(0,0,0,0.10)'
@@ -2018,7 +2019,7 @@ export default function TemplateMode({
                         {/* Slot header — left anchor: label + template picker; right anchor: resolution + delete */}
                         <div style={{ height: `${28/zoom}px`, position: 'relative', marginBottom: `${8/zoom}px` }}>
                           <div style={{ position: 'absolute', top: 0, left: 0, display: 'flex', alignItems: 'center', gap: 8, transform: `scale(${1/zoom})`, transformOrigin: 'top left' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#3B82F6' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#af3939' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
                               {slotLabel(slotIdx)}
                             </span>
                             {(() => {
@@ -2122,7 +2123,7 @@ export default function TemplateMode({
                         const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
                         const gd       = buildGallerySlotDesign(selected.id, gIdx)
 
-                        const activeOutline  = '2px solid #3B82F6'
+                        const activeOutline  = '2px solid #af3939'
                         const activeShadow   = '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
                         const inactiveOutline= '2px solid transparent'
                         const inactiveShadow = '0 2px 12px rgba(0,0,0,0.10)'
@@ -2132,7 +2133,7 @@ export default function TemplateMode({
                             {/* Gallery slot header — left anchor: label + picker; right anchor: resolution + delete */}
                             <div style={{ height: `${28/zoom}px`, position: 'relative', marginBottom: `${8/zoom}px` }}>
                               <div style={{ position: 'absolute', top: 0, left: 0, display: 'flex', alignItems: 'center', gap: 8, transform: `scale(${1/zoom})`, transformOrigin: 'top left' }}>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#3B82F6' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#af3939' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
                                   {galleryLabel(gIdx)}
                                 </span>
                                 {(() => {

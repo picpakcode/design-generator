@@ -79,7 +79,7 @@ function Avatar({ name, isOwner }: { name: string; isOwner?: boolean }) {
   const initials = name.split(/[\s@]/)[0]?.[0]?.toUpperCase() ?? '?'
   return (
     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-      isOwner ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+      isOwner ? 'bg-accent-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
     }`}>
       {initials}
     </div>
@@ -115,7 +115,7 @@ function ReactionBar({
         <button
           key={emoji}
           onClick={() => toggleReaction(emoji)}
-          className="flex items-center gap-0.5 h-5 px-1.5 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:ring-1 hover:ring-indigo-200 dark:hover:ring-indigo-700 transition-all text-[11px]"
+          className="flex items-center gap-0.5 h-5 px-1.5 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-accent-50 dark:hover:bg-accent-900/30 hover:ring-1 hover:ring-accent-200 dark:hover:ring-accent-700 transition-all text-[11px]"
           title={names.join(', ')}
         >
           {emoji} <span className="text-gray-500 dark:text-gray-400 font-medium">{names.length}</span>
@@ -198,7 +198,7 @@ function ThreadCard({
             <div className="flex items-center gap-1.5 mb-0.5">
               <span className="text-[11px] font-semibold text-gray-800 dark:text-gray-200 truncate">{root.author_name}</span>
               {root.author_type === 'owner' && (
-                <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/40 px-1.5 py-0.5 rounded-full">Owner</span>
+                <span className="text-[9px] font-bold text-accent-600 dark:text-accent-400 bg-accent-50 dark:bg-accent-900/40 px-1.5 py-0.5 rounded-full">Owner</span>
               )}
               <span className="text-[10px] text-gray-300 dark:text-gray-600 ml-auto shrink-0">{timeAgo(root.created_at)}</span>
             </div>
@@ -233,7 +233,7 @@ function ThreadCard({
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <span className="text-[11px] font-semibold text-gray-800 dark:text-gray-200 truncate">{reply.author_name}</span>
                     {reply.author_type === 'owner' && (
-                      <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/40 px-1.5 py-0.5 rounded-full">Owner</span>
+                      <span className="text-[9px] font-bold text-accent-600 dark:text-accent-400 bg-accent-50 dark:bg-accent-900/40 px-1.5 py-0.5 rounded-full">Owner</span>
                     )}
                     <span className="text-[10px] text-gray-300 dark:text-gray-600 ml-auto shrink-0">{timeAgo(reply.created_at)}</span>
                   </div>
@@ -259,13 +259,13 @@ function ThreadCard({
                 placeholder="Reply… (⌘↵ to post)"
                 rows={2}
                 autoFocus
-                className="w-full px-2.5 py-1.5 text-[11px] border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                className="w-full px-2.5 py-1.5 text-[11px] border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 resize-none placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
               />
               <div className="flex gap-1.5">
                 <button
                   onClick={submitReply}
                   disabled={posting || !replyText.trim()}
-                  className="h-6 px-2.5 rounded-lg bg-indigo-600 text-white text-[10px] font-bold hover:bg-indigo-500 disabled:opacity-40 transition-colors flex items-center gap-1"
+                  className="h-6 px-2.5 rounded-lg bg-accent-600 text-white text-[10px] font-bold hover:bg-accent-500 disabled:opacity-40 transition-colors flex items-center gap-1"
                 >
                   {posting && <svg className="animate-spin w-2.5 h-2.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
                   Reply
@@ -281,7 +281,7 @@ function ThreadCard({
           ) : (
             <button
               onClick={() => { setReplyOpen(true); setTimeout(() => textRef.current?.focus(), 50) }}
-              className="mt-1 text-[10px] text-gray-400 dark:text-gray-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors font-medium"
+              className="mt-1 text-[10px] text-gray-400 dark:text-gray-600 hover:text-accent-600 dark:hover:text-accent-400 transition-colors font-medium"
             >
               Reply
             </button>

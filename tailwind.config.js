@@ -9,6 +9,19 @@ module.exports = {
       },
       colors: {
         canvas: '#f5f5f5',
+        accent: {
+          50:  '#fbf3f3',
+          100: '#f5e0e0',
+          200: '#ebc1c1',
+          300: '#de9b9b',
+          400: '#d07171',
+          500: '#c44a4a',
+          600: '#af3939',
+          700: '#832b2b',
+          800: '#642121',
+          900: '#451717',
+          950: '#2a0e0e',
+        },
       },
       keyframes: {
         fadeIn: {
@@ -37,6 +50,14 @@ module.exports = {
           '0%':   { opacity: '0', transform: 'translateY(6px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        slideUpFull: {
+          '0%':   { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+        slideDownFull: {
+          '0%':   { transform: 'translateY(0)' },
+          '100%': { transform: 'translateY(100%)' },
+        },
         scaleOut: {
           '0%':   { opacity: '1', transform: 'scale(1)' },
           '100%': { opacity: '0', transform: 'scale(0.97)' },
@@ -54,7 +75,9 @@ module.exports = {
         'scale-in':     'scaleIn     220ms cubic-bezier(0.16,1,0.3,1) both',
         'scale-out':    'scaleOut    160ms cubic-bezier(0.4,0,1,1) both',
         'bounce-once':  'bounceOnce  300ms cubic-bezier(0.16,1,0.3,1) both',
-        'slide-in-up':  'slideInUp   180ms cubic-bezier(0.16,1,0.3,1) both',
+        'slide-in-up':    'slideInUp     180ms cubic-bezier(0.16,1,0.3,1) both',
+        'slide-up-full':  'slideUpFull   320ms cubic-bezier(0.16,1,0.3,1) both',
+        'slide-down-full':'slideDownFull 240ms cubic-bezier(0.4,0,1,1) both',
       },
     },
   },

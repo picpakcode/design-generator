@@ -14,7 +14,7 @@ const variants: Record<BtnVariant, string> = {
   primary:   'bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600',
   secondary: 'border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 bg-white dark:bg-transparent hover:border-gray-400 hover:text-gray-900 dark:hover:border-gray-400 dark:hover:text-gray-200',
   ghost:     'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200',
-  indigo:    'bg-indigo-600 text-white hover:bg-indigo-500',
+  indigo:    'bg-accent-600 text-white hover:bg-accent-500',
 }
 
 export function Btn({

@@ -31,6 +31,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
@@ -105,8 +106,8 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b bg-gray-50 dark:bg-gray-900/80 border-gray-200 dark:border-white/8">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/50">
-              <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-accent-100 dark:bg-accent-900/50">
+              <svg className="w-4 h-4 text-accent-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
@@ -130,7 +131,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
 
           {/* Cloud sync */}
           <section>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/40">Cloud Sync</h3>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-accent-600 dark:text-accent-400 border-accent-100 dark:border-accent-900/40">Cloud Sync</h3>
             <div className="space-y-4">
               {([
                 { icon: 'M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4', title: 'Auto-save', body: 'Every project saves automatically as you work — design settings, slide configs, text, and Canto media. No manual save button.' },
@@ -138,7 +139,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
                 { icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', title: '4-second debounce', body: 'State is written to Supabase 4 seconds after your last change. Switching projects or closing mid-edit may miss the final state if you move too fast.' },
               ] as const).map(s => (
                 <div key={s.title} className="flex gap-4">
-                  <div className="w-7 h-7 rounded-full bg-indigo-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-7 h-7 rounded-full bg-accent-500 text-white flex items-center justify-center shrink-0 mt-0.5">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg>
                   </div>
                   <div>
@@ -152,7 +153,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
 
           {/* Collaboration */}
           <section>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/40">Collaboration &amp; Share Links</h3>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-accent-600 dark:text-accent-400 border-accent-100 dark:border-accent-900/40">Collaboration &amp; Share Links</h3>
             <div className="space-y-4">
               {([
                 { icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1', title: 'Share links', body: 'Generate a public link from inside any project. Two access levels: View Only (reviewers can comment and vote, but not edit) and Can Edit (full access).' },
@@ -160,7 +161,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
                 { icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', title: 'Polling updates', body: 'Reviewer pages re-fetch the full project state every 30 seconds and comments every 10 seconds — so photo and text changes appear without a manual refresh.' },
               ] as const).map(s => (
                 <div key={s.title} className="flex gap-4">
-                  <div className="w-7 h-7 rounded-full bg-violet-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-7 h-7 rounded-full bg-accent-500 text-white flex items-center justify-center shrink-0 mt-0.5">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg>
                   </div>
                   <div>
@@ -174,7 +175,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
 
           {/* Feedback */}
           <section>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/40">Feedback System</h3>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-accent-600 dark:text-accent-400 border-accent-100 dark:border-accent-900/40">Feedback System</h3>
             <div className="grid grid-cols-2 gap-3">
               {([
                 { label: 'Per-block comments', desc: 'Reviewers click a block to select it, then leave a comment tied to that specific slide.' },
@@ -192,7 +193,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
 
           {/* What's stored */}
           <section>
-            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/40">What Gets Stored</h3>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-accent-600 dark:text-accent-400 border-accent-100 dark:border-accent-900/40">What Gets Stored</h3>
             <div className="rounded-xl border border-gray-100 dark:border-white/8 overflow-hidden">
               {stored.map((r, i) => (
                 <div key={r.label} className={`flex items-center gap-3 px-4 py-3 ${i < stored.length - 1 ? 'border-b border-gray-100 dark:border-white/8' : ''}`}>
@@ -299,7 +300,6 @@ export default function Dashboard() {
   const router = useRouter()
   const { user, loading: authLoading, signOut } = useAuth()
   const [authModalOpen, setAuthModalOpen] = useState(false)
-  const [guideOpen, setGuideOpen] = useState(false)
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [loading, setLoading] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -431,14 +431,14 @@ export default function Dashboard() {
           <img src="/Favicon.png" alt="Doc's Design Generator" className="w-7 h-7 rounded object-contain shrink-0" />
           <span className="font-bold text-gray-900 dark:text-white text-base tracking-tight">Doc&rsquo;s Design Generator</span>
           <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700">Beta</span>
-          <div className="ml-auto">
-            <button
-              onClick={() => setGuideOpen(true)}
+          <div className="ml-auto flex items-center gap-2">
+            <Link
+              href="/docs"
               className="h-7 px-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-1.5"
             >
-              <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              Guide
-            </button>
+              <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+              Docs
+            </Link>
           </div>
         </header>
         <div className="flex-1 flex items-center justify-center">
@@ -453,7 +453,6 @@ export default function Dashboard() {
           </div>
         </div>
         <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
-        <ProjectGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
       </div>
     )
   }
@@ -466,13 +465,13 @@ export default function Dashboard() {
         <img src="/Favicon.png" alt="Doc's Design Generator" className="w-7 h-7 rounded object-contain shrink-0" />
         <span className="font-bold text-gray-900 dark:text-white text-base tracking-tight">Doc&rsquo;s Design Generator</span>
         <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700">Beta</span>
-        <button
-          onClick={() => setGuideOpen(true)}
+        <Link
+          href="/docs"
           className="h-7 px-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-1.5"
         >
-          <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          Guide
-        </button>
+          <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+          Docs
+        </Link>
         <div className="ml-auto flex items-center gap-3">
           {user && (
             <>
@@ -611,7 +610,7 @@ export default function Dashboard() {
                     key={project.id}
                     className={`group relative flex flex-col bg-white dark:bg-gray-900 rounded border transition-all overflow-hidden animate-fade-in ${
                       isSelected
-                        ? 'border-blue-400 dark:border-blue-500 ring-2 ring-blue-200 dark:ring-blue-900 shadow-sm'
+                        ? 'border-accent-400 dark:border-accent-500 ring-2 ring-accent-200 dark:ring-accent-900 shadow-sm'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md'
                     }`}
                     style={{ animationDelay: `${idx * 40}ms` }}
@@ -621,7 +620,7 @@ export default function Dashboard() {
                       onClick={e => { e.preventDefault(); e.stopPropagation(); toggleSelect(project.id) }}
                       className={`absolute top-2 left-2 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                         isSelected
-                          ? 'bg-blue-500 border-blue-500 opacity-100'
+                          ? 'bg-accent-600 border-accent-600 opacity-100'
                           : 'bg-white/90 dark:bg-gray-900/90 border-gray-300 dark:border-gray-500 backdrop-blur-sm opacity-0 group-hover:opacity-100'
                       } ${isSelectMode ? 'opacity-100' : ''}`}
                       title={isSelected ? 'Deselect' : 'Select'}
@@ -742,7 +741,6 @@ export default function Dashboard() {
           loading={deleting}
         />
       )}
-      <ProjectGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
     </div>
   )
 }

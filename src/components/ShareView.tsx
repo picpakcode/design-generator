@@ -148,14 +148,14 @@ function BlockWrapper({
     <div
       className={`relative mb-3 cursor-pointer rounded-sm transition-shadow ${
         selected
-          ? 'shadow-[0_0_0_2px_#6366f1,0_4px_20px_rgba(99,102,241,0.18)]'
+          ? 'shadow-[0_0_0_2px_#af3939,0_4px_20px_rgba(175,57,57,0.18)]'
           : 'hover:shadow-[0_0_0_1px_#e5e7eb]'
       }`}
       onClick={onClick}
     >
       <BlockBadge blockId={blockId} feedback={feedback} />
       {selected && (
-        <div className="absolute inset-0 z-10 rounded-sm pointer-events-none ring-2 ring-inset ring-indigo-500" />
+        <div className="absolute inset-0 z-10 rounded-sm pointer-events-none ring-2 ring-inset ring-accent-500" />
       )}
       {children}
     </div>
@@ -606,7 +606,7 @@ function CommentsSidebar({
                 {(blockCommentCount > 0 || blockStatus) && (
                   <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-white ${
                     blockStatus === 'changes_requested' ? 'bg-amber-400' :
-                    blockStatus === 'approved'          ? 'bg-emerald-400' : 'bg-indigo-400'
+                    blockStatus === 'approved'          ? 'bg-emerald-400' : 'bg-accent-400'
                   }`} />
                 )}
               </button>
@@ -684,17 +684,17 @@ function CommentsSidebar({
               const isResolved = !!root.resolved_at
               const isReplying = replyingTo === root.id
               return (
-                <div key={root.id} className={`rounded-xl border transition-all ${isResolved ? 'border-gray-100 bg-gray-50/50 opacity-60' : `border-gray-100 bg-white${highlightThreads ? ' ring-1 ring-indigo-200' : ''}`}`}>
+                <div key={root.id} className={`rounded-xl border transition-all ${isResolved ? 'border-gray-100 bg-gray-50/50 opacity-60' : `border-gray-100 bg-white${highlightThreads ? ' ring-1 ring-accent-200' : ''}`}`}>
                   {/* Root comment */}
                   <div className="p-3">
                     <div className="flex items-start gap-2">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5 ${root.author_type === 'owner' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5 ${root.author_type === 'owner' ? 'bg-accent-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
                         {root.author_name[0]?.toUpperCase() ?? '?'}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
                           <span className="text-[11px] font-semibold text-gray-800 truncate">{root.author_name}</span>
-                          {root.author_type === 'owner' && <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full shrink-0">Owner</span>}
+                          {root.author_type === 'owner' && <span className="text-[9px] font-bold text-accent-600 bg-accent-50 px-1.5 py-0.5 rounded-full shrink-0">Owner</span>}
                           <span className="text-[9px] text-gray-300 ml-auto shrink-0">{timeAgo(root.created_at)}</span>
                         </div>
                         <p className="text-[11px] text-gray-600 leading-relaxed">{root.body}</p>
@@ -703,7 +703,7 @@ function CommentsSidebar({
                           {Object.entries(root.reactions ?? {}).map(([emoji, names]) => (
                             <button key={emoji} onClick={() => handleReaction(root.id, emoji)}
                               title={names.join(', ')}
-                              className="flex items-center gap-0.5 h-5 px-1.5 rounded-full bg-gray-100 hover:bg-indigo-50 hover:ring-1 hover:ring-indigo-200 transition-all text-[10px]">
+                              className="flex items-center gap-0.5 h-5 px-1.5 rounded-full bg-gray-100 hover:bg-accent-50 hover:ring-1 hover:ring-accent-200 transition-all text-[10px]">
                               {emoji} <span className="text-gray-500 font-medium">{names.length}</span>
                             </button>
                           ))}
@@ -741,13 +741,13 @@ function CommentsSidebar({
                       {threadReplies.map(reply => (
                         <div key={reply.id} className="px-3 py-2 pl-7">
                           <div className="flex items-start gap-2">
-                            <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 mt-0.5 ${reply.author_type === 'owner' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 mt-0.5 ${reply.author_type === 'owner' ? 'bg-accent-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
                               {reply.author_name[0]?.toUpperCase() ?? '?'}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5 mb-0.5">
                                 <span className="text-[10px] font-semibold text-gray-800 truncate">{reply.author_name}</span>
-                                {reply.author_type === 'owner' && <span className="text-[8px] font-bold text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded-full shrink-0">Owner</span>}
+                                {reply.author_type === 'owner' && <span className="text-[8px] font-bold text-accent-600 bg-accent-50 px-1 py-0.5 rounded-full shrink-0">Owner</span>}
                                 <span className="text-[9px] text-gray-300 ml-auto shrink-0">{timeAgo(reply.created_at)}</span>
                               </div>
                               <p className="text-[11px] text-gray-600 leading-relaxed">{reply.body}</p>
@@ -770,11 +770,11 @@ function CommentsSidebar({
                             placeholder="Reply… (⌘↵ to post)"
                             rows={2}
                             autoFocus
-                            className="w-full px-2.5 py-1.5 text-[11px] border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none placeholder:text-gray-300 transition-all"
+                            className="w-full px-2.5 py-1.5 text-[11px] border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 resize-none placeholder:text-gray-300 transition-all"
                           />
                           <div className="flex gap-1.5">
                             <button onClick={() => handlePostReply(root.id, root.block_id)} disabled={replyPosting || !replyText.trim()}
-                              className="h-6 px-2.5 rounded-lg bg-indigo-600 text-white text-[10px] font-bold hover:bg-indigo-500 disabled:opacity-40 transition-colors">
+                              className="h-6 px-2.5 rounded-lg bg-accent-600 text-white text-[10px] font-bold hover:bg-accent-500 disabled:opacity-40 transition-colors">
                               {replyPosting ? '…' : 'Reply'}
                             </button>
                             <button onClick={() => { setReplyingTo(null); setReplyText('') }}
@@ -785,7 +785,7 @@ function CommentsSidebar({
                         </div>
                       ) : (
                         <button onClick={() => setReplyingTo(root.id)}
-                          className="mt-1 text-[10px] text-gray-400 hover:text-indigo-600 transition-colors font-medium">
+                          className="mt-1 text-[10px] text-gray-400 hover:text-accent-600 transition-colors font-medium">
                           Reply
                         </button>
                       )}
@@ -811,10 +811,10 @@ function CommentsSidebar({
               <input type="text" value={nameInput} onChange={e => setNameInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') saveName() }}
                 placeholder="Enter your name…" autoFocus
-                className="flex-1 h-7 px-2.5 text-[11px] border border-gray-200 rounded bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 placeholder:text-gray-300 transition-all"
+                className="flex-1 h-7 px-2.5 text-[11px] border border-gray-200 rounded bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 placeholder:text-gray-300 transition-all"
               />
               <button onClick={saveName} disabled={!nameInput.trim()}
-                className="h-7 px-3 rounded bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-500 disabled:opacity-40 transition-colors">
+                className="h-7 px-3 rounded bg-accent-600 text-white text-[11px] font-bold hover:bg-accent-500 disabled:opacity-40 transition-colors">
                 Set
               </button>
             </div>
@@ -827,7 +827,7 @@ function CommentsSidebar({
             <textarea value={commentInput} onChange={e => setCommentInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handlePostComment() }}
               placeholder="Leave a comment… (⌘↵ to post)" rows={2}
-              className="w-full px-2.5 py-2 text-[11px] border border-gray-200 rounded bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none placeholder:text-gray-300 transition-all"
+              className="w-full px-2.5 py-2 text-[11px] border border-gray-200 rounded bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 resize-none placeholder:text-gray-300 transition-all"
             />
             {submitError && <p className="text-[10px] text-red-500">{submitError}</p>}
             <div className="flex items-center justify-between gap-2">
@@ -836,7 +836,7 @@ function CommentsSidebar({
                 As&nbsp;<span className="font-medium text-gray-600">{authorName}</span>&nbsp;·&nbsp;Change
               </button>
               <button onClick={handlePostComment} disabled={submitting || !commentInput.trim()}
-                className={`shrink-0 h-7 px-3 rounded bg-indigo-600 text-white text-[11px] font-bold hover:bg-indigo-500 disabled:opacity-40 transition-colors flex items-center gap-1.5 ${postFlash ? 'animate-bounce-once' : ''}`}>
+                className={`shrink-0 h-7 px-3 rounded bg-accent-600 text-white text-[11px] font-bold hover:bg-accent-500 disabled:opacity-40 transition-colors flex items-center gap-1.5 ${postFlash ? 'animate-bounce-once' : ''}`}>
                 {submitting && <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
                 Post
               </button>
@@ -1076,7 +1076,7 @@ export default function ShareView({ token }: { token: string }) {
               <span className="text-[10px] text-gray-400">{peers.length} viewing</span>
             )}
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-              data.accessLevel === 'edit' ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-100 text-gray-500'
+              data.accessLevel === 'edit' ? 'bg-accent-50 text-accent-600' : 'bg-gray-100 text-gray-500'
             }`}>
               {data.accessLevel === 'edit' ? 'Can edit' : 'View only'}
             </span>
@@ -1099,8 +1099,8 @@ export default function ShareView({ token }: { token: string }) {
                     onClick={() => { setSelectedProductId(p.id); setSelectedBlockId(null) }}
                     className={`shrink-0 h-6 px-2.5 rounded-full text-[10px] font-semibold transition-all whitespace-nowrap ${
                       p.id === productId
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
+                        ? 'bg-accent-600 text-white'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:border-accent-300 hover:text-accent-600'
                     }`}
                   >
                     {p.productName || p.sku || `#${tState.products.indexOf(p) + 1}`}
@@ -1283,7 +1283,7 @@ export default function ShareView({ token }: { token: string }) {
           )}
           <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
             data.accessLevel === 'edit'
-              ? 'bg-indigo-50 text-indigo-600'
+              ? 'bg-accent-50 text-accent-600'
               : 'bg-gray-100 text-gray-500'
           }`}>
             {data.accessLevel === 'edit' ? 'Can edit' : 'View only'}

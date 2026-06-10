@@ -1038,7 +1038,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
               {(isRunning || doneJobs > 0) && (
                 <div className={`flex items-center gap-1.5 px-3 h-7 rounded-full text-[11px] font-semibold ${
                   allDone ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' :
-                  isRunning ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                  isRunning ? 'bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                 }`}>
                   {isRunning && <SpinnerIcon />}
                   {allDone ? `All done · ${doneJobs} images` : `${doneJobs} / ${totalJobs}`}
@@ -1130,7 +1130,7 @@ function StatusBadge({ status }: { status: ConnectionStatus }) {
 function ProductRow({ job, imagesPerProduct }: { job: JobProduct; imagesPerProduct: number }) {
   const cfg = {
     pending:   { dot: 'bg-gray-300',    text: 'text-gray-400' },
-    rendering: { dot: 'bg-blue-400',    text: 'text-blue-600' },
+    rendering: { dot: 'bg-accent-400',  text: 'text-accent-600' },
     done:      { dot: 'bg-emerald-400', text: 'text-emerald-700' },
     error:     { dot: 'bg-red-400',     text: 'text-red-600' },
   }[job.status]
@@ -1145,7 +1145,7 @@ function ProductRow({ job, imagesPerProduct }: { job: JobProduct; imagesPerProdu
       <td className="px-4 py-3"><span className="text-[10px] text-gray-500 dark:text-gray-400 tabular-nums">{job.photos.length}p · {job.slots.length}s</span></td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1.5">
-          {job.status === 'rendering' ? <SpinnerIcon className="text-blue-500" /> : <div className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
+          {job.status === 'rendering' ? <SpinnerIcon className="text-accent-500" /> : <div className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
           <span className={`text-[11px] font-medium ${cfg.text}`}>
             {job.status === 'rendering' && job.renderingSlot ? `Rendering ${job.renderingSlot}…` :
              job.status === 'done' ? `Done · ${imagesPerProduct} images` :

@@ -35,7 +35,7 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write d
   if (!editor) return null
 
   return (
-    <div className="rte-wrapper border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800 focus-within:ring-2 focus-within:ring-blue-300 focus-within:border-transparent transition-all">
+    <div className="rte-wrapper border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800 focus-within:ring-2 focus-within:ring-accent-400 focus-within:border-transparent transition-all">
       {/* Toolbar */}
       <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
         <ToolbarBtn

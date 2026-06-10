@@ -86,12 +86,12 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
     label: 'text-gray-400',
     row: 'bg-gray-900/60 border border-white/6',
     toggle: 'bg-gray-800',
-    toggleActive: 'bg-indigo-600',
+    toggleActive: 'bg-accent-600',
     urlBox: 'bg-gray-900 border border-white/10 text-gray-300',
     revoke: 'text-red-400 hover:text-red-300 hover:bg-red-500/10',
     divider: 'bg-white/6',
     pill: (active: boolean) => active
-      ? 'bg-indigo-600 text-white shadow-sm'
+      ? 'bg-accent-600 text-white shadow-sm'
       : 'text-gray-400 hover:text-gray-200',
   } : {
     backdrop: 'bg-black/40',
@@ -103,7 +103,7 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
     label: 'text-gray-600',
     row: 'bg-gray-50 border border-gray-200',
     toggle: 'bg-gray-200',
-    toggleActive: 'bg-indigo-500',
+    toggleActive: 'bg-accent-500',
     urlBox: 'bg-gray-50 border border-gray-200 text-gray-700',
     revoke: 'text-red-500 hover:text-red-600 hover:bg-red-50',
     divider: 'bg-gray-100',
@@ -188,7 +188,7 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
                   <button
                     onClick={handleCreateOrUpdate}
                     disabled={saving}
-                    className="h-8 px-4 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="h-8 px-4 rounded bg-accent-600 hover:bg-accent-500 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {saving && (
                       <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">

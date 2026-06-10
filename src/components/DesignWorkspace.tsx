@@ -2663,7 +2663,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           width: tpl.width, height: tpl.height,
                           position: 'relative', overflow: 'hidden',
                           borderRadius: 10, flexShrink: 0,
-                          outline: isSelected ? '2px solid #3B82F6' : '2px solid transparent',
+                          outline: isSelected ? '2px solid #af3939' : '2px solid transparent',
                           outlineOffset: 2,
                           boxShadow: isSelected
                             ? '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
@@ -2830,10 +2830,10 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top center' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                     {frameFmt === 'desktop'
-                                      ? <DesktopIcon className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
-                                      : <MobileIcon  className={`w-3 h-3 ${isSelected ? 'text-blue-500' : 'text-gray-400'}`} />
+                                      ? <DesktopIcon className={`w-3 h-3 ${isSelected ? 'text-accent-500' : 'text-gray-400'}`} />
+                                      : <MobileIcon  className={`w-3 h-3 ${isSelected ? 'text-accent-500' : 'text-gray-400'}`} />
                                     }
-                                    <span style={{ fontSize: 11, fontWeight: 600, color: isSelected ? '#3B82F6' : '#9CA3AF' }}>
+                                    <span style={{ fontSize: 11, fontWeight: 600, color: isSelected ? '#af3939' : '#9CA3AF' }}>
                                       {frameFmt === 'desktop' ? 'Desktop · 1464×600' : 'Mobile · 600×450'}
                                     </span>
                                   </div>
@@ -2867,7 +2867,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                                   borderRadius: 8,
                                   flexShrink: 0,
                                   outline: isSelected
-                                    ? '2px solid #3B82F6'
+                                    ? '2px solid #af3939'
                                     : peer ? `2px solid ${peer.color}` : '2px solid transparent',
                                   outlineOffset: 2,
                                   boxShadow: isSelected
@@ -2998,7 +2998,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               onChange={e => setSaveToShareName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') saveAndShare(); if (e.key === 'Escape') setSaveToShareOpen(false) }}
               placeholder="Project name"
-              className="w-full h-9 px-3 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
+              className="w-full h-9 px-3 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none focus:ring-2 focus:ring-accent-500 mb-4"
             />
             <div className="flex items-center justify-end gap-2">
               <button onClick={() => setSaveToShareOpen(false)} className="h-8 px-3 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
@@ -3007,7 +3007,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               <button
                 onClick={saveAndShare}
                 disabled={saveToShareSaving}
-                className="h-8 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="h-8 px-4 bg-accent-600 hover:bg-accent-500 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {saveToShareSaving && (
                   <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
@@ -3519,7 +3519,7 @@ function TemplatePicker({
                     {isActive ? (
                       <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full shrink-0">Active</span>
                     ) : card.available ? (
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full shrink-0">Select</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-accent-600 bg-accent-50 px-1.5 py-0.5 rounded-full shrink-0">Select</span>
                     ) : (
                       <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full shrink-0">Soon</span>
                     )}
