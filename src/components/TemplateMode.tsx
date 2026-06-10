@@ -625,6 +625,25 @@ interface TemplateModeProps {
   isDark?: boolean
 }
 
+// ─── Sync helpers ────────────────────────────────────────────────────────────
+
+function buildContentHash(
+  allSlots: Record<string, TemplateSlotState[]>,
+  allGallerySlots: Record<string, TemplateSlotState[]>,
+  slotConfigs: SlotConfig[],
+  galleryConfigs: GallerySlotConfig[],
+  aplusSlots: number,
+  galleryCount: number,
+  logoAssetId: string | null | undefined,
+  textureAssetId: string | null | undefined,
+): string {
+  return JSON.stringify([allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAssetId, textureAssetId])
+}
+
+function buildNavHash(selectedId: string | null, activeSlotIdx: number, activeIsGallery: boolean, activeGalleryIdx: number): string {
+  return JSON.stringify([selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx])
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function TemplateMode({
@@ -700,6 +719,9 @@ export default function TemplateMode({
   const capturedRef   = useRef<Map<string, string>>(new Map())
   const cancelRef     = useRef(false)
   const [captureVersion, setCaptureVersion] = useState(0)  // bumped on any capture mutation
+  // Cross-session sync: track content/nav hashes to prevent echo saves after remote updates
+  const lastSavedContentHashRef = useRef<string | null>(null)
+  const lastSavedNavHashRef     = useRef<string | null>(null)
 
   // Always-current snapshot for thumbnail generation (avoids stale closures in the wired fn)
   const thumbLatest = useRef({ parseResult, selectedId, allSlots, slotConfigs, logoAsset, textureAsset, designState })
@@ -839,23 +861,22 @@ export default function TemplateMode({
     if (!projectId || !parseResult?.products.length) return
     const timer = setTimeout(async () => {
       try {
+        // Skip save if content and nav are unchanged — prevents echo saves after receiving
+        // a remote update (another session's write would otherwise bounce back forever)
+        const contentH = buildContentHash(allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAsset?.id, textureAsset?.id)
+        const navH     = buildNavHash(selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx)
+        if (contentH === lastSavedContentHashRef.current && navH === lastSavedNavHashRef.current) return
+
         const supabase = createClient()
         const raw: TemplateShareState = {
           products: parseResult.products,
-          allSlots,
-          allGallerySlots,
-          slotConfigs,
-          galleryConfigs,
-          aplusSlots,
-          galleryCount,
-          logoAsset,
-          textureAsset,
-          selectedId,
-          activeSlotIdx,
-          activeIsGallery,
-          activeGalleryIdx,
+          allSlots, allGallerySlots, slotConfigs, galleryConfigs,
+          aplusSlots, galleryCount, logoAsset, textureAsset,
+          selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx,
         }
         await saveTemplateState(supabase, projectId, stripTemplateBlobUrls(raw))
+        lastSavedContentHashRef.current = contentH
+        lastSavedNavHashRef.current     = navH
       } catch { /* silent */ }
     }, 4000)
     return () => clearTimeout(timer)
@@ -895,15 +916,75 @@ export default function TemplateMode({
         if (tState.logoAsset) setLogoAsset(tState.logoAsset)
         if (tState.textureAsset) setTextureAsset(tState.textureAsset)
         // Restore navigation state — fall back to first product if selectedId wasn't saved yet
-        setSelectedId(tState.selectedId ?? tState.products[0].id)
-        if (typeof tState.activeSlotIdx === 'number') setActiveSlotIdx(tState.activeSlotIdx)
-        if (typeof tState.activeIsGallery === 'boolean') setActiveIsGallery(tState.activeIsGallery)
-        if (typeof tState.activeGalleryIdx === 'number') setActiveGalleryIdx(tState.activeGalleryIdx)
+        const restoredId = tState.selectedId ?? tState.products[0].id
+        const restoredSlotIdx = typeof tState.activeSlotIdx === 'number' ? tState.activeSlotIdx : 0
+        const restoredIsGallery = typeof tState.activeIsGallery === 'boolean' ? tState.activeIsGallery : false
+        const restoredGalleryIdx = typeof tState.activeGalleryIdx === 'number' ? tState.activeGalleryIdx : 0
+        setSelectedId(restoredId)
+        if (typeof tState.activeSlotIdx === 'number') setActiveSlotIdx(restoredSlotIdx)
+        if (typeof tState.activeIsGallery === 'boolean') setActiveIsGallery(restoredIsGallery)
+        if (typeof tState.activeGalleryIdx === 'number') setActiveGalleryIdx(restoredGalleryIdx)
+        // Seed the hashes so the first save cycle doesn't write back identical data
+        lastSavedContentHashRef.current = buildContentHash(
+          (tState.allSlots ?? {}) as Record<string, TemplateSlotState[]>,
+          (tState.allGallerySlots ?? {}) as Record<string, TemplateSlotState[]>,
+          (tState.slotConfigs ?? []) as SlotConfig[],
+          (tState.galleryConfigs ?? []) as GallerySlotConfig[],
+          typeof tState.aplusSlots === 'number' ? tState.aplusSlots : 5,
+          typeof tState.galleryCount === 'number' ? tState.galleryCount : 2,
+          tState.logoAsset?.id,
+          tState.textureAsset?.id,
+        )
+        lastSavedNavHashRef.current = buildNavHash(restoredId, restoredSlotIdx, restoredIsGallery, restoredGalleryIdx)
       })
       .catch(() => {})
       .finally(() => setIsLoadingFromDb(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Real-time sync — pick up template state changes written by other sessions
+  useEffect(() => {
+    if (!projectId) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`tmpl-sync-${projectId}`)
+      .on(
+        'postgres_changes' as const,
+        { event: 'UPDATE', schema: 'public', table: 'projects', filter: `id=eq.${projectId}` },
+        async () => {
+          try {
+            const tState = await loadTemplateState(supabase, projectId)
+            if (!tState?.products?.length) return
+            // Check if content actually changed compared to what we last saved/applied
+            const incomingContentH = buildContentHash(
+              (tState.allSlots ?? {}) as Record<string, TemplateSlotState[]>,
+              (tState.allGallerySlots ?? {}) as Record<string, TemplateSlotState[]>,
+              (tState.slotConfigs ?? []) as SlotConfig[],
+              (tState.galleryConfigs ?? []) as GallerySlotConfig[],
+              typeof tState.aplusSlots === 'number' ? tState.aplusSlots : 5,
+              typeof tState.galleryCount === 'number' ? tState.galleryCount : 2,
+              tState.logoAsset?.id,
+              tState.textureAsset?.id,
+            )
+            if (incomingContentH === lastSavedContentHashRef.current) return
+            // Apply content from remote — keep each session's own navigation position
+            lastSavedContentHashRef.current = incomingContentH
+            setParseResult({ products: tState.products, errors: [] })
+            setAllSlots((tState.allSlots ?? {}) as Record<string, TemplateSlotState[]>)
+            setAllGallerySlots((tState.allGallerySlots ?? {}) as Record<string, TemplateSlotState[]>)
+            if (typeof tState.aplusSlots === 'number') setAplusSlots(tState.aplusSlots)
+            if (typeof tState.galleryCount === 'number') setGalleryCount(tState.galleryCount)
+            if (tState.slotConfigs?.length) setSlotConfigs(tState.slotConfigs as unknown as SlotConfig[])
+            if (tState.galleryConfigs?.length) setGalleryConfigs(tState.galleryConfigs as unknown as GallerySlotConfig[])
+            if (tState.logoAsset) setLogoAsset(tState.logoAsset)
+            if (tState.textureAsset) setTextureAsset(tState.textureAsset)
+          } catch { /* silent */ }
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId])
 
   // ── Callbacks to parent ───────────────────────────────────────────────────────
 
