@@ -279,7 +279,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
       {/* Sheet — pointer-events-none wrapper lets backdrop clicks pass through */}
       <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
         <div
-          className={`pointer-events-auto w-full flex flex-col rounded-t-[4px] overflow-hidden shadow-[0_-8px_48px_rgba(0,0,0,0.28)] ${panelBg} ${panelAnim}`}
+          className={`pointer-events-auto w-full max-w-[1400px] flex flex-col rounded-t-[4px] overflow-hidden shadow-[0_-8px_48px_rgba(0,0,0,0.28)] ${panelBg} ${panelAnim}`}
           style={{ height: 'calc(100vh - 3rem)' }}
           onClick={e => e.stopPropagation()}
         >
