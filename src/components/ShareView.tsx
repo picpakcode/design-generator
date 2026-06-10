@@ -900,7 +900,8 @@ export default function ShareView({ token }: { token: string }) {
 
   const loadShareData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/share/${token}`, { cache: 'no-store' })
+      // _t cache-buster bypasses CDN / Next.js Data Cache on every call
+      const res = await fetch(`/api/share/${token}?_t=${Date.now()}`, { cache: 'no-store' })
       if (!res.ok) return
       const d: ShareData = await res.json()
       setData(d)
@@ -954,15 +955,28 @@ export default function ShareView({ token }: { token: string }) {
     return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
   }, [token, loadShareData])
 
-  // Subscribe to the same broadcast channel editors use — instant reload on any save
-  // Also do one immediate fetch after subscribing to catch saves that happened during page load
+  // Subscribe to the same broadcast channel editors use — instant reload on any save.
+  // Editors send the full templateState in the payload so we can apply it without an
+  // HTTP round-trip (which can be stale due to CDN / Next.js Data Cache in production).
   useEffect(() => {
     const projectId = data?.projectId
     if (!projectId) return
     const supabase = createClient()
     const channel = supabase
       .channel(`tmpl-sync-${projectId}`)
-      .on('broadcast' as const, { event: 'saved' }, () => { loadShareData() })
+      .on(
+        'broadcast' as const,
+        { event: 'saved' },
+        (msg: { payload?: { sessionId?: string; templateState?: TemplateShareState } }) => {
+          if (msg.payload?.templateState) {
+            // Apply state directly — no HTTP needed, definitely not stale
+            setData(prev => prev ? { ...prev, templateState: msg.payload!.templateState! } : prev)
+          } else {
+            // Large-payload fallback: refetch via HTTP (with cache buster)
+            loadShareData()
+          }
+        },
+      )
       .subscribe(() => { loadShareData() }) // catch any save that happened before we subscribed
     return () => { supabase.removeChannel(channel) }
   }, [data?.projectId, loadShareData])

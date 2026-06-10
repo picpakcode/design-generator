@@ -879,11 +879,20 @@ export default function TemplateMode({
           selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx,
           productNames,
         }
-        await saveTemplateState(supabase, projectId, stripTemplateBlobUrls(raw))
+        const stripped = stripTemplateBlobUrls(raw)
+        await saveTemplateState(supabase, projectId, stripped)
         lastSavedContentHashRef.current = contentH
         lastSavedNavHashRef.current     = navH
-        // Notify other open sessions via broadcast (no DB config needed)
-        syncChannelRef.current?.send({ type: 'broadcast', event: 'saved', payload: { sessionId: sessionIdRef.current } })
+        // Include state in broadcast so preview tabs apply it directly (no HTTP round-trip).
+        // Skip state payload if it's near Supabase's 1 MB broadcast limit.
+        const stateJson = JSON.stringify(stripped)
+        syncChannelRef.current?.send({
+          type: 'broadcast', event: 'saved',
+          payload: {
+            sessionId: sessionIdRef.current,
+            ...(stateJson.length < 900_000 ? { templateState: stripped } : {}),
+          },
+        })
       } catch { /* silent */ }
     }, 4000)
     return () => clearTimeout(timer)
