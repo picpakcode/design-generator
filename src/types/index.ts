@@ -142,6 +142,7 @@ export interface TemplateShareState {
   galleryCount: number
   logoAsset: UploadedAsset | null
   textureAsset: UploadedAsset | null
+  productNames?: Record<string, string>
   selectedId?: string | null
   activeSlotIdx?: number
   activeIsGallery?: boolean

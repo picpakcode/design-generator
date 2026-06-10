@@ -9,6 +9,7 @@ import { BulkProduct, ParseResult, parseCSV, downloadTemplate } from '@/lib/csv'
 import { DesignState, UploadedAsset, TemplateShareState } from '@/types'
 import { saveTemplateState, loadTemplateState, stripTemplateBlobUrls } from '@/lib/db'
 import { createClient } from '@/lib/supabase/client'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import { type BlockCommentStatus } from './FeedbackPanel'
 import CantoPhotoPickerModal, { PhotoPick } from './CantoPhotoPickerModal'
@@ -636,8 +637,9 @@ function buildContentHash(
   galleryCount: number,
   logoAssetId: string | null | undefined,
   textureAssetId: string | null | undefined,
+  productNames: Record<string, string>,
 ): string {
-  return JSON.stringify([allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAssetId, textureAssetId])
+  return JSON.stringify([allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAssetId, textureAssetId, productNames])
 }
 
 function buildNavHash(selectedId: string | null, activeSlotIdx: number, activeIsGallery: boolean, activeGalleryIdx: number): string {
@@ -722,6 +724,8 @@ export default function TemplateMode({
   // Cross-session sync: track content/nav hashes to prevent echo saves after remote updates
   const lastSavedContentHashRef = useRef<string | null>(null)
   const lastSavedNavHashRef     = useRef<string | null>(null)
+  const sessionIdRef            = useRef(`${Date.now()}-${Math.random()}`)
+  const syncChannelRef          = useRef<RealtimeChannel | null>(null)
 
   // Always-current snapshot for thumbnail generation (avoids stale closures in the wired fn)
   const thumbLatest = useRef({ parseResult, selectedId, allSlots, slotConfigs, logoAsset, textureAsset, designState })
@@ -863,7 +867,7 @@ export default function TemplateMode({
       try {
         // Skip save if content and nav are unchanged — prevents echo saves after receiving
         // a remote update (another session's write would otherwise bounce back forever)
-        const contentH = buildContentHash(allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAsset?.id, textureAsset?.id)
+        const contentH = buildContentHash(allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAsset?.id, textureAsset?.id, productNames)
         const navH     = buildNavHash(selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx)
         if (contentH === lastSavedContentHashRef.current && navH === lastSavedNavHashRef.current) return
 
@@ -873,15 +877,18 @@ export default function TemplateMode({
           allSlots, allGallerySlots, slotConfigs, galleryConfigs,
           aplusSlots, galleryCount, logoAsset, textureAsset,
           selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx,
+          productNames,
         }
         await saveTemplateState(supabase, projectId, stripTemplateBlobUrls(raw))
         lastSavedContentHashRef.current = contentH
         lastSavedNavHashRef.current     = navH
+        // Notify other open sessions via broadcast (no DB config needed)
+        syncChannelRef.current?.send({ type: 'broadcast', event: 'saved', payload: { sessionId: sessionIdRef.current } })
       } catch { /* silent */ }
     }, 4000)
     return () => clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, parseResult, allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAsset, textureAsset, selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx])
+  }, [projectId, parseResult, allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAsset, textureAsset, productNames, selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx])
 
   useEffect(() => {
     setSlotConfigs(prev => defaultSlotConfigs(aplusSlots).map((d, i) => prev[i] ?? d))
@@ -915,6 +922,7 @@ export default function TemplateMode({
         if (tState.galleryConfigs?.length) setGalleryConfigs(tState.galleryConfigs as unknown as GallerySlotConfig[])
         if (tState.logoAsset) setLogoAsset(tState.logoAsset)
         if (tState.textureAsset) setTextureAsset(tState.textureAsset)
+        if (tState.productNames) setProductNames(tState.productNames)
         // Restore navigation state — fall back to first product if selectedId wasn't saved yet
         const restoredId = tState.selectedId ?? tState.products[0].id
         const restoredSlotIdx = typeof tState.activeSlotIdx === 'number' ? tState.activeSlotIdx : 0
@@ -925,6 +933,7 @@ export default function TemplateMode({
         if (typeof tState.activeIsGallery === 'boolean') setActiveIsGallery(restoredIsGallery)
         if (typeof tState.activeGalleryIdx === 'number') setActiveGalleryIdx(restoredGalleryIdx)
         // Seed the hashes so the first save cycle doesn't write back identical data
+        const restoredNames = tState.productNames ?? {}
         lastSavedContentHashRef.current = buildContentHash(
           (tState.allSlots ?? {}) as Record<string, TemplateSlotState[]>,
           (tState.allGallerySlots ?? {}) as Record<string, TemplateSlotState[]>,
@@ -934,6 +943,7 @@ export default function TemplateMode({
           typeof tState.galleryCount === 'number' ? tState.galleryCount : 2,
           tState.logoAsset?.id,
           tState.textureAsset?.id,
+          restoredNames,
         )
         lastSavedNavHashRef.current = buildNavHash(restoredId, restoredSlotIdx, restoredIsGallery, restoredGalleryIdx)
       })
@@ -942,20 +952,22 @@ export default function TemplateMode({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Real-time sync — pick up template state changes written by other sessions
+  // Real-time sync — broadcast channel lets other open sessions know to reload
+  // Uses Supabase broadcast (no DB publication needed, works out of the box)
   useEffect(() => {
     if (!projectId) return
     const supabase = createClient()
     const channel = supabase
       .channel(`tmpl-sync-${projectId}`)
       .on(
-        'postgres_changes' as const,
-        { event: 'UPDATE', schema: 'public', table: 'projects', filter: `id=eq.${projectId}` },
-        async () => {
+        'broadcast' as const,
+        { event: 'saved' },
+        async (msg: { payload?: { sessionId?: string } }) => {
+          // Ignore our own broadcasts
+          if (msg.payload?.sessionId === sessionIdRef.current) return
           try {
             const tState = await loadTemplateState(supabase, projectId)
             if (!tState?.products?.length) return
-            // Check if content actually changed compared to what we last saved/applied
             const incomingContentH = buildContentHash(
               (tState.allSlots ?? {}) as Record<string, TemplateSlotState[]>,
               (tState.allGallerySlots ?? {}) as Record<string, TemplateSlotState[]>,
@@ -965,9 +977,10 @@ export default function TemplateMode({
               typeof tState.galleryCount === 'number' ? tState.galleryCount : 2,
               tState.logoAsset?.id,
               tState.textureAsset?.id,
+              tState.productNames ?? {},
             )
             if (incomingContentH === lastSavedContentHashRef.current) return
-            // Apply content from remote — keep each session's own navigation position
+            // Apply content — keep each session's own navigation position
             lastSavedContentHashRef.current = incomingContentH
             setParseResult({ products: tState.products, errors: [] })
             setAllSlots((tState.allSlots ?? {}) as Record<string, TemplateSlotState[]>)
@@ -978,11 +991,13 @@ export default function TemplateMode({
             if (tState.galleryConfigs?.length) setGalleryConfigs(tState.galleryConfigs as unknown as GallerySlotConfig[])
             if (tState.logoAsset) setLogoAsset(tState.logoAsset)
             if (tState.textureAsset) setTextureAsset(tState.textureAsset)
+            if (tState.productNames) setProductNames(tState.productNames)
           } catch { /* silent */ }
         }
       )
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    syncChannelRef.current = channel
+    return () => { supabase.removeChannel(channel); syncChannelRef.current = null }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
