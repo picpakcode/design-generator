@@ -182,14 +182,14 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-black/60 dark:bg-black/80 backdrop-blur-sm ${closing ? 'animate-fade-out' : 'animate-fade-in'}`}
+        className={`fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm ${closing ? 'animate-fade-out' : 'animate-fade-in'}`}
         onClick={onClose}
       />
 
-      {/* Panel — centered with max-width */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center">
+      {/* Panel — centered with max-width; pointer-events-none lets backdrop clicks pass through side gaps */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
       <div
-        className={`w-full max-w-[1400px] flex flex-col bg-white dark:bg-gray-950 rounded-t-[4px] shadow-[0_-8px_40px_rgba(0,0,0,0.18)] overflow-hidden ${
+        className={`pointer-events-auto w-full max-w-[1400px] flex flex-col bg-white dark:bg-gray-950 rounded-t-[4px] shadow-[0_-8px_40px_rgba(0,0,0,0.18)] overflow-hidden ${
           closing ? 'animate-slide-down-full' : 'animate-slide-up-full'
         }`}
         style={{ height: 'calc(100vh - 3rem)' }}
