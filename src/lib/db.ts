@@ -144,6 +144,16 @@ export async function saveTemplateState(db: Client, id: string, state: TemplateS
     .eq('id', id)
 }
 
+export async function loadTemplateState(db: Client, id: string): Promise<TemplateShareState | null> {
+  const { data } = await db
+    .from('projects')
+    .select('template_state')
+    .eq('id', id)
+    .single()
+  if (!data?.template_state) return null
+  return data.template_state as TemplateShareState
+}
+
 export async function renameProject(db: Client, id: string, name: string): Promise<void> {
   await db
     .from('projects')

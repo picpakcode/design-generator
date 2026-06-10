@@ -38,5 +38,7 @@ export async function GET(_req: Request, { params }: { params: { token: string }
     state: project.state,
     templateState: project.template_state ?? null,
     updatedAt: project.updated_at,
+  }, {
+    headers: { 'Cache-Control': 'no-store' },
   })
 }

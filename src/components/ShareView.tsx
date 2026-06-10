@@ -111,7 +111,7 @@ function BlockBadge({ blockId, feedback }: { blockId: string; feedback: Feedback
   return (
     <div className="absolute top-2 right-2 z-20 flex items-center gap-1 pointer-events-none">
       {count > 0 && (
-        <span className="bg-gray-900/75 text-white text-[9px] font-semibold rounded-full px-1.5 py-0.5 flex items-center gap-0.5 backdrop-blur-sm">
+        <span className="bg-gray-900/75 text-white text-[9px] font-semibold rounded px-1.5 py-0.5 flex items-center gap-0.5 backdrop-blur-sm">
           <svg className="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
@@ -119,10 +119,14 @@ function BlockBadge({ blockId, feedback }: { blockId: string; feedback: Feedback
         </span>
       )}
       {status === 'approved' && (
-        <span className="bg-emerald-500 text-white text-[9px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">✓</span>
+        <span className="bg-emerald-500 text-white rounded w-5 h-5 flex items-center justify-center shadow-sm" title="Approved">
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+        </span>
       )}
       {status === 'changes_requested' && (
-        <span className="bg-amber-500 text-white text-[9px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">!</span>
+        <span className="bg-amber-500 text-white rounded w-5 h-5 flex items-center justify-center shadow-sm" title="Changes requested">
+          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        </span>
       )}
     </div>
   )
@@ -434,6 +438,19 @@ function CommentsSidebar({
 
   const effectiveBlockId = selectedBlockId ?? blocks[0]?.id ?? null
 
+  // Highlight threads briefly when switching to a block that has comments
+  const [highlightThreads, setHighlightThreads] = useState(false)
+  const allCommentsRef = useRef(allComments)
+  allCommentsRef.current = allComments
+  useEffect(() => {
+    if (!effectiveBlockId) return
+    const count = allCommentsRef.current.filter(c => c.block_id === effectiveBlockId && !c.parent_id).length
+    if (!count) return
+    setHighlightThreads(true)
+    const t = setTimeout(() => setHighlightThreads(false), 800)
+    return () => clearTimeout(t)
+  }, [effectiveBlockId])
+
   // Build threads for the selected block
   const blockRoots = allComments.filter(c => c.block_id === effectiveBlockId && !c.parent_id)
   const blockReplies = allComments.filter(c => c.block_id === effectiveBlockId && !!c.parent_id)
@@ -666,7 +683,7 @@ function CommentsSidebar({
               const isResolved = !!root.resolved_at
               const isReplying = replyingTo === root.id
               return (
-                <div key={root.id} className={`rounded-xl border transition-all ${isResolved ? 'border-gray-100 bg-gray-50/50 opacity-60' : 'border-gray-100 bg-white'}`}>
+                <div key={root.id} className={`rounded-xl border transition-all ${isResolved ? 'border-gray-100 bg-gray-50/50 opacity-60' : `border-gray-100 bg-white${highlightThreads ? ' ring-1 ring-indigo-200' : ''}`}`}>
                   {/* Root comment */}
                   <div className="p-3">
                     <div className="flex items-start gap-2">
@@ -880,6 +897,16 @@ export default function ShareView({ token }: { token: string }) {
     }
   }, [token])
 
+  const loadShareData = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/share/${token}`, { cache: 'no-store' })
+      if (!res.ok) return
+      const d: ShareData = await res.json()
+      setData(d)
+      // do NOT call setDesign here — presence manages live design state
+    } catch { /* silent — keep showing existing data */ }
+  }, [token])
+
   useEffect(() => {
     fetch(`/api/share/${token}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
@@ -900,7 +927,7 @@ export default function ShareView({ token }: { token: string }) {
       .finally(() => setLoading(false))
   }, [token, loadFeedback])
 
-  // Poll every 10s when tab is visible so reviewers see owner replies without refreshing
+  // Poll comments every 10s; poll full project state every 10s — both pause when tab is hidden
   useEffect(() => {
     if (!token) return
     const pollRef = { current: null as ReturnType<typeof setInterval> | null }
@@ -911,6 +938,17 @@ export default function ShareView({ token }: { token: string }) {
     document.addEventListener('visibilitychange', onVisibility)
     return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
   }, [token, loadFeedback])
+
+  useEffect(() => {
+    if (!token) return
+    const pollRef = { current: null as ReturnType<typeof setInterval> | null }
+    const start = () => { pollRef.current = setInterval(loadShareData, 10000) }
+    const stop  = () => { pollRef.current && clearInterval(pollRef.current); pollRef.current = null }
+    const onVisibility = () => document.hidden ? stop() : (stop(), start())
+    if (!document.hidden) start()
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
+  }, [token, loadShareData])
 
   useEffect(() => {
     const tState = data?.templateState

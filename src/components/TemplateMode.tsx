@@ -7,7 +7,7 @@ import { flushSync } from 'react-dom'
 import { toPng, toJpeg } from 'html-to-image'
 import { BulkProduct, ParseResult, parseCSV, downloadTemplate } from '@/lib/csv'
 import { DesignState, UploadedAsset, TemplateShareState } from '@/types'
-import { saveTemplateState, stripTemplateBlobUrls } from '@/lib/db'
+import { saveTemplateState, loadTemplateState, stripTemplateBlobUrls } from '@/lib/db'
 import { createClient } from '@/lib/supabase/client'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import { type BlockCommentStatus } from './FeedbackPanel'
@@ -64,6 +64,65 @@ const GALLERY_LABELS: Record<GalleryTemplate, string> = {
   'gallery-hero':        'Hero',
   'gallery-icons':       'Icons',
   'gallery-icons-text':  'Icn+Txt',
+}
+
+const APLUS_ICONS: Record<SlotTemplate, React.ReactNode> = {
+  '5050-right': (
+    <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+      <rect x="0.5" y="0.5" width="6.5" height="9" rx="1" fill="currentColor" opacity="0.55"/>
+      <line x1="9" y1="2" x2="15.5" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="9" y1="5" x2="15.5" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="9" y1="8" x2="13" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ),
+  '5050-left': (
+    <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+      <line x1="0.5" y1="2" x2="6" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="0.5" y1="5" x2="6" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="0.5" y1="8" x2="4" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <rect x="9" y="0.5" width="6.5" height="9" rx="1" fill="currentColor" opacity="0.55"/>
+    </svg>
+  ),
+  'icons': (
+    <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+      <circle cx="2.5" cy="5" r="2" fill="currentColor" opacity="0.7"/>
+      <circle cx="8" cy="5" r="2" fill="currentColor" opacity="0.7"/>
+      <circle cx="13.5" cy="5" r="2" fill="currentColor" opacity="0.7"/>
+    </svg>
+  ),
+  'icons-text': (
+    <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+      <circle cx="4" cy="3.5" r="2" fill="currentColor" opacity="0.7"/>
+      <circle cx="12" cy="3.5" r="2" fill="currentColor" opacity="0.7"/>
+      <line x1="1.5" y1="8.5" x2="6.5" y2="8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="9.5" y1="8.5" x2="14.5" y2="8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ),
+}
+
+const GALLERY_ICONS: Record<GalleryTemplate, React.ReactNode> = {
+  'gallery-hero': (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+      <rect x="0.5" y="0.5" width="9" height="9" rx="1.5" fill="currentColor" opacity="0.5"/>
+    </svg>
+  ),
+  'gallery-icons': (
+    <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+      <circle cx="2.5" cy="5" r="2" fill="currentColor" opacity="0.7"/>
+      <circle cx="7" cy="5" r="2" fill="currentColor" opacity="0.7"/>
+      <circle cx="11.5" cy="5" r="2" fill="currentColor" opacity="0.7"/>
+    </svg>
+  ),
+  'gallery-icons-text': (
+    <svg width="14" height="10" viewBox="0 0 14 10" fill="none">
+      <circle cx="2.5" cy="3" r="2" fill="currentColor" opacity="0.7"/>
+      <circle cx="7" cy="3" r="2" fill="currentColor" opacity="0.7"/>
+      <circle cx="11.5" cy="3" r="2" fill="currentColor" opacity="0.7"/>
+      <line x1="0.5" y1="8.5" x2="4.5" y2="8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <line x1="5" y1="8.5" x2="9" y2="8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <line x1="9.5" y1="8.5" x2="13.5" y2="8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    </svg>
+  ),
 }
 
 function slotLabel(i: number)   { return String.fromCharCode(65 + i) + '1' }
@@ -294,9 +353,8 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
 
 // ─── CSV Guide Modal ──────────────────────────────────────────────────────────
 
-function CSVGuideModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { settings } = useAppSettings()
-  const dark = settings.theme === 'dark'
+function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClose: () => void; isDark?: boolean }) {
+  const dark = isDark
   const [mounted, setMounted] = useState(false)
   const [closing, setClosing] = useState(false)
 
@@ -564,6 +622,7 @@ interface TemplateModeProps {
   onStatsChange: (rendered: number, total: number) => void
   blockCommentStatus?: BlockCommentStatus
   onOpenFeedback?: () => void
+  isDark?: boolean
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -574,6 +633,7 @@ export default function TemplateMode({
   exportFnRef, exportCurrentFnRef, renderAllFnRef, previewFnRef, thumbnailFnRef,
   onCanExportChange, onCanExportCurrentChange, onRenderingAllChange, onStatsChange,
   blockCommentStatus, onOpenFeedback,
+  isDark = false,
 }: TemplateModeProps) {
   // Per-project storage key — isolates state between Dashboard projects
   const storageKey = projectId ? `${STORAGE_KEY}-${projectId}` : STORAGE_KEY
@@ -589,6 +649,9 @@ export default function TemplateMode({
     } catch { _svRef.current = {} }
   }
   const sv = _svRef.current
+
+  // True only on first open when sessionStorage was empty and we have a project — we'll fetch from DB
+  const [isLoadingFromDb, setIsLoadingFromDb] = useState(!sv.parseResult && !!projectId)
 
   // CSV
   const [parseResult, setParseResult] = useState<ParseResult | null>((sv.parseResult as ParseResult) ?? null)
@@ -810,6 +873,28 @@ export default function TemplateMode({
   useEffect(() => {
     if (activeGalleryIdx >= galleryCount) setActiveGalleryIdx(Math.max(0, galleryCount - 1))
   }, [galleryCount, activeGalleryIdx])
+
+  // On first open when sessionStorage is empty: restore full state from Supabase
+  useEffect(() => {
+    if (!projectId || parseResult) { setIsLoadingFromDb(false); return }
+    const supabase = createClient()
+    loadTemplateState(supabase, projectId)
+      .then(tState => {
+        if (!tState?.products?.length) return
+        setParseResult({ products: tState.products, errors: [] })
+        setAllSlots((tState.allSlots ?? {}) as Record<string, TemplateSlotState[]>)
+        setAllGallerySlots((tState.allGallerySlots ?? {}) as Record<string, TemplateSlotState[]>)
+        if (typeof tState.aplusSlots === 'number') setAplusSlots(tState.aplusSlots)
+        if (typeof tState.galleryCount === 'number') setGalleryCount(tState.galleryCount)
+        if (tState.slotConfigs?.length) setSlotConfigs(tState.slotConfigs as unknown as SlotConfig[])
+        if (tState.galleryConfigs?.length) setGalleryConfigs(tState.galleryConfigs as unknown as GallerySlotConfig[])
+        if (tState.logoAsset) setLogoAsset(tState.logoAsset)
+        if (tState.textureAsset) setTextureAsset(tState.textureAsset)
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingFromDb(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Callbacks to parent ───────────────────────────────────────────────────────
 
@@ -1245,6 +1330,17 @@ export default function TemplateMode({
 
   // ─── CSV upload empty state ───────────────────────────────────────────────────
 
+  if (isLoadingFromDb) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-900">
+        <svg className="animate-spin w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+      </div>
+    )
+  }
+
   if (!parseResult) {
     return (
       <div className="flex-1 flex overflow-hidden">
@@ -1367,7 +1463,7 @@ export default function TemplateMode({
           </div>
         </div>
 
-        <CSVGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
+        <CSVGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} isDark={isDark} />
       </div>
     )
   }
@@ -1773,7 +1869,7 @@ export default function TemplateMode({
           ref={wrapperRefCallback}
           className="flex-1 min-h-0 min-w-0 relative overflow-hidden select-none"
           style={{
-            backgroundColor: '#F0F0F0',
+            backgroundColor: isDark ? '#1a1a1a' : '#F0F0F0',
             cursor: spaceDown ? (isPanDragging ? 'grabbing' : 'grab') : 'default',
           }}
           onMouseDown={handleViewportMouseDown}
@@ -1824,21 +1920,21 @@ export default function TemplateMode({
                                 <>
                                   {st.approval === 'approved' && (
                                     <button onClick={e => { e.stopPropagation(); onOpenFeedback?.() }} title="Approved"
-                                      style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#ECFDF5', border: '1px solid #A7F3D0', cursor: 'pointer' }}>
+                                      style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 5, background: '#ECFDF5', border: '1px solid #A7F3D0', cursor: 'pointer' }}>
                                       <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#059669" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                                       <span style={{ fontSize: 9, fontWeight: 700, color: '#059669', lineHeight: 1 }}>Approved</span>
                                     </button>
                                   )}
                                   {st.approval === 'changes_requested' && (
                                     <button onClick={e => { e.stopPropagation(); onOpenFeedback?.() }} title="Changes requested"
-                                      style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#FFF7ED', border: '1px solid #FED7AA', cursor: 'pointer' }}>
+                                      style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 5, background: '#FFF7ED', border: '1px solid #FED7AA', cursor: 'pointer' }}>
                                       <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#EA580C" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
                                       <span style={{ fontSize: 9, fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>Revisions</span>
                                     </button>
                                   )}
                                   {st.open > 0 && (
                                     <button onClick={e => { e.stopPropagation(); onOpenFeedback?.() }} title={`${st.open} open comment${st.open !== 1 ? 's' : ''}`}
-                                      style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#FEF3C7', border: '1px solid #FDE68A', cursor: 'pointer' }}>
+                                      style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 5, background: '#FEF3C7', border: '1px solid #FDE68A', cursor: 'pointer' }}>
                                       <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#D97706" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                       <span style={{ fontSize: 9, fontWeight: 700, color: '#D97706', lineHeight: 1 }}>{st.open}</span>
                                     </button>
@@ -1846,7 +1942,7 @@ export default function TemplateMode({
                                 </>
                               )
                             })()}
-                            <div style={{ display: 'flex', gap: 2, background: '#E5E7EB', borderRadius: 4, padding: 2 }}>
+                            <div style={{ display: 'flex', gap: 2, background: '#E5E7EB', borderRadius: 5, padding: 2 }}>
                               {(['5050-right', '5050-left', 'icons', 'icons-text'] as SlotTemplate[]).map(t => (
                                 <button key={t}
                                   onClick={e => {
@@ -1855,14 +1951,15 @@ export default function TemplateMode({
                                     setActiveSlotIdx(slotIdx)
                                     setActiveIsGallery(false)
                                   }}
+                                  title={APLUS_LABELS[t]}
                                   style={{
-                                    padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, border: 'none',
+                                    padding: '3px 6px', borderRadius: 4, border: 'none',
                                     background: cfg.template === t ? '#fff' : 'transparent',
-                                    color: cfg.template === t ? '#111827' : '#6B7280',
-                                    boxShadow: cfg.template === t ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
-                                    cursor: 'pointer',
+                                    color: cfg.template === t ? '#1F2937' : '#9CA3AF',
+                                    boxShadow: cfg.template === t ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                                    cursor: 'pointer', display: 'flex', alignItems: 'center',
                                   }}>
-                                  {APLUS_LABELS[t]}
+                                  {APLUS_ICONS[t]}
                                 </button>
                               ))}
                             </div>
@@ -1887,14 +1984,14 @@ export default function TemplateMode({
 
                         {/* Desktop + Mobile frames */}
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
-                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false) }}
+                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false); const _st = blockCommentStatus?.[`${selected.id}:aplus:${slotIdx}`]; if (_st && (_st.open > 0 || _st.approval)) onOpenFeedback?.() }}
                             style={{ width: 1464, height: 600, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                             {isIcons
                               ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
                               : <CanvasContent      design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
                             }
                           </div>
-                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false) }}
+                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false); const _st = blockCommentStatus?.[`${selected.id}:aplus:${slotIdx}`]; if (_st && (_st.open > 0 || _st.approval)) onOpenFeedback?.() }}
                             style={{ width: 600, height: 450, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                             {isIcons
                               ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
@@ -1937,21 +2034,21 @@ export default function TemplateMode({
                                     <>
                                       {st.approval === 'approved' && (
                                         <button onClick={e => { e.stopPropagation(); onOpenFeedback?.() }} title="Approved"
-                                          style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#ECFDF5', border: '1px solid #A7F3D0', cursor: 'pointer' }}>
+                                          style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 5, background: '#ECFDF5', border: '1px solid #A7F3D0', cursor: 'pointer' }}>
                                           <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#059669" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                                           <span style={{ fontSize: 9, fontWeight: 700, color: '#059669', lineHeight: 1 }}>Approved</span>
                                         </button>
                                       )}
                                       {st.approval === 'changes_requested' && (
                                         <button onClick={e => { e.stopPropagation(); onOpenFeedback?.() }} title="Changes requested"
-                                          style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#FFF7ED', border: '1px solid #FED7AA', cursor: 'pointer' }}>
+                                          style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 5, background: '#FFF7ED', border: '1px solid #FED7AA', cursor: 'pointer' }}>
                                           <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#EA580C" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
                                           <span style={{ fontSize: 9, fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>Revisions</span>
                                         </button>
                                       )}
                                       {st.open > 0 && (
                                         <button onClick={e => { e.stopPropagation(); onOpenFeedback?.() }} title={`${st.open} open comment${st.open !== 1 ? 's' : ''}`}
-                                          style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 9, background: '#FEF3C7', border: '1px solid #FDE68A', cursor: 'pointer' }}>
+                                          style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 5, background: '#FEF3C7', border: '1px solid #FDE68A', cursor: 'pointer' }}>
                                           <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#D97706" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                                           <span style={{ fontSize: 9, fontWeight: 700, color: '#D97706', lineHeight: 1 }}>{st.open}</span>
                                         </button>
@@ -1959,7 +2056,7 @@ export default function TemplateMode({
                                     </>
                                   )
                                 })()}
-                                <div style={{ display: 'flex', gap: 2, background: '#E5E7EB', borderRadius: 4, padding: 2 }}>
+                                <div style={{ display: 'flex', gap: 2, background: '#E5E7EB', borderRadius: 5, padding: 2 }}>
                                   {(['gallery-hero', 'gallery-icons', 'gallery-icons-text'] as GalleryTemplate[]).map(t => (
                                     <button key={t}
                                       onClick={e => {
@@ -1968,14 +2065,15 @@ export default function TemplateMode({
                                         setActiveGalleryIdx(gIdx)
                                         setActiveIsGallery(true)
                                       }}
+                                      title={GALLERY_LABELS[t]}
                                       style={{
-                                        padding: '3px 8px', borderRadius: 4, fontSize: 10, fontWeight: 700, border: 'none',
+                                        padding: '3px 6px', borderRadius: 4, border: 'none',
                                         background: cfg.template === t ? '#fff' : 'transparent',
-                                        color: cfg.template === t ? '#111827' : '#6B7280',
-                                        boxShadow: cfg.template === t ? '0 1px 3px rgba(0,0,0,0.15)' : 'none',
-                                        cursor: 'pointer',
+                                        color: cfg.template === t ? '#1F2937' : '#9CA3AF',
+                                        boxShadow: cfg.template === t ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                                        cursor: 'pointer', display: 'flex', alignItems: 'center',
                                       }}>
-                                      {GALLERY_LABELS[t]}
+                                      {GALLERY_ICONS[t]}
                                     </button>
                                   ))}
                                 </div>
@@ -1999,7 +2097,7 @@ export default function TemplateMode({
                             </div>
 
                             {/* Gallery frame */}
-                            <div onClick={() => { setActiveGalleryIdx(gIdx); setActiveIsGallery(true) }}
+                            <div onClick={() => { setActiveGalleryIdx(gIdx); setActiveIsGallery(true); const _st = blockCommentStatus?.[`${selected.id}:gallery:${gIdx}`]; if (_st && (_st.open > 0 || _st.approval)) onOpenFeedback?.() }}
                               style={{ width: 1500, height: 1500, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                               {isGIcons
                                 ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
@@ -2067,7 +2165,7 @@ export default function TemplateMode({
         designState={designState}
       />
 
-      <CSVGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
+      <CSVGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} isDark={isDark} />
     </>
   )
 }

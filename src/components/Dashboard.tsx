@@ -62,6 +62,168 @@ const EMPTY_PROJECT_STATE = {} as DesignState
 
 type ProjectRow = Omit<DbProject, 'state'>
 
+// ─── Project guide modal ──────────────────────────────────────────────────────
+
+function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [mounted, setMounted] = useState(false)
+  const [closing, setClosing] = useState(false)
+
+  useEffect(() => {
+    if (open) { setMounted(true); setClosing(false) }
+    else if (mounted) {
+      setClosing(true)
+      const t = setTimeout(() => { setMounted(false); setClosing(false) }, 160)
+      return () => clearTimeout(t)
+    }
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!open) return
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [open, onClose])
+
+  if (!mounted) return null
+
+  const stored = [
+    { label: 'CSV product data (text, SKUs, names)', yes: true },
+    { label: 'Slide text & descriptions (edited in sidebar)', yes: true },
+    { label: 'Slot & gallery layout configuration', yes: true },
+    { label: 'Photos, icons, logo, texture from Canto', yes: true },
+    { label: 'Directly uploaded files (drag-drop from disk)', yes: false },
+  ]
+
+  return (
+    <>
+      <div
+        className={`fixed inset-0 z-50 bg-black/50 dark:bg-black/80 backdrop-blur-sm ${closing ? 'animate-fade-out' : 'animate-fade-in'}`}
+        onClick={onClose}
+      />
+      <div className={`fixed inset-x-6 bottom-6 top-14 z-50 max-w-2xl mx-auto flex flex-col rounded overflow-hidden border bg-white dark:bg-gray-950 border-gray-200 dark:border-white/8 ${closing ? 'animate-scale-out' : 'animate-scale-in'}`}>
+
+        {/* Header */}
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b bg-gray-50 dark:bg-gray-900/80 border-gray-200 dark:border-white/8">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/50">
+              <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-gray-900 dark:text-white">How It Works</h2>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">Cloud sync, collaboration, feedback &amp; storage</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] hidden sm:block text-gray-400 dark:text-gray-500">Esc to close</span>
+            <button onClick={onClose} className="ml-1 w-8 h-8 flex items-center justify-center rounded-lg transition-colors text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-white dark:hover:bg-white/10">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8 bg-white dark:bg-gray-950">
+
+          {/* Cloud sync */}
+          <section>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/40">Cloud Sync</h3>
+            <div className="space-y-4">
+              {([
+                { icon: 'M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4', title: 'Auto-save', body: 'Every project saves automatically as you work — design settings, slide configs, text, and Canto media. No manual save button.' },
+                { icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', title: 'Resume anywhere', body: 'Open a project on any device or browser — your full template (CSV products, text edits, photos, configs) loads from the cloud automatically.' },
+                { icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', title: '4-second debounce', body: 'State is written to Supabase 4 seconds after your last change. Switching projects or closing mid-edit may miss the final state if you move too fast.' },
+              ] as const).map(s => (
+                <div key={s.title} className="flex gap-4">
+                  <div className="w-7 h-7 rounded-full bg-indigo-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold mb-0.5 text-gray-900 dark:text-white">{s.title}</p>
+                    <p className="text-[12px] leading-relaxed text-gray-700 dark:text-gray-300">{s.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Collaboration */}
+          <section>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/40">Collaboration &amp; Share Links</h3>
+            <div className="space-y-4">
+              {([
+                { icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1', title: 'Share links', body: 'Generate a public link from inside any project. Two access levels: View Only (reviewers can comment and vote, but not edit) and Can Edit (full access).' },
+                { icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z', title: 'Live presence', body: 'Avatar bubbles in the top-right show who else has the share link open at the same moment. Design updates from the owner broadcast live.' },
+                { icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', title: 'Polling updates', body: 'Reviewer pages re-fetch the full project state every 30 seconds and comments every 10 seconds — so photo and text changes appear without a manual refresh.' },
+              ] as const).map(s => (
+                <div key={s.title} className="flex gap-4">
+                  <div className="w-7 h-7 rounded-full bg-violet-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold mb-0.5 text-gray-900 dark:text-white">{s.title}</p>
+                    <p className="text-[12px] leading-relaxed text-gray-700 dark:text-gray-300">{s.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Feedback */}
+          <section>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/40">Feedback System</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                { label: 'Per-block comments', desc: 'Reviewers click a block to select it, then leave a comment tied to that specific slide.' },
+                { label: 'Threaded replies', desc: 'The owner can reply from the Feedback panel inside the editor. Reviewers can reply back.' },
+                { label: 'Emoji reactions', desc: 'React to any comment with 👍 ❤️ 😄 👀 🎉 — shown inline with counts.' },
+                { label: 'Approve / Changes', desc: 'Each reviewer votes per block. Latest vote per person wins. Owner sees live status badges on the canvas.' },
+              ] as const).map(s => (
+                <div key={s.label} className="rounded-xl border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900 px-4 py-3">
+                  <p className="text-[11px] font-bold mb-1 text-gray-900 dark:text-white">{s.label}</p>
+                  <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">{s.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* What's stored */}
+          <section>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/40">What Gets Stored</h3>
+            <div className="rounded-xl border border-gray-100 dark:border-white/8 overflow-hidden">
+              {stored.map((r, i) => (
+                <div key={r.label} className={`flex items-center gap-3 px-4 py-3 ${i < stored.length - 1 ? 'border-b border-gray-100 dark:border-white/8' : ''}`}>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-white text-[10px] font-bold ${r.yes ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'}`}>
+                    {r.yes ? '✓' : '✕'}
+                  </span>
+                  <p className={`text-[12px] leading-relaxed ${r.yes ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-500'}`}>{r.label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-3 leading-relaxed">
+              Files dragged in from disk are temporary (blob URLs). Use Canto to pick images if you need them to persist across sessions and devices.
+            </p>
+          </section>
+
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 flex items-center justify-end px-6 py-3.5 border-t bg-gray-50 dark:bg-gray-900/80 border-gray-200 dark:border-white/8">
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-colors bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-white/15"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ─── Delete confirmation modal ────────────────────────────────────────────────
 
 function DeleteConfirmModal({
@@ -137,6 +299,7 @@ export default function Dashboard() {
   const router = useRouter()
   const { user, loading: authLoading, signOut } = useAuth()
   const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [loading, setLoading] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -264,9 +427,19 @@ export default function Dashboard() {
   if (!authLoading && !user) {
     return (
       <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
-        <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3 shadow-sm">
+        <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3">
           <img src="/Favicon.png" alt="Doc's Design Generator" className="w-7 h-7 rounded object-contain shrink-0" />
           <span className="font-bold text-gray-900 dark:text-white text-base tracking-tight">Doc&rsquo;s Design Generator</span>
+          <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700">Beta</span>
+          <div className="ml-auto">
+            <button
+              onClick={() => setGuideOpen(true)}
+              className="h-7 px-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              Guide
+            </button>
+          </div>
         </header>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -280,6 +453,7 @@ export default function Dashboard() {
           </div>
         </div>
         <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+        <ProjectGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
       </div>
     )
   }
@@ -288,9 +462,17 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
       {/* Navbar */}
-      <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3 shadow-sm">
+      <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3">
         <img src="/Favicon.png" alt="Doc's Design Generator" className="w-7 h-7 rounded object-contain shrink-0" />
         <span className="font-bold text-gray-900 dark:text-white text-base tracking-tight">Doc&rsquo;s Design Generator</span>
+        <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700">Beta</span>
+        <button
+          onClick={() => setGuideOpen(true)}
+          className="h-7 px-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-1.5"
+        >
+          <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          Guide
+        </button>
         <div className="ml-auto flex items-center gap-3">
           {user && (
             <>
@@ -332,8 +514,11 @@ export default function Dashboard() {
           </div>
 
           {/* Selection toolbar */}
-          {isSelectMode && (
-            <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 shadow-sm animate-scale-in">
+          <div
+            className="overflow-hidden transition-all duration-300 ease-out"
+            style={{ maxHeight: isSelectMode ? '72px' : '0' }}
+          >
+            <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 shadow-sm">
               {/* Cancel */}
               <button
                 onClick={clearSelection}
@@ -372,7 +557,7 @@ export default function Dashboard() {
                 Delete {selectedIds.size}
               </button>
             </div>
-          )}
+          </div>
 
           {/* Error banner */}
           {createError && (
@@ -557,6 +742,7 @@ export default function Dashboard() {
           loading={deleting}
         />
       )}
+      <ProjectGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
     </div>
   )
 }

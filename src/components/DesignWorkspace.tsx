@@ -1447,7 +1447,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     <div className="flex flex-col h-screen overflow-hidden" style={{ paddingRight: feedbackOpen ? 340 : 0, transition: 'padding-right 0.3s ease-out' }}>
 
       {/* ── App header ── */}
-      <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3 z-20 shadow-sm">
+      <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3 z-20">
         {projectId ? (
           <>
             <a
@@ -1948,6 +1948,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           onStatsChange={(rendered, total) => setTemplateStats({ rendered, total })}
           blockCommentStatus={blockCommentStatus}
           onOpenFeedback={() => setFeedbackOpen(true)}
+          isDark={appSettings.theme === 'dark'}
         />
       </div>
 
