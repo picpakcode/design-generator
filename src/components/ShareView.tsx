@@ -928,7 +928,7 @@ export default function ShareView({ token }: { token: string }) {
       .finally(() => setLoading(false))
   }, [token, loadFeedback])
 
-  // Poll comments every 10s; poll full project state every 10s — both pause when tab is hidden
+  // Poll comments every 10s — pauses when tab is hidden, resumes on visibility
   useEffect(() => {
     if (!token) return
     const pollRef = { current: null as ReturnType<typeof setInterval> | null }
@@ -940,18 +940,22 @@ export default function ShareView({ token }: { token: string }) {
     return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
   }, [token, loadFeedback])
 
+  // Poll project state every 5s — immediately reload when tab becomes visible (don't wait for interval)
   useEffect(() => {
     if (!token) return
     const pollRef = { current: null as ReturnType<typeof setInterval> | null }
-    const start = () => { pollRef.current = setInterval(loadShareData, 10000) }
+    const start = () => { pollRef.current = setInterval(loadShareData, 5000) }
     const stop  = () => { pollRef.current && clearInterval(pollRef.current); pollRef.current = null }
-    const onVisibility = () => document.hidden ? stop() : (stop(), start())
+    const onVisibility = () => {
+      if (document.hidden) { stop() } else { stop(); loadShareData(); start() }
+    }
     if (!document.hidden) start()
     document.addEventListener('visibilitychange', onVisibility)
     return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
   }, [token, loadShareData])
 
-  // Subscribe to the same broadcast channel editors use — reload instantly on any save
+  // Subscribe to the same broadcast channel editors use — instant reload on any save
+  // Also do one immediate fetch after subscribing to catch saves that happened during page load
   useEffect(() => {
     const projectId = data?.projectId
     if (!projectId) return
@@ -959,7 +963,7 @@ export default function ShareView({ token }: { token: string }) {
     const channel = supabase
       .channel(`tmpl-sync-${projectId}`)
       .on('broadcast' as const, { event: 'saved' }, () => { loadShareData() })
-      .subscribe()
+      .subscribe(() => { loadShareData() }) // catch any save that happened before we subscribed
     return () => { supabase.removeChannel(channel) }
   }, [data?.projectId, loadShareData])
 
