@@ -25,6 +25,16 @@ export default function TexturePicker({ albumId, value, onChange, placeholder = 
   const [textures, setTextures] = useState<TextureItem[] | null>(null)
   const [loading, setLoading] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const triggerRef  = useRef<HTMLButtonElement>(null)
+  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number } | null>(null)
+
+  function computePos() {
+    if (!triggerRef.current) return
+    const r = triggerRef.current.getBoundingClientRect()
+    const dropH = 280
+    const top = r.bottom + 4 + dropH > window.innerHeight ? r.top - dropH - 4 : r.bottom + 4
+    setDropPos({ top, left: r.left, width: r.width })
+  }
 
   const effectiveAlbumId = albumId || DEFAULT_TEXTURES_ALBUM
 
@@ -52,6 +62,19 @@ export default function TexturePicker({ albumId, value, onChange, placeholder = 
       .catch(() => { setTextures([]); setLoading(false) })
   }, [open, effectiveAlbumId, albumId, textures])
 
+  // Compute fixed position when opening; recompute on scroll/resize
+  useEffect(() => {
+    if (!open) return
+    computePos()
+    window.addEventListener('scroll', computePos, true)
+    window.addEventListener('resize', computePos)
+    return () => {
+      window.removeEventListener('scroll', computePos, true)
+      window.removeEventListener('resize', computePos)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   // Close on outside click
   useEffect(() => {
     if (!open) return
@@ -76,6 +99,7 @@ export default function TexturePicker({ albumId, value, onChange, placeholder = 
     <div ref={dropdownRef} className="relative">
       {/* Trigger row */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(o => !o)}
         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded border text-[10px] transition-all ${
@@ -116,9 +140,12 @@ export default function TexturePicker({ albumId, value, onChange, placeholder = 
         )}
       </button>
 
-      {/* Inline dropdown grid */}
-      {open && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
+      {/* Dropdown — fixed so it escapes any overflow-hidden/auto ancestor */}
+      {open && dropPos && (
+        <div
+          style={{ position: 'fixed', top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999 }}
+          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden"
+        >
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <svg className="w-5 h-5 animate-spin text-gray-300" fill="none" viewBox="0 0 24 24">
