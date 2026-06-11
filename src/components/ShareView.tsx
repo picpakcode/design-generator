@@ -148,15 +148,12 @@ function BlockWrapper({
     <div
       className={`relative mb-3 cursor-pointer rounded-sm transition-shadow ${
         selected
-          ? 'shadow-[0_0_0_2px_#af3939,0_4px_20px_rgba(175,57,57,0.18)]'
+          ? 'shadow-[0_0_0_2px_#2563eb]'
           : 'hover:shadow-[0_0_0_1px_#e5e7eb]'
       }`}
       onClick={onClick}
     >
       <BlockBadge blockId={blockId} feedback={feedback} />
-      {selected && (
-        <div className="absolute inset-0 z-10 rounded-sm pointer-events-none ring-2 ring-inset ring-accent-500" />
-      )}
       {children}
     </div>
   )
@@ -285,6 +282,31 @@ function buildTemplateGalleryDesign(
   }
 }
 
+function buildTemplateShopifyGalleryDesign(
+  productId: string,
+  galleryIdx: number,
+  tState: TemplateShareState,
+  baseDesign: DesignState,
+): DesignState {
+  const s = (tState.allGallerySlots[productId] ?? [])[galleryIdx] ?? emptyTplSlot()
+  const cfg = (tState.galleryConfigs ?? [])[galleryIdx] ?? { template: 'gallery-hero' }
+  return {
+    ...baseDesign,
+    assets: [
+      s.photoAsset,
+      tState.textureAsset,
+      undefined, // no logo for Shopify Gallery
+      s.iconAssets[0], s.iconAssets[1], s.iconAssets[2], s.iconAssets[3],
+    ] as DesignState['assets'],
+    title:                       s.title || '<p></p>',
+    subtitleHtml:                s.desc || '',
+    iconLabels:                  s.iconLabels,
+    iconCount:                   s.iconCount,
+    activeGalleryTemplate:       cfg.template as GalleryTemplateId,
+    galleryIconsShowDescription: cfg.template === 'gallery-icons-text',
+  }
+}
+
 // ─── Template Mode canvas item (A+ slot) ─────────────────────────────────────
 
 function TemplateModeAplusItem({
@@ -394,14 +416,50 @@ function TemplateModeGalleryItem({
   )
 }
 
+function TemplateModeShopifyGalleryItem({
+  productId, galleryIdx, tState, baseDesign, scale, blockId,
+  selected, onClick, feedback,
+}: {
+  productId: string
+  galleryIdx: number
+  tState: TemplateShareState
+  baseDesign: DesignState
+  scale: number
+  blockId: string
+  selected: boolean
+  onClick: () => void
+  feedback: Feedback
+}) {
+  const gd  = buildTemplateShopifyGalleryDesign(productId, galleryIdx, tState, baseDesign)
+  const cfg = (tState.galleryConfigs ?? [])[galleryIdx] ?? { template: 'gallery-hero' }
+  const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
+  const W = 1500
+  const H = 1500
+  return (
+    <BlockWrapper blockId={blockId} selected={selected} onClick={onClick} feedback={feedback}>
+      <div style={{ width: '100%', height: H * scale, position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ width: W, height: H, transform: `scale(${scale})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>
+          <div style={{ width: W, height: H, position: 'relative' }}>
+            {isGIcons
+              ? <CanvasContentGalleryIcons design={gd} settings={{ ...baseDesign.gallery, layoutFlipped: false }} />
+              : <CanvasContentGallery      design={gd} settings={{ ...baseDesign.gallery, layoutFlipped: false }} />
+            }
+          </div>
+        </div>
+      </div>
+    </BlockWrapper>
+  )
+}
+
 // ─── Comments sidebar ─────────────────────────────────────────────────────────
 
 const SHARE_EMOJIS = ['👍', '❤️', '😄', '👀', '🎉']
 
 function CommentsSidebar({
-  token, blocks, selectedBlockId, onSelectBlock, feedback, feedbackLoading, onRefresh,
+  token, projectId, blocks, selectedBlockId, onSelectBlock, feedback, feedbackLoading, onRefresh,
 }: {
   token: string
+  projectId: string
   blocks: BlockItem[]
   selectedBlockId: string | null
   onSelectBlock: (id: string) => void
@@ -478,6 +536,16 @@ function CommentsSidebar({
     return set.size
   })()
 
+  const notifyEditorRef = useRef<(() => void) | null>(null)
+  useEffect(() => {
+    if (!projectId) return
+    const supabase = createClient()
+    const ch = supabase.channel(`feedback-${projectId}`)
+    ch.subscribe()
+    notifyEditorRef.current = () => { ch.send({ type: 'broadcast', event: 'updated', payload: {} }) }
+    return () => { supabase.removeChannel(ch); notifyEditorRef.current = null }
+  }, [projectId])
+
   function saveName() {
     const name = nameInput.trim()
     if (!name) return
@@ -504,6 +572,7 @@ function CommentsSidebar({
       if (!res.ok) throw new Error('Post failed')
       setCommentInput('')
       onRefresh()
+      notifyEditorRef.current?.()
       setPostFlash(true)
       setTimeout(() => setPostFlash(false), 350)
       setTimeout(() => commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
@@ -527,6 +596,7 @@ function CommentsSidebar({
         setLocalComments(prev => [...prev, d])
         setReplyText('')
         setReplyingTo(null)
+        notifyEditorRef.current?.()
       }
     } finally {
       setReplyPosting(false)
@@ -545,6 +615,7 @@ function CommentsSidebar({
       const updater = (c: Comment) => c.id === commentId ? { ...c, reactions: d.reactions ?? {} } : c
       setLocalComments(prev => prev.map(updater))
       onRefresh()
+      notifyEditorRef.current?.()
     }
   }
 
@@ -557,6 +628,7 @@ function CommentsSidebar({
         body: JSON.stringify({ blockId: effectiveBlockId, authorName, status }),
       })
       onRefresh()
+      notifyEditorRef.current?.()
       setApproveFlash(status)
       setTimeout(() => setApproveFlash(null), 350)
     } finally {
@@ -866,13 +938,15 @@ export default function ShareView({ token }: { token: string }) {
   const desktopRef            = useRef<HTMLDivElement>(null)
   const tplMobileRef          = useRef<HTMLDivElement>(null)
   const mobileRef             = useRef<HTMLDivElement>(null)
+  const shopifyGalleryRef     = useRef<HTMLDivElement>(null)
   // Timestamp (Date.now()) of the last broadcast-applied update.
   // loadShareData uses this to discard responses that started before the broadcast,
   // which would otherwise overwrite fresher broadcast-applied state.
   const broadcastAppliedAtRef = useRef<number>(0)
-  const [desktopScale,    setDesktopScale]    = useState(0.5)
-  const [tplMobileScale,  setTplMobileScale]  = useState(0.5)
-  const [mobileScale,     setMobileScale]     = useState(0.5)
+  const [desktopScale,       setDesktopScale]       = useState(0.5)
+  const [tplMobileScale,     setTplMobileScale]     = useState(0.5)
+  const [mobileScale,        setMobileScale]        = useState(0.5)
+  const [shopifyGalleryScale, setShopifyGalleryScale] = useState(0.5)
 
   const [anonId] = useState(() => {
     if (typeof window === 'undefined') return 'anon'
@@ -998,9 +1072,10 @@ export default function ShareView({ token }: { token: string }) {
     if (tState) {
       // Template mode: A+ desktop=1464, A+ mobile=600, gallery=1500
       const measure = () => {
-        if (desktopRef.current)   setDesktopScale(desktopRef.current.clientWidth   / 1464)
-        if (tplMobileRef.current) setTplMobileScale(tplMobileRef.current.clientWidth / 600)
-        if (mobileRef.current)    setMobileScale(mobileRef.current.clientWidth     / 1500)
+        if (desktopRef.current)       setDesktopScale(desktopRef.current.clientWidth         / 1464)
+        if (tplMobileRef.current)     setTplMobileScale(tplMobileRef.current.clientWidth     / 600)
+        if (mobileRef.current)        setMobileScale(mobileRef.current.clientWidth           / 1500)
+        if (shopifyGalleryRef.current) setShopifyGalleryScale(shopifyGalleryRef.current.clientWidth / 1500)
       }
       const t = setTimeout(measure, 30)
       window.addEventListener('resize', measure)
@@ -1056,7 +1131,14 @@ export default function ShareView({ token }: { token: string }) {
       id: `${productId}:gallery:${i}`,
       label: `G${i + 1}`,
     }))
-    const blockItems: BlockItem[] = [...aplusBlockItems, ...galleryBlockItems]
+    const showShopifyGallery = tState.includeGallery && (tState.aplusSlots ?? 0) > 0
+    const shopifyGalleryBlockItems: BlockItem[] = showShopifyGallery
+      ? Array.from({ length: tState.galleryCount }, (_, i) => ({
+          id: `${productId}:shopify-gallery:${i}`,
+          label: `SG${i + 1}`,
+        }))
+      : []
+    const blockItems: BlockItem[] = [...aplusBlockItems, ...galleryBlockItems, ...shopifyGalleryBlockItems]
     const effectiveBlockId = selectedBlockId ?? blockItems[0]?.id ?? null
 
     return (
@@ -1201,14 +1283,14 @@ export default function ShareView({ token }: { token: string }) {
             </div>
           )}
 
-          {/* Gallery column */}
+          {/* Gallery column (Amazon Gallery or Shopify-project gallery) */}
           {tState.galleryCount > 0 && (
             <div className="flex flex-col border-r border-gray-100 min-w-0" style={{ flex: '2.5 1 0%' }}>
               <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
                 <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span className="text-[11px] font-semibold text-gray-500">Gallery</span>
+                <span className="text-[11px] font-semibold text-gray-500">{(tState.aplusSlots ?? 0) > 0 ? 'Amazon Gallery' : 'Gallery'}</span>
                 <span className="text-[10px] text-gray-400">1500 × 1500 px</span>
               </div>
               <div className="flex-1 overflow-y-auto">
@@ -1237,9 +1319,44 @@ export default function ShareView({ token }: { token: string }) {
             </div>
           )}
 
+          {/* Shopify Gallery column — Amazon projects only, when includeGallery is on */}
+          {showShopifyGallery && tState.galleryCount > 0 && (
+            <div className="flex flex-col border-r border-gray-100 min-w-0" style={{ flex: '2.5 1 0%' }}>
+              <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-100">
+                <div className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                <span className="text-[11px] font-semibold text-green-600">Shopify Gallery</span>
+                <span className="text-[10px] text-gray-400">1500 × 1500 px</span>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <div className="px-3 pt-4 pb-6">
+                  <div ref={shopifyGalleryRef}>
+                    {Array.from({ length: tState.galleryCount }, (_, i) => {
+                      const bid = `${productId}:shopify-gallery:${i}`
+                      return (
+                        <TemplateModeShopifyGalleryItem
+                          key={bid}
+                          productId={productId}
+                          galleryIdx={i}
+                          tState={tState}
+                          baseDesign={design}
+                          scale={shopifyGalleryScale}
+                          blockId={bid}
+                          selected={effectiveBlockId === bid}
+                          onClick={() => setSelectedBlockId(bid)}
+                          feedback={feedback}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Comments sidebar */}
           <CommentsSidebar
             token={token}
+            projectId={data.projectId}
             blocks={blockItems}
             selectedBlockId={effectiveBlockId}
             onSelectBlock={setSelectedBlockId}
@@ -1382,6 +1499,7 @@ export default function ShareView({ token }: { token: string }) {
         {/* Comments sidebar */}
         <CommentsSidebar
           token={token}
+          projectId={data.projectId}
           blocks={blockItems}
           selectedBlockId={selectedBlockId}
           onSelectBlock={setSelectedBlockId}

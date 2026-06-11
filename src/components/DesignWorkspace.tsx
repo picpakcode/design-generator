@@ -80,7 +80,7 @@ const MOBILE_DEFAULTS: FormatSettings = {
   subtitleTextTransform: 'none',
   iconSize: 64,
   iconLabelFontSize: 18,
-  iconLabelLineHeight: 32,
+  iconLabelLineHeight: 22,
   photoComposition: { ...DEFAULT_PHOTO_COMP },
 }
 

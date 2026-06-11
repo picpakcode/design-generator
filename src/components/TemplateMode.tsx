@@ -128,8 +128,9 @@ const GALLERY_ICONS: Record<GalleryTemplate, React.ReactNode> = {
   ),
 }
 
-function slotLabel(i: number)   { return String.fromCharCode(65 + i) + '1' }
-function galleryLabel(i: number){ return `G${i + 1}` }
+function slotLabel(i: number)          { return String.fromCharCode(65 + i) + '1' }
+function galleryLabel(i: number)       { return `G${i + 1}` }
+function shopifyGalleryLabel(i: number){ return `SG${i + 1}` }
 
 function defaultSlotConfigs(n: number): SlotConfig[] {
   return Array.from({ length: n }, (_, i) => ({
@@ -143,6 +144,37 @@ function defaultGalleryConfigs(n: number): GallerySlotConfig[] {
 
 function emptySlotState(): TemplateSlotState {
   return { title: '', desc: '', iconLabels: ['', '', '', ''], iconCount: 4, iconAssets: [undefined, undefined, undefined, undefined] }
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<\/?(p|br|li|ul|ol|h[1-6])[^>]*>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ').trim()
+}
+
+function buildLiveCsv(
+  products: BulkProduct[],
+  allSlots: Record<string, TemplateSlotState[]>,
+  allGallerySlots: Record<string, TemplateSlotState[]>,
+  aplusSlots: number,
+  galleryCount: number,
+): string {
+  const merged = products.map(p => ({
+    ...p,
+    slots: Array.from({ length: aplusSlots }, (_, j) => {
+      const live = allSlots[p.id]?.[j]
+      if (!live) return p.slots[j] ?? { title: '', desc: '', iconCallouts: ['', '', '', ''] as [string, string, string, string] }
+      return { title: stripHtml(live.title), desc: stripHtml(live.desc), iconCallouts: live.iconLabels }
+    }),
+    gallerySlots: Array.from({ length: galleryCount }, (_, g) => {
+      const live = allGallerySlots[p.id]?.[g]
+      if (!live) return p.gallerySlots?.[g] ?? { title: '', desc: '', iconCallouts: ['', '', '', ''] as [string, string, string, string] }
+      return { title: stripHtml(live.title), desc: stripHtml(live.desc), iconCallouts: live.iconLabels }
+    }),
+  }))
+  return productsToCSV(merged, aplusSlots, galleryCount)
 }
 
 // ─── Collapsible Section ──────────────────────────────────────────────────────
@@ -204,24 +236,28 @@ async function captureToDataUrl(
 interface PreviewProps {
   open: boolean
   onClose: () => void
-  aplusDesigns:   { design: DesignState; cfg: SlotConfig;        label: string }[]
-  galleryDesigns: { design: DesignState; cfg: GallerySlotConfig; label: string }[]
+  aplusDesigns:          { design: DesignState; cfg: SlotConfig;        label: string }[]
+  galleryDesigns:        { design: DesignState; cfg: GallerySlotConfig; label: string }[]
+  shopifyGalleryDesigns: { design: DesignState; cfg: GallerySlotConfig; label: string }[]
+  showShopifyGallery:    boolean
   designState: DesignState
 }
 
-function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns, designState }: PreviewProps) {
+function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns, shopifyGalleryDesigns, showShopifyGallery, designState }: PreviewProps) {
   const { settings } = useAppSettings()
   const isDark = settings.theme === 'dark'
   const [tab, setTab]       = useState<'desktop' | 'mobile' | 'gallery'>('desktop')
   const [mounted, setMounted] = useState(false)
   const [closing, setClosing] = useState(false)
 
-  const dRef = useRef<HTMLDivElement>(null)
-  const mRef = useRef<HTMLDivElement>(null)
-  const gRef = useRef<HTMLDivElement>(null)
+  const dRef  = useRef<HTMLDivElement>(null)
+  const mRef  = useRef<HTMLDivElement>(null)
+  const gRef  = useRef<HTMLDivElement>(null)
+  const sgRef = useRef<HTMLDivElement>(null)
   const [ds, setDs] = useState(0.4)
   const [ms, setMs] = useState(0.5)
   const [gs, setGs] = useState(0.3)
+  const [sgs, setSgs] = useState(0.3)
 
   useEffect(() => {
     if (open) { setClosing(false); setMounted(true) }
@@ -235,14 +271,17 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
   useEffect(() => {
     if (!open) return
     const measure = () => {
-      if (dRef.current) setDs(dRef.current.clientWidth / 1464)
-      if (mRef.current) setMs(mRef.current.clientWidth / 600)
-      if (gRef.current) setGs((gRef.current.clientWidth / 2 - 16) / 1500)
+      if (dRef.current)  setDs(dRef.current.clientWidth / 1464)
+      if (mRef.current)  setMs(mRef.current.clientWidth / 600)
+      // Two-column mode: each column fills its flex container; single-column: 2-up grid
+      if (gRef.current)  setGs(showShopifyGallery ? (gRef.current.clientWidth - 24) / 1500 : (gRef.current.clientWidth / 2 - 16) / 1500)
+      if (sgRef.current) setSgs((sgRef.current.clientWidth - 24) / 1500)
     }
     const t = setTimeout(measure, 30)
     window.addEventListener('resize', measure)
     return () => { clearTimeout(t); window.removeEventListener('resize', measure) }
-  }, [open, tab])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tab, showShopifyGallery])
 
   useEffect(() => {
     if (!mounted) return
@@ -362,30 +401,87 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
               </div>
             )}
             {tab === 'gallery' && (
-              <div className={`h-full overflow-y-auto ${scrollBg}`}>
-                <div className="max-w-[1400px] mx-auto px-8 pt-8 pb-12">
-                  {galleryDesigns.length === 0 && (
-                    <p className={`text-[12px] text-center py-16 ${dimText}`}>No gallery slides configured. Add g1_title columns to your CSV.</p>
-                  )}
-                  <div ref={gRef} className="grid grid-cols-2 gap-x-8 gap-y-6">
-                    {galleryDesigns.map(({ design: gd, cfg, label }) => {
-                      const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
-                      return (
-                        <div key={label}>
-                          <p style={{ fontSize: 10, fontWeight: 700, color: labelColor, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} · 1500×1500</p>
-                          <div className="overflow-hidden rounded-[2px] shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 1500 * gs, position: 'relative' }}>
-                            <div style={{ width: 1500, height: 1500, transform: `scale(${gs})`, transformOrigin: 'top left', position: 'absolute' }}>
-                              {isGIcons
-                                ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
-                                : <CanvasContentGallery      design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
-                              }
-                            </div>
-                          </div>
+              <div className={`h-full overflow-hidden ${scrollBg}`}>
+                {galleryDesigns.length === 0 && !showShopifyGallery && (
+                  <p className={`text-[12px] text-center py-16 ${dimText}`}>No gallery slides configured.</p>
+                )}
+                {/* Two-column layout when Shopify Gallery is enabled */}
+                {showShopifyGallery ? (
+                  <div className="h-full flex overflow-hidden">
+                    {/* Left: Amazon Gallery */}
+                    <div className="flex-1 min-w-0 overflow-y-auto border-r border-gray-200 dark:border-gray-700">
+                      <div className="px-6 pt-6 pb-10">
+                        <p style={{ fontSize: 10, fontWeight: 700, color: labelColor, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Amazon Gallery</p>
+                        <div ref={gRef} className="flex flex-col gap-6">
+                          {galleryDesigns.map(({ design: gd, cfg, label }) => {
+                            const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
+                            return (
+                              <div key={label}>
+                                <p style={{ fontSize: 10, fontWeight: 700, color: labelColor, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} · 1500×1500</p>
+                                <div className="overflow-hidden rounded-[2px] shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 1500 * gs, position: 'relative' }}>
+                                  <div style={{ width: 1500, height: 1500, transform: `scale(${gs})`, transformOrigin: 'top left', position: 'absolute' }}>
+                                    {isGIcons
+                                      ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
+                                      : <CanvasContentGallery      design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
+                                    }
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
-                      )
-                    })}
+                      </div>
+                    </div>
+                    {/* Right: Shopify Gallery */}
+                    <div className="flex-1 min-w-0 overflow-y-auto">
+                      <div className="px-6 pt-6 pb-10">
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Shopify Gallery</p>
+                        <div ref={sgRef} className="flex flex-col gap-6">
+                          {shopifyGalleryDesigns.map(({ design: gd, cfg, label }) => {
+                            const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
+                            return (
+                              <div key={label}>
+                                <p style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} · 1500×1500</p>
+                                <div className="overflow-hidden rounded-[2px] shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 1500 * sgs, position: 'relative' }}>
+                                  <div style={{ width: 1500, height: 1500, transform: `scale(${sgs})`, transformOrigin: 'top left', position: 'absolute' }}>
+                                    {isGIcons
+                                      ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
+                                      : <CanvasContentGallery      design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
+                                    }
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  /* Single-column layout when only Amazon Gallery */
+                  <div className="h-full overflow-y-auto">
+                    <div className="max-w-[1400px] mx-auto px-8 pt-8 pb-12">
+                      <div ref={gRef} className="grid grid-cols-2 gap-x-8 gap-y-6">
+                        {galleryDesigns.map(({ design: gd, cfg, label }) => {
+                          const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
+                          return (
+                            <div key={label}>
+                              <p style={{ fontSize: 10, fontWeight: 700, color: labelColor, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} · 1500×1500</p>
+                              <div className="overflow-hidden rounded-[2px] shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 1500 * gs, position: 'relative' }}>
+                                <div style={{ width: 1500, height: 1500, transform: `scale(${gs})`, transformOrigin: 'top left', position: 'absolute' }}>
+                                  {isGIcons
+                                    ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
+                                    : <CanvasContentGallery      design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
+                                  }
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -679,11 +775,12 @@ function buildContentHash(
   galleryConfigs: GallerySlotConfig[],
   aplusSlots: number,
   galleryCount: number,
+  includeGallery: boolean,
   logoAssetId: string | null | undefined,
   textureAssetId: string | null | undefined,
   productNames: Record<string, string>,
 ): string {
-  return JSON.stringify([allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAssetId, textureAssetId, productNames])
+  return JSON.stringify([allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, includeGallery, logoAssetId, textureAssetId, productNames])
 }
 
 function buildNavHash(selectedId: string | null, activeSlotIdx: number, activeIsGallery: boolean, activeGalleryIdx: number): string {
@@ -747,9 +844,11 @@ export default function TemplateMode({
   // Slot config (global)
   const [aplusSlots, setAplusSlots]         = useState(typeof sv.aplusSlots === 'number' ? sv.aplusSlots : (isShopify ? 0 : 5))
   const [slotConfigs, setSlotConfigs]       = useState<SlotConfig[]>(Array.isArray(sv.slotConfigs) ? sv.slotConfigs as SlotConfig[] : defaultSlotConfigs(5))
-  const [galleryCount, setGalleryCount]     = useState(typeof sv.galleryCount === 'number' ? sv.galleryCount : 2)
-  const [galleryConfigs, setGalleryConfigs] = useState<GallerySlotConfig[]>(Array.isArray(sv.galleryConfigs) ? sv.galleryConfigs as GallerySlotConfig[] : defaultGalleryConfigs(2))
-  const [outputFormat, setOutputFormat]     = useState<'png' | 'jpeg'>(sv.outputFormat === 'jpeg' ? 'jpeg' : 'png')
+  const [galleryCount, setGalleryCount]         = useState(typeof sv.galleryCount === 'number' ? sv.galleryCount : 2)
+  const [galleryConfigs, setGalleryConfigs]     = useState<GallerySlotConfig[]>(Array.isArray(sv.galleryConfigs) ? sv.galleryConfigs as GallerySlotConfig[] : defaultGalleryConfigs(2))
+  const [shopifyGalleryConfigs, setShopifyGalleryConfigs] = useState<GallerySlotConfig[]>(Array.isArray(sv.shopifyGalleryConfigs) ? sv.shopifyGalleryConfigs as GallerySlotConfig[] : defaultGalleryConfigs(2))
+  const [outputFormat, setOutputFormat]         = useState<'png' | 'jpeg'>(sv.outputFormat === 'jpeg' ? 'jpeg' : 'png')
+  const [includeGallery, setIncludeGallery]     = useState<boolean>(typeof sv.includeGallery === 'boolean' ? sv.includeGallery as boolean : true)
 
   // Global branding
   const [logoAsset, setLogoAsset]       = useState<UploadedAsset | null>((sv.logoAsset as UploadedAsset) ?? null)
@@ -766,11 +865,17 @@ export default function TemplateMode({
   const [showClearConfirm,    setShowClearConfirm]    = useState(false)
   const [clearConfirmClosing, setClearConfirmClosing] = useState(false)
 
+  // Shopify gallery selection
+  const [activeIsShopifyGallery, setActiveIsShopifyGallery] = useState(typeof sv.activeIsShopifyGallery === 'boolean' ? sv.activeIsShopifyGallery as boolean : false)
+  const [activeShopifyGalleryIdx, setActiveShopifyGalleryIdx] = useState(typeof sv.activeShopifyGalleryIdx === 'number' ? sv.activeShopifyGalleryIdx as number : 0)
+
   // Drag-reorder state for slot tabs
-  const [aplusDragIdx,   setAplusDragIdx]   = useState<number | null>(null)
-  const [aplusDragOver,  setAplusDragOver]  = useState<number | null>(null)
-  const [galleryDragIdx, setGalleryDragIdx] = useState<number | null>(null)
-  const [galleryDragOver,setGalleryDragOver]= useState<number | null>(null)
+  const [aplusDragIdx,    setAplusDragIdx]    = useState<number | null>(null)
+  const [aplusDragOver,   setAplusDragOver]   = useState<number | null>(null)
+  const [galleryDragIdx,  setGalleryDragIdx]  = useState<number | null>(null)
+  const [galleryDragOver, setGalleryDragOver] = useState<number | null>(null)
+  const [shopifyDragIdx,  setShopifyDragIdx]  = useState<number | null>(null)
+  const [shopifyDragOver, setShopifyDragOver] = useState<number | null>(null)
 
   // Render / export
   const [renderingAll, setRenderingAll] = useState(false)
@@ -782,6 +887,9 @@ export default function TemplateMode({
   const lastSavedNavHashRef     = useRef<string | null>(null)
   const sessionIdRef            = useRef(`${Date.now()}-${Math.random()}`)
   const syncChannelRef          = useRef<RealtimeChannel | null>(null)
+
+  // Amazon Gallery is always shown for Amazon; Shopify Gallery is toggle-controlled
+  const showShopifyGallery = !isShopify && includeGallery
 
   // Always-current snapshot for thumbnail generation (avoids stale closures in the wired fn)
   const thumbLatest = useRef({ parseResult, selectedId, allSlots, slotConfigs, logoAsset, textureAsset, designState })
@@ -808,12 +916,14 @@ export default function TemplateMode({
     const aplusH  = aplusSlots  * 600  + Math.max(0, aplusSlots  - 1) * SLOT_GAP
     const galH    = galleryCount * 1500 + Math.max(0, galleryCount - 1) * SLOT_GAP
     const totalH  = Math.max(aplusH, galH, 600)
-    const effectiveW = isShopify ? GALLERY_W : CANVAS_W
+    const effectiveW = isShopify
+      ? GALLERY_W
+      : (CANVAS_W + (includeGallery ? COL_GAP + GALLERY_W : 0))
     const z = Math.min((vw - PADDING * 2) / effectiveW, (vh - PADDING * 2) / totalH, 1)
     const px = Math.max(PADDING, (vw - effectiveW * z) / 2)
     const py = Math.max(PADDING, (vh - totalH * z) / 2)
     zoomRef.current = z; setZoom(z); setPan({ x: px, y: py })
-  }, [aplusSlots, galleryCount, isShopify])
+  }, [aplusSlots, galleryCount, isShopify, includeGallery])
 
   const adjustZoom = (factor: number) => {
     const el = wrapperRef.current; if (!el) return
@@ -861,14 +971,11 @@ export default function TemplateMode({
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.repeat &&
-          !(e.target instanceof HTMLInputElement) &&
-          !(e.target instanceof HTMLTextAreaElement)) {
+      const inEditable = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target instanceof HTMLElement && e.target.isContentEditable)
+      if (e.code === 'Space' && !e.repeat && !inEditable) {
         e.preventDefault(); setSpaceDown(true)
       }
-      if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey &&
-          !(e.target instanceof HTMLInputElement) &&
-          !(e.target instanceof HTMLTextAreaElement)) {
+      if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey && !inEditable) {
         fitView()
       }
     }
@@ -884,6 +991,10 @@ export default function TemplateMode({
   useEffect(() => { if (selectedId && canvasEl) fitView() }, [selectedId])
 
   // ── Init ──────────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (isShopify) setAplusSlots(0)
+  }, [isShopify])
 
   useEffect(() => {
     if (!isShopify && !logoAsset) {
@@ -910,12 +1021,13 @@ export default function TemplateMode({
       if (!parseResult) { sessionStorage.removeItem(storageKeyRef.current); return }
       sessionStorage.setItem(storageKeyRef.current, JSON.stringify({
         parseResult, csvFilename, rawCsv, allSlots, allGallerySlots, productNames,
-        aplusSlots, galleryCount, slotConfigs, galleryConfigs, outputFormat,
-        selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx, logoAsset, textureAsset,
+        aplusSlots, galleryCount, includeGallery, slotConfigs, galleryConfigs, shopifyGalleryConfigs, outputFormat,
+        selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx,
+        activeIsShopifyGallery, activeShopifyGalleryIdx, logoAsset, textureAsset,
       }))
     } catch { /* ignore quota errors */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parseResult, csvFilename, rawCsv, allSlots, allGallerySlots, productNames, aplusSlots, galleryCount, slotConfigs, galleryConfigs, outputFormat, selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx, logoAsset, textureAsset])
+  }, [parseResult, csvFilename, rawCsv, allSlots, allGallerySlots, productNames, aplusSlots, galleryCount, includeGallery, slotConfigs, galleryConfigs, shopifyGalleryConfigs, outputFormat, selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx, activeIsShopifyGallery, activeShopifyGalleryIdx, logoAsset, textureAsset])
 
   // Auto-save template state to Supabase for sharing (debounced 4s)
   useEffect(() => {
@@ -924,15 +1036,15 @@ export default function TemplateMode({
       try {
         // Skip save if content and nav are unchanged — prevents echo saves after receiving
         // a remote update (another session's write would otherwise bounce back forever)
-        const contentH = buildContentHash(allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAsset?.id, textureAsset?.id, productNames)
+        const contentH = buildContentHash(allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, includeGallery, logoAsset?.id, textureAsset?.id, productNames)
         const navH     = buildNavHash(selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx)
         if (contentH === lastSavedContentHashRef.current && navH === lastSavedNavHashRef.current) return
 
         const supabase = createClient()
         const raw: TemplateShareState = {
           products: parseResult.products,
-          allSlots, allGallerySlots, slotConfigs, galleryConfigs,
-          aplusSlots, galleryCount, logoAsset, textureAsset,
+          allSlots, allGallerySlots, slotConfigs, galleryConfigs, shopifyGalleryConfigs,
+          aplusSlots, galleryCount, includeGallery, logoAsset, textureAsset,
           selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx,
           productNames,
         }
@@ -954,7 +1066,7 @@ export default function TemplateMode({
     }, 4000)
     return () => clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, parseResult, allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, logoAsset, textureAsset, productNames, selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx])
+  }, [projectId, parseResult, allSlots, allGallerySlots, slotConfigs, galleryConfigs, shopifyGalleryConfigs, aplusSlots, galleryCount, includeGallery, logoAsset, textureAsset, productNames, selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx])
 
   useEffect(() => {
     setSlotConfigs(prev => defaultSlotConfigs(aplusSlots).map((d, i) => prev[i] ?? d))
@@ -969,8 +1081,17 @@ export default function TemplateMode({
   }, [galleryCount])
 
   useEffect(() => {
+    setShopifyGalleryConfigs(prev => defaultGalleryConfigs(galleryCount).map((d, i) => prev[i] ?? d))
+  }, [galleryCount])
+
+  useEffect(() => {
     if (activeGalleryIdx >= galleryCount) setActiveGalleryIdx(Math.max(0, galleryCount - 1))
   }, [galleryCount, activeGalleryIdx])
+
+  useEffect(() => {
+    if (!showShopifyGallery && activeIsShopifyGallery) setActiveIsShopifyGallery(false)
+  }, [showShopifyGallery, activeIsShopifyGallery])
+
 
   // On first open when sessionStorage is empty: restore full state from Supabase
   useEffect(() => {
@@ -986,9 +1107,11 @@ export default function TemplateMode({
         if (typeof tState.galleryCount === 'number') setGalleryCount(tState.galleryCount)
         if (tState.slotConfigs?.length) setSlotConfigs(tState.slotConfigs as unknown as SlotConfig[])
         if (tState.galleryConfigs?.length) setGalleryConfigs(tState.galleryConfigs as unknown as GallerySlotConfig[])
+        if (tState.shopifyGalleryConfigs?.length) setShopifyGalleryConfigs(tState.shopifyGalleryConfigs as unknown as GallerySlotConfig[])
         if (tState.logoAsset) setLogoAsset(tState.logoAsset)
         if (tState.textureAsset) setTextureAsset(tState.textureAsset)
         if (tState.productNames) setProductNames(tState.productNames)
+        if (typeof tState.includeGallery === 'boolean') setIncludeGallery(tState.includeGallery)
         // Restore navigation state — fall back to first product if selectedId wasn't saved yet
         const restoredId = tState.selectedId ?? tState.products[0].id
         const restoredSlotIdx = typeof tState.activeSlotIdx === 'number' ? tState.activeSlotIdx : 0
@@ -1000,6 +1123,7 @@ export default function TemplateMode({
         if (typeof tState.activeGalleryIdx === 'number') setActiveGalleryIdx(restoredGalleryIdx)
         // Seed the hashes so the first save cycle doesn't write back identical data
         const restoredNames = tState.productNames ?? {}
+        const restoredIncludeGallery = typeof tState.includeGallery === 'boolean' ? tState.includeGallery : true
         lastSavedContentHashRef.current = buildContentHash(
           (tState.allSlots ?? {}) as Record<string, TemplateSlotState[]>,
           (tState.allGallerySlots ?? {}) as Record<string, TemplateSlotState[]>,
@@ -1007,6 +1131,7 @@ export default function TemplateMode({
           (tState.galleryConfigs ?? []) as GallerySlotConfig[],
           typeof tState.aplusSlots === 'number' ? tState.aplusSlots : 5,
           typeof tState.galleryCount === 'number' ? tState.galleryCount : 2,
+          restoredIncludeGallery,
           tState.logoAsset?.id,
           tState.textureAsset?.id,
           restoredNames,
@@ -1041,6 +1166,7 @@ export default function TemplateMode({
               (tState.galleryConfigs ?? []) as GallerySlotConfig[],
               typeof tState.aplusSlots === 'number' ? tState.aplusSlots : 5,
               typeof tState.galleryCount === 'number' ? tState.galleryCount : 2,
+              typeof tState.includeGallery === 'boolean' ? tState.includeGallery : true,
               tState.logoAsset?.id,
               tState.textureAsset?.id,
               tState.productNames ?? {},
@@ -1055,9 +1181,11 @@ export default function TemplateMode({
             if (typeof tState.galleryCount === 'number') setGalleryCount(tState.galleryCount)
             if (tState.slotConfigs?.length) setSlotConfigs(tState.slotConfigs as unknown as SlotConfig[])
             if (tState.galleryConfigs?.length) setGalleryConfigs(tState.galleryConfigs as unknown as GallerySlotConfig[])
+            if (tState.shopifyGalleryConfigs?.length) setShopifyGalleryConfigs(tState.shopifyGalleryConfigs as unknown as GallerySlotConfig[])
             if (tState.logoAsset) setLogoAsset(tState.logoAsset)
             if (tState.textureAsset) setTextureAsset(tState.textureAsset)
             if (tState.productNames) setProductNames(tState.productNames)
+            if (typeof tState.includeGallery === 'boolean') setIncludeGallery(tState.includeGallery)
           } catch { /* silent */ }
         }
       )
@@ -1244,7 +1372,8 @@ export default function TemplateMode({
 
   const patchSlotState = (productId: string, slotIdx: number, patch: Partial<TemplateSlotState>) => {
     setAllSlots(prev => {
-      const existing = prev[productId] ?? Array.from({ length: aplusSlots }, emptySlotState)
+      const base = prev[productId] ?? []
+      const existing = base.length > slotIdx ? base : [...base, ...Array.from({ length: slotIdx + 1 - base.length }, emptySlotState)]
       return { ...prev, [productId]: existing.map((s, i) => i === slotIdx ? { ...s, ...patch } : s) }
     })
     setStatuses(prev => ({ ...prev, [productId]: 'draft' }))
@@ -1257,7 +1386,8 @@ export default function TemplateMode({
 
   const patchGallerySlotState = (productId: string, slotIdx: number, patch: Partial<TemplateSlotState>) => {
     setAllGallerySlots(prev => {
-      const existing = prev[productId] ?? Array.from({ length: galleryCount }, emptySlotState)
+      const base = prev[productId] ?? []
+      const existing = base.length > slotIdx ? base : [...base, ...Array.from({ length: slotIdx + 1 - base.length }, emptySlotState)]
       return { ...prev, [productId]: existing.map((s, i) => i === slotIdx ? { ...s, ...patch } : s) }
     })
     setStatuses(prev => ({ ...prev, [productId]: 'draft' }))
@@ -1345,10 +1475,9 @@ export default function TemplateMode({
     setCaptureVersion(v => v + 1)
   }
 
-  const applyEditedCsv = useCallback((csvText: string, result: ParseResult) => {
-    const first = result.products[0]
-    const newAplusSlots   = Math.max(1, first?.slots.length ?? 5)
-    const newGalleryCount = Math.max(0, first?.gallerySlots?.length ?? 0)
+  const applyEditedCsv = useCallback((csvText: string, result: ParseResult, aplusSlots: number, galleryCount: number) => {
+    const newAplusSlots   = isShopify ? 0 : aplusSlots
+    const newGalleryCount = galleryCount
 
     setRawCsv(csvText)
     setParseResult(result)
@@ -1420,7 +1549,7 @@ export default function TemplateMode({
     setCaptureVersion(0)
     onCanExportChange(false)
     onCanExportCurrentChange(false)
-  }, [onStatsChange, onCanExportChange, onCanExportCurrentChange])
+  }, [isShopify, onStatsChange, onCanExportChange, onCanExportCurrentChange])
 
   const fallbackAsset = (slotIndex: number): UploadedAsset | undefined => {
     const blocks = [...(designState.blocks ?? []), ...(designState.galleryBlocks ?? [])]
@@ -1457,6 +1586,17 @@ export default function TemplateMode({
     }
   }
 
+  const buildShopifyGallerySlotDesign = (productId: string, slotIdx: number): DesignState => {
+    const s = getGallerySlotState(productId, slotIdx)
+    const cfg = galleryConfigs[slotIdx] ?? { template: 'gallery-hero' }
+    return {
+      ...designState,
+      assets: [s.photoAsset, textureAsset ?? fallbackAsset(1), undefined, s.iconAssets[0], s.iconAssets[1], s.iconAssets[2], s.iconAssets[3]] as UploadedAsset[],
+      title: s.title || '<p></p>', subtitleHtml: s.desc || '', iconLabels: s.iconLabels, iconCount: s.iconCount,
+      galleryIconsShowDescription: cfg.template === 'gallery-icons-text',
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────────
 
   const renderProduct = useCallback(async (product: BulkProduct) => {
@@ -1487,13 +1627,12 @@ export default function TemplateMode({
       if (m) capturedRef.current.set(`${product.id}/${lbl}-mobile`, m)
     }
 
-    // Gallery slides
+    // Amazon Gallery slides (always rendered for Amazon; or gallery slides for Shopify project)
     for (let g = 0; g < galleryCount; g++) {
       if (cancelRef.current) break
-      const cfg     = galleryConfigs[g] ?? { template: 'gallery-hero' }
+      const cfg      = galleryConfigs[g] ?? { template: 'gallery-hero' }
       const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
-      const gd      = buildGallerySlotDesign(product.id, g)
-
+      const gd       = buildGallerySlotDesign(product.id, g)
       const gi = await captureToDataUrl(
         isGIcons
           ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
@@ -1502,11 +1641,27 @@ export default function TemplateMode({
       if (gi) capturedRef.current.set(`${product.id}/g${g + 1}-gallery`, gi)
     }
 
+    // Shopify Gallery slides (Amazon + includeGallery only; mirrors Amazon Gallery content)
+    if (!isShopify && includeGallery) {
+      for (let g = 0; g < galleryCount; g++) {
+        if (cancelRef.current) break
+        const cfg      = galleryConfigs[g] ?? { template: 'gallery-hero' }
+        const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
+        const gd       = buildShopifyGallerySlotDesign(product.id, g)
+        const gi = await captureToDataUrl(
+          isGIcons
+            ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
+            : <CanvasContentGallery      design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />,
+          1500, 1500, outputFormat)
+        if (gi) capturedRef.current.set(`${product.id}/sg${g + 1}`, gi)
+      }
+    }
+
     const ok = !cancelRef.current
     setStatuses(prev => ({ ...prev, [product.id]: ok ? 'done' : 'draft' }))
     setCaptureVersion(v => v + 1)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aplusSlots, slotConfigs, galleryCount, galleryConfigs, outputFormat, designState, textureAsset, logoAsset, allSlots, allGallerySlots])
+  }, [aplusSlots, slotConfigs, galleryCount, galleryConfigs, shopifyGalleryConfigs, includeGallery, outputFormat, designState, textureAsset, logoAsset, allSlots, allGallerySlots])
 
   const renderAll = useCallback(async () => {
     if (renderingAll) { cancelRef.current = true; return }
@@ -1590,24 +1745,34 @@ export default function TemplateMode({
   const selectedIdx   = selected ? products.indexOf(selected) : -1
   const selectedStatus= selected ? (statuses[selected.id] ?? 'draft') : 'draft'
 
-  // Active slot state
+  // Active slot state — three-way: A+, Amazon Gallery, Shopify Gallery (all independent)
   const activeSlot = selected
-    ? (activeIsGallery ? getGallerySlotState(selected.id, activeGalleryIdx) : getSlotState(selected.id, activeSlotIdx))
+    ? activeIsShopifyGallery
+      ? getGallerySlotState(selected.id, activeShopifyGalleryIdx)
+      : activeIsGallery
+        ? getGallerySlotState(selected.id, activeGalleryIdx)
+        : getSlotState(selected.id, activeSlotIdx)
     : emptySlotState()
 
-  const activeCfgAplus   = slotConfigs[activeSlotIdx]   ?? { template: '5050-right' }
-  const activeCfgGallery = galleryConfigs[activeGalleryIdx] ?? { template: 'gallery-hero' }
-  const isIconsSlot = activeIsGallery
-    ? activeCfgGallery.template === 'gallery-icons' || activeCfgGallery.template === 'gallery-icons-text'
+  const activeCfgAplus        = slotConfigs[activeSlotIdx]       ?? { template: '5050-right' }
+  const activeCfgGallery      = galleryConfigs[activeIsShopifyGallery ? activeShopifyGalleryIdx : activeGalleryIdx] ?? { template: 'gallery-hero' }
+  const activeCfgForIcons     = activeIsGallery || activeIsShopifyGallery ? activeCfgGallery : activeCfgAplus
+  const isIconsSlot = activeIsShopifyGallery || activeIsGallery
+    ? activeCfgForIcons.template === 'gallery-icons' || activeCfgForIcons.template === 'gallery-icons-text'
     : activeCfgAplus.template === 'icons' || activeCfgAplus.template === 'icons-text'
-  const showDescription = activeIsGallery
-    ? activeCfgGallery.template !== 'gallery-icons'
+  const showDescription = activeIsShopifyGallery || activeIsGallery
+    ? activeCfgForIcons.template !== 'gallery-icons'
     : activeCfgAplus.template !== 'icons'
 
   const patchActive = (patch: Partial<TemplateSlotState>) => {
     if (!selected) return
-    if (activeIsGallery) patchGallerySlotState(selected.id, activeGalleryIdx, patch)
-    else                 patchSlotState(selected.id, activeSlotIdx, patch)
+    if (activeIsShopifyGallery) {
+      patchGallerySlotState(selected.id, activeShopifyGalleryIdx, patch)
+    } else if (activeIsGallery) {
+      patchGallerySlotState(selected.id, activeGalleryIdx, patch)
+    } else {
+      patchSlotState(selected.id, activeSlotIdx, patch)
+    }
   }
 
   // Build preview data
@@ -1616,6 +1781,9 @@ export default function TemplateMode({
     : []
   const galleryPreviewDesigns = selected
     ? galleryConfigs.slice(0, galleryCount).map((cfg, i) => ({ design: buildGallerySlotDesign(selected.id, i), cfg, label: galleryLabel(i) }))
+    : []
+  const shopifyPreviewDesigns = selected && showShopifyGallery
+    ? galleryConfigs.slice(0, galleryCount).map((cfg, i) => ({ design: buildShopifyGallerySlotDesign(selected.id, i), cfg, label: shopifyGalleryLabel(i) }))
     : []
 
   const StatusDot = ({ status }: { status: ProductStatus }) => {
@@ -1779,13 +1947,13 @@ export default function TemplateMode({
     <div className="flex flex-1 min-h-0 overflow-hidden animate-fade-in">
 
       {/* ══ LEFT SIDEBAR ══════════════════════════════════════════════════════════ */}
-      <aside className="w-72 shrink-0 flex flex-col border-r border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm z-10">
+      <aside className="w-72 shrink-0 flex flex-col border-r border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm z-10" onKeyDown={e => e.stopPropagation()}>
 
         {/* Product navigator */}
         <div className="shrink-0 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { setSelectedId(products[selectedIdx - 1]?.id ?? null); setActiveSlotIdx(0); setActiveIsGallery(false) }}
+              onClick={() => { setSelectedId(products[selectedIdx - 1]?.id ?? null); setActiveSlotIdx(0); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
               disabled={selectedIdx <= 0}
               className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
             >
@@ -1808,7 +1976,7 @@ export default function TemplateMode({
               )}
             </div>
             <button
-              onClick={() => { setSelectedId(products[selectedIdx + 1]?.id ?? null); setActiveSlotIdx(0); setActiveIsGallery(false) }}
+              onClick={() => { setSelectedId(products[selectedIdx + 1]?.id ?? null); setActiveSlotIdx(0); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
               disabled={selectedIdx >= products.length - 1 || !selected}
               className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
             >
@@ -1848,7 +2016,7 @@ export default function TemplateMode({
                   style={{ opacity: aplusDragIdx === idx ? 0.35 : 1 }}
                 >
                   <button
-                    onClick={() => { setActiveSlotIdx(idx); setActiveIsGallery(false) }}
+                    onClick={() => { setActiveSlotIdx(idx); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
                     className={`flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all cursor-grab active:cursor-grabbing ${
                       !activeIsGallery && idx === activeSlotIdx
                         ? 'bg-accent-600 text-white'
@@ -1883,9 +2051,11 @@ export default function TemplateMode({
               )}
             </div>
           </div>}
-          {/* Gallery slots */}
+          {/* Gallery tabs — Amazon Gallery (always shown for Amazon) or Shopify project gallery */}
           <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">Gallery</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">
+              {!isShopify ? 'Amazon Gallery' : 'Gallery'}
+            </p>
             <div className="flex gap-1 flex-wrap">
               {galleryConfigs.slice(0, galleryCount).map((_, idx) => (
                 <div
@@ -1899,7 +2069,7 @@ export default function TemplateMode({
                   style={{ opacity: galleryDragIdx === idx ? 0.35 : 1 }}
                 >
                   <button
-                    onClick={() => { setActiveGalleryIdx(idx); setActiveIsGallery(true) }}
+                    onClick={() => { setActiveGalleryIdx(idx); setActiveIsGallery(true); setActiveIsShopifyGallery(false) }}
                     className={`flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all cursor-grab active:cursor-grabbing ${
                       activeIsGallery && idx === activeGalleryIdx
                         ? 'bg-accent-600 text-white'
@@ -1934,6 +2104,43 @@ export default function TemplateMode({
               )}
             </div>
           </div>
+
+          {/* Shopify Gallery tabs — Amazon only, toggle-controlled */}
+          {showShopifyGallery && (
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+                <p className="text-[9px] font-bold uppercase tracking-widest text-green-600 dark:text-green-500">Shopify Gallery</p>
+              </div>
+              <div className="flex gap-1 flex-wrap">
+                {galleryConfigs.slice(0, galleryCount).map((_, idx) => (
+                    <div
+                      key={idx}
+                      className="relative group"
+                      draggable
+                      onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setShopifyDragIdx(idx) }}
+                      onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setShopifyDragOver(idx) }}
+                      onDrop={e => { e.preventDefault(); if (shopifyDragIdx !== null) { /* reorder if needed */ } setShopifyDragIdx(null); setShopifyDragOver(null) }}
+                      onDragEnd={() => { setShopifyDragIdx(null); setShopifyDragOver(null) }}
+                      style={{ opacity: shopifyDragIdx === idx ? 0.35 : 1 }}
+                    >
+                      <button
+                        onClick={() => { setActiveShopifyGalleryIdx(idx); setActiveIsShopifyGallery(true); setActiveIsGallery(false) }}
+                        className={`relative flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                          activeIsShopifyGallery && idx === activeShopifyGalleryIdx
+                            ? 'bg-green-600 text-white'
+                            : shopifyDragOver === idx && shopifyDragIdx !== idx
+                            ? 'bg-green-100 dark:bg-green-900/50 text-green-700 ring-1 ring-green-400'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {shopifyGalleryLabel(idx)}
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Scrollable sections */}
@@ -1945,7 +2152,7 @@ export default function TemplateMode({
               <p className="text-[11px] text-gray-400 text-center py-2">Select a product</p>
             ) : (
               <div className="space-y-3">
-                {/* Gallery template switcher */}
+                {/* Gallery template switcher — Amazon Gallery */}
                 {activeIsGallery && (
                   <div>
                     <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Template</label>
@@ -1978,7 +2185,7 @@ export default function TemplateMode({
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Description</label>
                       {/* Mobile description toggle — only for A+ icons-text slots */}
-                      {!activeIsGallery && activeCfgAplus.template === 'icons-text' && (
+                      {!activeIsGallery && !activeIsShopifyGallery && activeCfgAplus.template === 'icons-text' && (
                         <div className="flex items-center gap-1.5">
                           <span className="text-[9px] text-gray-400 dark:text-gray-500">Mobile</span>
                           <button
@@ -1999,11 +2206,11 @@ export default function TemplateMode({
                   </div>
                 )}
 
-                {/* Icon labels (icons slots) */}
+                {/* Icon callouts — combined picker + label */}
                 {isIconsSlot && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Icon Labels</label>
+                      <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Icon Callouts</label>
                       <div className="flex gap-1">
                         {([2, 3, 4] as const).map(n => (
                           <button key={n} onClick={() => patchActive({ iconCount: n })}
@@ -2012,17 +2219,60 @@ export default function TemplateMode({
                         ))}
                       </div>
                     </div>
-                    {Array.from({ length: activeSlot.iconCount }, (_, i) => (
-                      <input key={i} type="text" value={activeSlot.iconLabels[i]}
-                        onChange={e => {
-                          const next = [...activeSlot.iconLabels] as [string, string, string, string]
-                          next[i] = e.target.value
-                          patchActive({ iconLabels: next })
-                        }}
-                        placeholder={`Icon ${i + 1} label…`}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 transition-all"
-                      />
-                    ))}
+                    {!folderConfig.iconsAlbumId && (
+                      <p className="text-[10px] text-amber-600 dark:text-amber-500">Configure an icons folder in Settings ⚙</p>
+                    )}
+                    <div className="space-y-1.5">
+                      {Array.from({ length: activeSlot.iconCount }, (_, i) => {
+                        const iconAsset = activeSlot.iconAssets[i]
+                        return (
+                          <div key={i} className="flex items-center gap-1.5">
+                            {iconAsset ? (
+                              <button
+                                onClick={() => { setIconPickerSlotIdx(i); setIconPickerOpen(true) }}
+                                title="Change icon"
+                                className="w-7 h-7 rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 overflow-hidden shrink-0 flex items-center justify-center hover:border-gray-400 transition-colors"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={iconAsset.url} alt={iconAsset.name} className="max-w-full max-h-full object-contain p-0.5" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => { setIconPickerSlotIdx(i); setIconPickerOpen(true) }}
+                                disabled={!folderConfig.iconsAlbumId}
+                                title="Pick icon"
+                                className="w-7 h-7 rounded border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 flex items-center justify-center transition-all"
+                              >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                              </button>
+                            )}
+                            <input
+                              type="text"
+                              value={activeSlot.iconLabels[i]}
+                              onChange={e => {
+                                const next = [...activeSlot.iconLabels] as [string, string, string, string]
+                                next[i] = e.target.value
+                                patchActive({ iconLabels: next })
+                              }}
+                              placeholder={`Callout ${i + 1}…`}
+                              className="flex-1 min-w-0 px-2.5 py-1.5 text-[11px] border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 transition-all"
+                            />
+                            {iconAsset && (
+                              <button
+                                onClick={() => {
+                                  const newIcons = [...activeSlot.iconAssets] as (UploadedAsset | undefined)[]
+                                  newIcons[i] = undefined
+                                  patchActive({ iconAssets: newIcons })
+                                }}
+                                className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0"
+                              >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -2066,51 +2316,6 @@ export default function TemplateMode({
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Brand Logo</p>
                   <TexturePicker albumId="QH34D" value={logoAsset} onChange={asset => setLogoAsset(asset)} placeholder="Pick logo…" thumbnailFit="contain" />
                 </div>
-                {isIconsSlot && (
-                  <div>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Icons</p>
-                    {!folderConfig.iconsAlbumId && (
-                      <p className="text-[10px] text-amber-600 dark:text-amber-500 mb-2">Configure an icons folder in Settings ⚙</p>
-                    )}
-                    <div className="space-y-1.5">
-                      {Array.from({ length: activeSlot.iconCount }, (_, i) => {
-                        const iconAsset = activeSlot.iconAssets[i]
-                        const iconLabel = activeSlot.iconLabels[i]
-                        return (
-                          <div key={i} className="flex items-center gap-2">
-                            <span className="text-[9px] font-semibold text-gray-400 w-12 shrink-0 truncate" title={iconLabel}>{iconLabel || `Icon ${i + 1}`}</span>
-                            <div className="flex-1 flex items-center gap-1.5">
-                              {iconAsset ? (
-                                <>
-                                  <div className="w-8 h-8 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center overflow-hidden shrink-0">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={iconAsset.url} alt={iconAsset.name} className="max-w-full max-h-full object-contain p-0.5" />
-                                  </div>
-                                  <button onClick={() => { setIconPickerSlotIdx(i); setIconPickerOpen(true) }} className="flex-1 text-left text-[10px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 truncate transition-colors" title={iconAsset.name}>{iconAsset.name}</button>
-                                  <button onClick={() => {
-                                      const newIcons = [...activeSlot.iconAssets] as (UploadedAsset | undefined)[]
-                                      newIcons[i] = undefined
-                                      patchActive({ iconAssets: newIcons })
-                                    }}
-                                    className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                  </button>
-                                </>
-                              ) : (
-                                <button onClick={() => { setIconPickerSlotIdx(i); setIconPickerOpen(true) }}
-                                  disabled={!folderConfig.iconsAlbumId}
-                                  className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-                                  <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                                  Pick icon
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </Section>
@@ -2130,8 +2335,25 @@ export default function TemplateMode({
                 </div>
               </div>}
 
+              {/* Shopify Gallery toggle — Amazon only */}
+              {!isShopify && (
+                <div>
+                  <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Shopify Gallery</label>
+                  <div className="flex gap-1">
+                    <button onClick={() => setIncludeGallery(true)}
+                      className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${includeGallery ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                      On
+                    </button>
+                    <button onClick={() => setIncludeGallery(false)}
+                      className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${!includeGallery ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                      Off
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Gallery Slides stepper */}
-              <div>
+              {<div>
                 <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Gallery Slides</label>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => setGalleryCount(n => Math.max(0, n - 1))}
@@ -2140,7 +2362,7 @@ export default function TemplateMode({
                   <button onClick={() => setGalleryCount(n => Math.min(10, n + 1))}
                     className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors font-bold">+</button>
                 </div>
-              </div>
+              </div>}
 
               {/* Output format */}
               <div>
@@ -2231,9 +2453,9 @@ export default function TemplateMode({
                     const flip     = cfg.template === '5050-left'
                     const sd       = buildSlotDesign(selected.id, slotIdx)
 
-                    const activeOutline  = '2px solid #af3939'
-                    const activeShadow   = '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
-                    const inactiveOutline= '2px solid transparent'
+                    const activeOutline  = `${2/zoom}px solid #2563eb`
+                    const activeShadow   = `0 0 0 ${4/zoom}px rgba(37,99,235,0.10)`
+                    const inactiveOutline= `${2/zoom}px solid transparent`
                     const inactiveShadow = '0 2px 12px rgba(0,0,0,0.10)'
 
                     return (
@@ -2241,7 +2463,7 @@ export default function TemplateMode({
                         {/* Slot header — left anchor: label + template picker; right anchor: resolution + delete */}
                         <div style={{ height: `${28/zoom}px`, position: 'relative', marginBottom: `${8/zoom}px` }}>
                           <div style={{ position: 'absolute', top: 0, left: 0, display: 'flex', alignItems: 'center', gap: 8, transform: `scale(${1/zoom})`, transformOrigin: 'top left' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#af3939' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#2563eb' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
                               {slotLabel(slotIdx)}
                             </span>
                             {(() => {
@@ -2281,6 +2503,7 @@ export default function TemplateMode({
                                     setSlotConfigs(prev => prev.map((c, i) => i === slotIdx ? { template: t } : c))
                                     setActiveSlotIdx(slotIdx)
                                     setActiveIsGallery(false)
+                                    setActiveIsShopifyGallery(false)
                                   }}
                                   title={APLUS_LABELS[t]}
                                   style={{
@@ -2315,15 +2538,15 @@ export default function TemplateMode({
 
                         {/* Desktop + Mobile frames */}
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
-                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false) }}
-                            style={{ width: 1464, height: 600, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
+                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
+                            style={{ width: 1464, height: 600, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                             {isIcons
                               ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
                               : <CanvasContent      design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
                             }
                           </div>
-                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false) }}
-                            style={{ width: 600, height: 450, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
+                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
+                            style={{ width: 600, height: 450, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                             {isIcons
                               ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
                               : <CanvasContent      design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
@@ -2335,7 +2558,7 @@ export default function TemplateMode({
                   })}
                 </div>}
 
-                {/* ── Right: Gallery slides ── */}
+                {/* ── Amazon Gallery column (always shown for Amazon; gallery for Shopify project) ── */}
                 {galleryCount > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: SLOT_GAP }}>
                     {/* Column label */}
@@ -2345,9 +2568,9 @@ export default function TemplateMode({
                         const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
                         const gd       = buildGallerySlotDesign(selected.id, gIdx)
 
-                        const activeOutline  = '2px solid #af3939'
-                        const activeShadow   = '0 0 0 4px rgba(59,130,246,0.15), 0 4px 24px rgba(0,0,0,0.18)'
-                        const inactiveOutline= '2px solid transparent'
+                        const activeOutline  = `${2/zoom}px solid #2563eb`
+                        const activeShadow   = `0 0 0 ${4/zoom}px rgba(37,99,235,0.10)`
+                        const inactiveOutline= `${2/zoom}px solid transparent`
                         const inactiveShadow = '0 2px 12px rgba(0,0,0,0.10)'
 
                         return (
@@ -2355,7 +2578,7 @@ export default function TemplateMode({
                             {/* Gallery slot header — left anchor: label + picker; right anchor: resolution + delete */}
                             <div style={{ height: `${28/zoom}px`, position: 'relative', marginBottom: `${8/zoom}px` }}>
                               <div style={{ position: 'absolute', top: 0, left: 0, display: 'flex', alignItems: 'center', gap: 8, transform: `scale(${1/zoom})`, transformOrigin: 'top left' }}>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#af3939' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#2563eb' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
                                   {galleryLabel(gIdx)}
                                 </span>
                                 {(() => {
@@ -2395,6 +2618,7 @@ export default function TemplateMode({
                                         setGalleryConfigs(prev => prev.map((c, i) => i === gIdx ? { template: t } : c))
                                         setActiveGalleryIdx(gIdx)
                                         setActiveIsGallery(true)
+                                        setActiveIsShopifyGallery(false)
                                       }}
                                       title={GALLERY_LABELS[t]}
                                       style={{
@@ -2428,8 +2652,49 @@ export default function TemplateMode({
                             </div>
 
                             {/* Gallery frame */}
-                            <div onClick={() => { setActiveGalleryIdx(gIdx); setActiveIsGallery(true) }}
-                              style={{ width: 1500, height: 1500, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
+                            <div onClick={() => { setActiveGalleryIdx(gIdx); setActiveIsGallery(true); setActiveIsShopifyGallery(false) }}
+                              style={{ width: 1500, height: 1500, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
+                              {isGIcons
+                                ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
+                                : <CanvasContentGallery      design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
+                              }
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Shopify Gallery column — Amazon only, toggle-controlled ── */}
+                {showShopifyGallery && galleryCount > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: SLOT_GAP }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: SLOT_GAP }}>
+                      {galleryConfigs.slice(0, galleryCount).map((cfg, gIdx) => {
+                        const isActive   = activeIsShopifyGallery && gIdx === activeShopifyGalleryIdx
+                        const isGIcons   = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
+                        const gd         = buildShopifyGallerySlotDesign(selected.id, gIdx)
+
+                        const activeOutline  = `${2/zoom}px solid #2563eb`
+                        const activeShadow   = `0 0 0 ${4/zoom}px rgba(37,99,235,0.10)`
+                        const inactiveOutline= `${2/zoom}px solid transparent`
+                        const inactiveShadow = '0 2px 12px rgba(0,0,0,0.10)'
+
+                        return (
+                          <div key={gIdx}>
+                            <div style={{ height: `${28/zoom}px`, position: 'relative', marginBottom: `${8/zoom}px` }}>
+                              <div style={{ position: 'absolute', top: 0, left: 0, display: 'flex', alignItems: 'center', gap: 8, transform: `scale(${1/zoom})`, transformOrigin: 'top left' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: isActive ? '#2563eb' : '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', userSelect: 'none' }}>
+                                    {shopifyGalleryLabel(gIdx)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            {/* Shopify Gallery frame */}
+                            <div onClick={() => { setActiveShopifyGalleryIdx(gIdx); setActiveIsShopifyGallery(true); setActiveIsGallery(false) }}
+                              style={{ width: 1500, height: 1500, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                               {isGIcons
                                 ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
                                 : <CanvasContentGallery      design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
@@ -2468,8 +2733,9 @@ export default function TemplateMode({
         onSelect={(pick: PhotoPick) => {
           if (!selected) return
           const asset: UploadedAsset = { id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }
-          if (activeIsGallery) patchGallerySlotState(selected.id, activeGalleryIdx, { photoAsset: asset })
-          else                 patchSlotState(selected.id, activeSlotIdx, { photoAsset: asset })
+          if (activeIsShopifyGallery)    patchGallerySlotState(selected.id, activeShopifyGalleryIdx, { photoAsset: asset })
+          else if (activeIsGallery)      patchGallerySlotState(selected.id, activeGalleryIdx, { photoAsset: asset })
+          else                           patchSlotState(selected.id, activeSlotIdx, { photoAsset: asset })
         }}
       />
       <CantoIconPickerModal
@@ -2481,8 +2747,9 @@ export default function TemplateMode({
           if (!selected) return
           const newIcons = [...activeSlot.iconAssets] as (UploadedAsset | undefined)[]
           newIcons[iconPickerSlotIdx] = { id: pick.id, name: pick.name, url: pick.originalUrl ?? pick.previewUrl ?? '', type: 'image' }
-          if (activeIsGallery) patchGallerySlotState(selected.id, activeGalleryIdx, { iconAssets: newIcons })
-          else                 patchSlotState(selected.id, activeSlotIdx, { iconAssets: newIcons })
+          if (activeIsShopifyGallery)    patchGallerySlotState(selected.id, activeShopifyGalleryIdx, { iconAssets: newIcons })
+          else if (activeIsGallery)      patchGallerySlotState(selected.id, activeGalleryIdx, { iconAssets: newIcons })
+          else                           patchSlotState(selected.id, activeSlotIdx, { iconAssets: newIcons })
         }}
       />
 
@@ -2493,6 +2760,8 @@ export default function TemplateMode({
         onClose={() => setPreviewOpen(false)}
         aplusDesigns={aplusPreviewDesigns}
         galleryDesigns={galleryPreviewDesigns}
+        shopifyGalleryDesigns={shopifyPreviewDesigns}
+        showShopifyGallery={showShopifyGallery}
         designState={designState}
       />
 
@@ -2555,7 +2824,7 @@ export default function TemplateMode({
       <CsvEditorModal
         open={csvEditorOpen}
         onClose={() => setCsvEditorOpen(false)}
-        initialCsv={rawCsv || (parseResult ? productsToCSV(parseResult.products, aplusSlots, galleryCount) : '')}
+        initialCsv={parseResult ? buildLiveCsv(parseResult.products, allSlots, allGallerySlots, aplusSlots, galleryCount) : ''}
         aplusSlots={aplusSlots}
         galleryCount={galleryCount}
         platform={platform}

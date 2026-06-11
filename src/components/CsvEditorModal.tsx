@@ -13,6 +13,7 @@ interface EditorSlot {
 }
 
 interface EditorProduct {
+  id: string
   sku: string
   productName: string
   slots: EditorSlot[]
@@ -30,6 +31,7 @@ function makeEmptySlot(): EditorSlot {
 
 function makeEmptyProduct(aplusSlots: number, galleryCount: number): EditorProduct {
   return {
+    id: '',
     sku: '',
     productName: '',
     slots: Array.from({ length: aplusSlots }, makeEmptySlot),
@@ -39,6 +41,7 @@ function makeEmptyProduct(aplusSlots: number, galleryCount: number): EditorProdu
 
 function fromBulkProducts(products: BulkProduct[], aplusSlots: number, galleryCount: number): EditorProduct[] {
   return products.map(p => ({
+    id: p.id,
     sku: p.sku,
     productName: p.productName,
     slots: Array.from({ length: aplusSlots }, (_, j) => ({
@@ -56,7 +59,7 @@ function fromBulkProducts(products: BulkProduct[], aplusSlots: number, galleryCo
 
 function editorRowsToBulk(rows: EditorProduct[]): BulkProduct[] {
   return rows.map((r, idx) => ({
-    id: `${r.sku || `row-${idx + 1}`}-${idx}`,
+    id: r.id || `${r.sku || `row-${idx + 1}`}-${idx}`,
     sku: r.sku || `row-${idx + 1}`,
     productName: r.productName,
     photos: [],
@@ -75,7 +78,7 @@ interface Props {
   aplusSlots: number
   galleryCount: number
   platform?: 'amazon' | 'shopify'
-  onApply: (csvText: string, result: ParseResult) => void
+  onApply: (csvText: string, result: ParseResult, aplusSlots: number, galleryCount: number) => void
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -150,7 +153,8 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
     const bulk    = editorRowsToBulk(rows)
     const csvText = productsToCSV(bulk, aplusSlots, galleryCount)
     const result  = parseCSV(csvText, { requireSku: false, shopify: isShopify })
-    onApply(csvText, result)
+    if (result.products.length === 0) return
+    onApply(csvText, result, aplusSlots, galleryCount)
     handleClose()
   }
 

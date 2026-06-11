@@ -140,6 +140,8 @@ export interface TemplateShareState {
   galleryConfigs: TemplateShareGalleryConfig[]
   aplusSlots: number
   galleryCount: number
+  includeGallery?: boolean
+  shopifyGalleryConfigs?: TemplateShareGalleryConfig[]
   logoAsset: UploadedAsset | null
   textureAsset: UploadedAsset | null
   productNames?: Record<string, string>

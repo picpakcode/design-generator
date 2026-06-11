@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -339,6 +340,16 @@ export default function FeedbackPanel({ projectId, user, isOpen, onClose, onUnre
     document.addEventListener('visibilitychange', onVisibility)
     return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
   }, [isOpen, load])
+
+  // Instant refresh when a reviewer posts a comment or approval in the share view
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`feedback-${projectId}`)
+      .on('broadcast' as const, { event: 'updated' }, () => { load() })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [projectId, load])
 
   // Compute unread count (comments since last read, reviewer only)
   useEffect(() => {
