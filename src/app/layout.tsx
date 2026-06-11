@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter, Anton } from 'next/font/google'
 import './globals.css'
 import { AuthProvider } from '@/hooks/useAuth'
+import { ViewTransitionInterceptor } from '@/components/ViewTransitions'
 
 const inter = Inter({ subsets: ['latin'] })
 const anton = Anton({ weight: '400', subsets: ['latin'], variable: '--font-anton' })
@@ -35,6 +36,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.className} ${anton.variable} min-h-screen bg-gray-50 dark:bg-gray-950`}>
         <AuthProvider>
+          <ViewTransitionInterceptor />
           {children}
         </AuthProvider>
       </body>
