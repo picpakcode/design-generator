@@ -32,7 +32,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useTransitionRouter } from '@/components/ViewTransitions'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -297,7 +297,7 @@ function DeleteConfirmModal({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const router = useTransitionRouter()
+  const router = useRouter()
   const { user, loading: authLoading, signOut } = useAuth()
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [projects, setProjects] = useState<ProjectRow[]>([])
@@ -325,6 +325,7 @@ export default function Dashboard() {
   const [platformPickerOpen, setPlatformPickerOpen] = useState(false)
   const platformPickerRef = useRef<HTMLDivElement>(null)
   const [newProjectHovered, setNewProjectHovered] = useState(false)
+  const [hoveredPlatform, setHoveredPlatform] = useState<'amazon' | 'shopify' | null>(null)
 
   const supabase = createClient()
 
@@ -686,105 +687,148 @@ export default function Dashboard() {
               {/* New project card */}
               <div
                 onMouseEnter={() => { if (!creating && user) setNewProjectHovered(true) }}
-                onMouseLeave={() => setNewProjectHovered(false)}
-                className="relative aspect-video rounded overflow-hidden select-none"
+                onMouseLeave={() => { setNewProjectHovered(false); setHoveredPlatform(null) }}
+                className="relative flex flex-col rounded overflow-hidden select-none"
                 style={{
                   border: `2px ${newProjectHovered ? 'solid' : 'dashed'} ${newProjectHovered ? '#94A3B8' : '#D1D5DB'}`,
-                  background: newProjectHovered ? '#F8FAFC' : 'white',
-                  transform: newProjectHovered ? 'scale(1.02)' : 'scale(1)',
+                  background: 'white',
+                  transform: newProjectHovered ? 'scale(1.02) translateY(-2px)' : 'scale(1) translateY(0)',
                   boxShadow: newProjectHovered ? '0 8px 24px rgba(0,0,0,0.10)' : 'none',
-                  transition: 'transform 240ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 240ms ease, border-color 180ms ease, background 180ms ease',
+                  transition: 'transform 240ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 240ms ease, border-color 180ms ease',
                   opacity: (!user) ? 0.5 : 1,
                   cursor: creating ? 'default' : 'pointer',
                 }}
               >
-                {/* Creating spinner */}
-                {creating && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-                    <svg className="animate-spin w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                    </svg>
-                  </div>
-                )}
+                {/* Content area — fills to match thumbnail height */}
+                <div className="relative flex-1" style={{ minHeight: 0 }}>
 
-                {/* Default: + icon */}
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  color: '#9CA3AF',
-                  opacity: newProjectHovered ? 0 : 1,
-                  transform: newProjectHovered ? 'scale(0.75) rotate(45deg)' : 'scale(1) rotate(0deg)',
-                  transition: 'opacity 180ms ease, transform 220ms cubic-bezier(0.4,0,0.2,1)',
-                  pointerEvents: 'none',
-                }}>
-                  <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
-                  </svg>
-                  <span style={{ fontSize: 12, fontWeight: 600 }}>New project</span>
-                </div>
-
-                {/* Hover: platform options */}
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  display: 'flex',
-                  pointerEvents: newProjectHovered ? 'auto' : 'none',
-                }}>
-                  {/* Amazon */}
-                  <button
-                    onClick={() => handleNewProject('amazon')}
-                    className="group/opt flex-1 flex flex-col items-center justify-center gap-1.5 border-none outline-none hover:bg-orange-50 transition-colors"
-                    style={{
-                      background: 'transparent', cursor: 'pointer',
-                      opacity: newProjectHovered ? 1 : 0,
-                      transform: newProjectHovered ? 'translateY(0px)' : 'translateY(14px)',
-                      transition: 'opacity 240ms cubic-bezier(0.34,1.56,0.64,1) 30ms, transform 300ms cubic-bezier(0.34,1.56,0.64,1) 30ms, background 150ms',
-                    }}
-                  >
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center group-hover/opt:scale-110 transition-transform"
-                      style={{ background: '#FFF3E0' }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="#FF9900" opacity="0.2"/>
-                        <path d="M6.5 12.5c0 0 1.2 2.5 5.5 2.5s5.5-2.5 5.5-2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
-                        <path d="M15.5 11l2 1.5-2 1.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M8 7.5h8M12 7.5v2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
-                      </svg>
-                    </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1F2937', letterSpacing: '-0.01em' }}>Amazon</span>
-                    <span style={{ fontSize: 9.5, color: '#9CA3AF', fontWeight: 500 }}>A+ &amp; Gallery</span>
-                  </button>
-
-                  {/* Divider */}
+                  {/* Platform half-fills — shown on hover */}
                   <div style={{
-                    width: 1, alignSelf: 'stretch', margin: '10px 0',
-                    background: '#E5E7EB',
-                    opacity: newProjectHovered ? 1 : 0,
-                    transition: 'opacity 200ms ease 80ms',
+                    position: 'absolute', left: 0, top: 0, bottom: 0, width: '50%',
+                    background: '#FFF3E0',
+                    opacity: hoveredPlatform === 'amazon' ? 1 : 0,
+                    transition: 'opacity 140ms ease',
+                    pointerEvents: 'none', zIndex: 0,
+                  }}/>
+                  <div style={{
+                    position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%',
+                    background: '#F0FDF4',
+                    opacity: hoveredPlatform === 'shopify' ? 1 : 0,
+                    transition: 'opacity 140ms ease',
+                    pointerEvents: 'none', zIndex: 0,
                   }}/>
 
-                  {/* Shopify */}
-                  <button
-                    onClick={() => handleNewProject('shopify')}
-                    className="group/opt flex-1 flex flex-col items-center justify-center gap-1.5 border-none outline-none hover:bg-green-50 transition-colors"
-                    style={{
-                      background: 'transparent', cursor: 'pointer',
-                      opacity: newProjectHovered ? 1 : 0,
-                      transform: newProjectHovered ? 'translateY(0px)' : 'translateY(14px)',
-                      transition: 'opacity 240ms cubic-bezier(0.34,1.56,0.64,1) 100ms, transform 300ms cubic-bezier(0.34,1.56,0.64,1) 100ms, background 150ms',
-                    }}
-                  >
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center group-hover/opt:scale-110 transition-transform"
-                      style={{ background: '#F0FDF4' }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                        <path d="M16 7c-.5-1.5-2-2.5-3.5-2.5-1 0-2 .5-2.5 1.5C9.5 7 9 7 9 7L7.5 17.5l9 1.5L18 9c0 0-1.5-.5-2-2z" fill="#96BF48" opacity="0.2"/>
-                        <path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                        <circle cx="9" cy="20" r="1.2" fill="#5A8A3C"/>
-                        <circle cx="15" cy="20" r="1.2" fill="#5A8A3C"/>
+                  {/* Creating spinner */}
+                  {creating && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+                      <svg className="animate-spin w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                       </svg>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1F2937', letterSpacing: '-0.01em' }}>Shopify</span>
-                    <span style={{ fontSize: 9.5, color: '#9CA3AF', fontWeight: 500 }}>Gallery only</span>
-                  </button>
+                  )}
+
+                  {/* Default: + icon */}
+                  <div style={{
+                    position: 'absolute', inset: 0, zIndex: 1,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    color: '#9CA3AF',
+                    opacity: newProjectHovered ? 0 : 1,
+                    transform: newProjectHovered ? 'scale(0.75) rotate(45deg)' : 'scale(1) rotate(0deg)',
+                    transition: 'opacity 180ms ease, transform 220ms cubic-bezier(0.4,0,0.2,1)',
+                    pointerEvents: 'none',
+                  }}>
+                    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
+                    </svg>
+                  </div>
+
+                  {/* Hover: platform options */}
+                  <div style={{
+                    position: 'absolute', inset: 0, zIndex: 1,
+                    display: 'flex',
+                    pointerEvents: newProjectHovered ? 'auto' : 'none',
+                  }}>
+                    {/* Amazon */}
+                    <button
+                      onClick={() => handleNewProject('amazon')}
+                      onMouseEnter={() => setHoveredPlatform('amazon')}
+                      onMouseLeave={() => setHoveredPlatform(null)}
+                      className="flex-1 flex flex-col items-center justify-center gap-1.5 border-none outline-none"
+                      style={{
+                        background: 'transparent', cursor: 'pointer',
+                        opacity: newProjectHovered ? 1 : 0,
+                        transform: newProjectHovered ? 'translateY(0px)' : 'translateY(14px)',
+                        transition: 'opacity 240ms cubic-bezier(0.34,1.56,0.64,1) 30ms, transform 300ms cubic-bezier(0.34,1.56,0.64,1) 30ms',
+                      }}
+                    >
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center transition-transform"
+                        style={{
+                          background: hoveredPlatform === 'amazon' ? '#FFE0B2' : '#FFF3E0',
+                          transform: hoveredPlatform === 'amazon' ? 'scale(1.12)' : 'scale(1)',
+                          transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), background 140ms ease',
+                        }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="#FF9900" opacity="0.2"/>
+                          <path d="M6.5 12.5c0 0 1.2 2.5 5.5 2.5s5.5-2.5 5.5-2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
+                          <path d="M15.5 11l2 1.5-2 1.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M8 7.5h8M12 7.5v2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
+                        </svg>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#1F2937', letterSpacing: '-0.01em' }}>Amazon</span>
+                      <span style={{ fontSize: 9.5, color: '#9CA3AF', fontWeight: 500 }}>A+ &amp; Gallery</span>
+                    </button>
+
+                    {/* Divider */}
+                    <div style={{
+                      width: 1, alignSelf: 'stretch', margin: '10px 0',
+                      background: '#E5E7EB',
+                      opacity: newProjectHovered ? 1 : 0,
+                      transition: 'opacity 200ms ease 80ms',
+                    }}/>
+
+                    {/* Shopify */}
+                    <button
+                      onClick={() => handleNewProject('shopify')}
+                      onMouseEnter={() => setHoveredPlatform('shopify')}
+                      onMouseLeave={() => setHoveredPlatform(null)}
+                      className="flex-1 flex flex-col items-center justify-center gap-1.5 border-none outline-none"
+                      style={{
+                        background: 'transparent', cursor: 'pointer',
+                        opacity: newProjectHovered ? 1 : 0,
+                        transform: newProjectHovered ? 'translateY(0px)' : 'translateY(14px)',
+                        transition: 'opacity 240ms cubic-bezier(0.34,1.56,0.64,1) 100ms, transform 300ms cubic-bezier(0.34,1.56,0.64,1) 100ms',
+                      }}
+                    >
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                        style={{
+                          background: hoveredPlatform === 'shopify' ? '#BBDFC8' : '#F0FDF4',
+                          transform: hoveredPlatform === 'shopify' ? 'scale(1.12)' : 'scale(1)',
+                          transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), background 140ms ease',
+                        }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                          <path d="M16 7c-.5-1.5-2-2.5-3.5-2.5-1 0-2 .5-2.5 1.5C9.5 7 9 7 9 7L7.5 17.5l9 1.5L18 9c0 0-1.5-.5-2-2z" fill="#96BF48" opacity="0.2"/>
+                          <path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                          <circle cx="9" cy="20" r="1.2" fill="#5A8A3C"/>
+                          <circle cx="15" cy="20" r="1.2" fill="#5A8A3C"/>
+                        </svg>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#1F2937', letterSpacing: '-0.01em' }}>Shopify</span>
+                      <span style={{ fontSize: 9.5, color: '#9CA3AF', fontWeight: 500 }}>Gallery only</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Footer — height-matches project tile footer */}
+                <div className="px-3 py-2.5 flex items-center" style={{
+                  borderTop: `1px dashed ${newProjectHovered ? '#CBD5E1' : '#E5E7EB'}`,
+                  transition: 'border-color 180ms ease',
+                }}>
+                  <span style={{
+                    fontSize: 13, fontWeight: 600,
+                    color: newProjectHovered ? '#374151' : '#9CA3AF',
+                    transition: 'color 180ms ease',
+                  }}>New project</span>
                 </div>
               </div>
 
@@ -797,7 +841,7 @@ export default function Dashboard() {
                     className={`group relative flex flex-col bg-white dark:bg-gray-900 rounded border transition-all overflow-hidden animate-fade-in ${
                       isSelected
                         ? 'border-accent-400 dark:border-accent-500 ring-2 ring-accent-200 dark:ring-accent-900 shadow-sm'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-px'
                     }`}
                     style={{ animationDelay: `${idx * 40}ms` }}
                   >
