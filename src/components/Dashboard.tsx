@@ -324,6 +324,7 @@ export default function Dashboard() {
   // Platform picker
   const [platformPickerOpen, setPlatformPickerOpen] = useState(false)
   const platformPickerRef = useRef<HTMLDivElement>(null)
+  const [newProjectHovered, setNewProjectHovered] = useState(false)
 
   const supabase = createClient()
 
@@ -683,16 +684,109 @@ export default function Dashboard() {
           {!isLoading && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
               {/* New project card */}
-              <button
-                onClick={() => setPlatformPickerOpen(true)}
-                disabled={creating || !user}
-                className="group flex flex-col items-center justify-center aspect-video rounded border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-gray-500 dark:hover:border-gray-500 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              <div
+                onMouseEnter={() => { if (!creating && user) setNewProjectHovered(true) }}
+                onMouseLeave={() => setNewProjectHovered(false)}
+                className="relative aspect-video rounded overflow-hidden select-none"
+                style={{
+                  border: `2px ${newProjectHovered ? 'solid' : 'dashed'} ${newProjectHovered ? '#94A3B8' : '#D1D5DB'}`,
+                  background: newProjectHovered ? '#F8FAFC' : 'white',
+                  transform: newProjectHovered ? 'scale(1.02)' : 'scale(1)',
+                  boxShadow: newProjectHovered ? '0 8px 24px rgba(0,0,0,0.10)' : 'none',
+                  transition: 'transform 240ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 240ms ease, border-color 180ms ease, background 180ms ease',
+                  opacity: (!user) ? 0.5 : 1,
+                  cursor: creating ? 'default' : 'pointer',
+                }}
               >
-                <svg className="w-8 h-8 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                <span className="text-xs font-semibold">New project</span>
-              </button>
+                {/* Creating spinner */}
+                {creating && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+                    <svg className="animate-spin w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                  </div>
+                )}
+
+                {/* Default: + icon */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  color: '#9CA3AF',
+                  opacity: newProjectHovered ? 0 : 1,
+                  transform: newProjectHovered ? 'scale(0.75) rotate(45deg)' : 'scale(1) rotate(0deg)',
+                  transition: 'opacity 180ms ease, transform 220ms cubic-bezier(0.4,0,0.2,1)',
+                  pointerEvents: 'none',
+                }}>
+                  <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
+                  </svg>
+                  <span style={{ fontSize: 12, fontWeight: 600 }}>New project</span>
+                </div>
+
+                {/* Hover: platform options */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  display: 'flex',
+                  pointerEvents: newProjectHovered ? 'auto' : 'none',
+                }}>
+                  {/* Amazon */}
+                  <button
+                    onClick={() => handleNewProject('amazon')}
+                    className="group/opt flex-1 flex flex-col items-center justify-center gap-1.5 border-none outline-none hover:bg-orange-50 transition-colors"
+                    style={{
+                      background: 'transparent', cursor: 'pointer',
+                      opacity: newProjectHovered ? 1 : 0,
+                      transform: newProjectHovered ? 'translateY(0px)' : 'translateY(14px)',
+                      transition: 'opacity 240ms cubic-bezier(0.34,1.56,0.64,1) 30ms, transform 300ms cubic-bezier(0.34,1.56,0.64,1) 30ms, background 150ms',
+                    }}
+                  >
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center group-hover/opt:scale-110 transition-transform"
+                      style={{ background: '#FFF3E0' }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="#FF9900" opacity="0.2"/>
+                        <path d="M6.5 12.5c0 0 1.2 2.5 5.5 2.5s5.5-2.5 5.5-2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
+                        <path d="M15.5 11l2 1.5-2 1.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M8 7.5h8M12 7.5v2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1F2937', letterSpacing: '-0.01em' }}>Amazon</span>
+                    <span style={{ fontSize: 9.5, color: '#9CA3AF', fontWeight: 500 }}>A+ &amp; Gallery</span>
+                  </button>
+
+                  {/* Divider */}
+                  <div style={{
+                    width: 1, alignSelf: 'stretch', margin: '10px 0',
+                    background: '#E5E7EB',
+                    opacity: newProjectHovered ? 1 : 0,
+                    transition: 'opacity 200ms ease 80ms',
+                  }}/>
+
+                  {/* Shopify */}
+                  <button
+                    onClick={() => handleNewProject('shopify')}
+                    className="group/opt flex-1 flex flex-col items-center justify-center gap-1.5 border-none outline-none hover:bg-green-50 transition-colors"
+                    style={{
+                      background: 'transparent', cursor: 'pointer',
+                      opacity: newProjectHovered ? 1 : 0,
+                      transform: newProjectHovered ? 'translateY(0px)' : 'translateY(14px)',
+                      transition: 'opacity 240ms cubic-bezier(0.34,1.56,0.64,1) 100ms, transform 300ms cubic-bezier(0.34,1.56,0.64,1) 100ms, background 150ms',
+                    }}
+                  >
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center group-hover/opt:scale-110 transition-transform"
+                      style={{ background: '#F0FDF4' }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path d="M16 7c-.5-1.5-2-2.5-3.5-2.5-1 0-2 .5-2.5 1.5C9.5 7 9 7 9 7L7.5 17.5l9 1.5L18 9c0 0-1.5-.5-2-2z" fill="#96BF48" opacity="0.2"/>
+                        <path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="9" cy="20" r="1.2" fill="#5A8A3C"/>
+                        <circle cx="15" cy="20" r="1.2" fill="#5A8A3C"/>
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1F2937', letterSpacing: '-0.01em' }}>Shopify</span>
+                    <span style={{ fontSize: 9.5, color: '#9CA3AF', fontWeight: 500 }}>Gallery only</span>
+                  </button>
+                </div>
+              </div>
 
               {/* Project cards */}
               {projects.map((project, idx) => {
