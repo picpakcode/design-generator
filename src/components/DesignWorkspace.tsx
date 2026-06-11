@@ -303,6 +303,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const defaultLogoRef = useRef<UploadedAsset | null>(null)
 
   const [projectName, setProjectName] = useState<string>('')
+  const [projectType, setProjectType] = useState<'amazon' | 'shopify'>('amazon')
   const [isRenamingProject, setIsRenamingProject] = useState(false)
   const [projectNameDraft, setProjectNameDraft] = useState('')
   const projectNameInputRef = useRef<HTMLInputElement>(null)
@@ -516,6 +517,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     loadProject(supabase, projectId).then(async project => {
       if (!project) return
       setProjectName(project.name)
+      setProjectType(project.project_type ?? 'amazon')
       const state = migrateLoadedState(project.state)
       // Restore local-upload blobs from IDB; external CDN URLs (Canto etc.) already saved
       const blocks = await Promise.all(
@@ -1935,6 +1937,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       <div className={appMode === 'template' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}>
         <TemplateMode
           projectId={projectId}
+          platform={projectType}
           designState={design}
           folderConfig={folderConfig}
           exportFnRef={templateExportFnRef}

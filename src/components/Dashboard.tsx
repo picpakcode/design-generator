@@ -321,6 +321,10 @@ export default function Dashboard() {
   const [deleteTarget, setDeleteTarget] = useState<string[] | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Platform picker
+  const [platformPickerOpen, setPlatformPickerOpen] = useState(false)
+  const platformPickerRef = useRef<HTMLDivElement>(null)
+
   const supabase = createClient()
 
   useEffect(() => {
@@ -339,6 +343,15 @@ export default function Dashboard() {
     }
   }, [renamingId])
 
+  useEffect(() => {
+    if (!platformPickerOpen) return
+    const handler = (e: MouseEvent) => {
+      if (!platformPickerRef.current?.contains(e.target as Node)) setPlatformPickerOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [platformPickerOpen])
+
   // ── Selection helpers ──────────────────────────────────────────────────────
 
   const toggleSelect = (id: string) => {
@@ -355,12 +368,13 @@ export default function Dashboard() {
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
-  const handleNewProject = async () => {
+  const handleNewProject = async (platform: 'amazon' | 'shopify') => {
     if (!user || creating) return
+    setPlatformPickerOpen(false)
     setCreating(true)
     setCreateError(null)
     try {
-      const id = await createProject(supabase, user.id, 'Untitled', EMPTY_PROJECT_STATE)
+      const id = await createProject(supabase, user.id, 'Untitled', EMPTY_PROJECT_STATE, platform)
       if (id) {
         router.push(`/project/${id}`)
       } else {
@@ -500,16 +514,94 @@ export default function Dashboard() {
           {/* Title row */}
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">Projects</h1>
-            <button
-              onClick={handleNewProject}
-              disabled={creating || !user}
-              className="flex items-center gap-1.5 h-9 px-4 rounded bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              New Project
-            </button>
+            <div ref={platformPickerRef} className="relative">
+              <button
+                onClick={() => setPlatformPickerOpen(o => !o)}
+                disabled={creating || !user}
+                className="flex items-center gap-1.5 h-9 px-4 rounded bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {creating ? (
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                )}
+                New Project
+              </button>
+
+              {/* Platform picker dropdown */}
+              {platformPickerOpen && (
+                <div className="absolute right-0 top-full mt-2 z-50 w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden animate-scale-in">
+                  <div className="px-3 pt-3 pb-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-2.5">Choose platform</p>
+                    <div className="space-y-1.5">
+
+                      {/* Amazon */}
+                      <button
+                        onClick={() => handleNewProject('amazon')}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group text-left"
+                      >
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#FFF3E0' }}>
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="#FF9900" opacity="0.15"/>
+                            <path d="M7 12h10M12 7l5 5-5 5" stroke="#FF9900" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-bold text-gray-900 dark:text-white">Amazon</p>
+                          <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">A+ Content &amp; Gallery images</p>
+                        </div>
+                        <svg className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+
+                      {/* Shopify */}
+                      <button
+                        onClick={() => handleNewProject('shopify')}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group text-left"
+                      >
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#F0F9EE' }}>
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                            <path d="M16 7c-.5-1.5-2-2.5-3.5-2.5-1 0-2 .5-2.5 1.5C9.5 7 9 7 9 7L7.5 17.5l9 1.5L18 9c0 0-1.5-.5-2-2z" fill="#96BF48" opacity="0.15"/>
+                            <path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <circle cx="9" cy="20" r="1.5" fill="#5A8A3C"/>
+                            <circle cx="15" cy="20" r="1.5" fill="#5A8A3C"/>
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-bold text-gray-900 dark:text-white">Shopify</p>
+                          <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">Gallery images only</p>
+                        </div>
+                        <svg className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+
+                      {/* eBay — disabled */}
+                      <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg opacity-40 cursor-not-allowed">
+                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-gray-100 dark:bg-gray-800">
+                          <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none">
+                            <path d="M3 12c0-2 1.5-3.5 3.5-3.5S10 10 10 12s-1.5 3.5-3.5 3.5S3 14 3 12zM10 12h11M17 8l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-bold text-gray-500 dark:text-gray-400">eBay</p>
+                          <p className="text-[11px] text-gray-400 dark:text-gray-500">Coming soon</p>
+                        </div>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-300 dark:text-gray-600 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 shrink-0">Soon</span>
+                      </div>
+
+                    </div>
+                  </div>
+                  <div className="h-2" />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Selection toolbar */}
@@ -592,7 +684,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
               {/* New project card */}
               <button
-                onClick={handleNewProject}
+                onClick={() => setPlatformPickerOpen(true)}
                 disabled={creating || !user}
                 className="group flex flex-col items-center justify-center aspect-video rounded border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-gray-500 dark:hover:border-gray-500 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -636,7 +728,7 @@ export default function Dashboard() {
                     <a
                       href={isSelectMode ? undefined : `/project/${project.id}`}
                       onClick={isSelectMode ? e => { e.preventDefault(); toggleSelect(project.id) } : undefined}
-                      className="block aspect-video bg-gray-100 dark:bg-gray-800 overflow-hidden"
+                      className="relative block aspect-video bg-gray-100 dark:bg-gray-800 overflow-hidden"
                       tabIndex={0}
                     >
                       {project.thumbnail_url ? (
@@ -654,6 +746,14 @@ export default function Dashboard() {
                           </div>
                         </div>
                       )}
+                      {/* Platform badge */}
+                      <div className={`absolute bottom-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest ${
+                        project.project_type === 'shopify'
+                          ? 'bg-green-600 text-white'
+                          : 'bg-orange-500 text-white'
+                      }`}>
+                        {project.project_type === 'shopify' ? 'Shopify' : 'Amazon'}
+                      </div>
                     </a>
 
                     {/* Card footer */}

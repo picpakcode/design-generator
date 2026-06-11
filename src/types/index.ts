@@ -1,4 +1,4 @@
-export type Platform = 'amazon'
+export type Platform = 'amazon' | 'shopify'
 export type TextTransform = 'none' | 'uppercase' | 'lowercase' | 'capitalize'
 export type LogoCorner = 'tl' | 'tr' | 'bl' | 'br'
 export type Format = 'desktop' | 'mobile'

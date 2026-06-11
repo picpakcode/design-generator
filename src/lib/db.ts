@@ -96,6 +96,7 @@ export interface DbProject {
   user_id: string
   name: string
   state: DesignState
+  project_type: 'amazon' | 'shopify'
   thumbnail_url: string | null
   created_at: string
   updated_at: string
@@ -104,16 +105,16 @@ export interface DbProject {
 export async function listProjects(db: Client, userId: string): Promise<Omit<DbProject, 'state'>[]> {
   const { data } = await db
     .from('projects')
-    .select('id, user_id, name, thumbnail_url, created_at, updated_at')
+    .select('id, user_id, name, project_type, thumbnail_url, created_at, updated_at')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
   return (data ?? []) as Omit<DbProject, 'state'>[]
 }
 
-export async function createProject(db: Client, userId: string, name: string, state: DesignState): Promise<string | null> {
+export async function createProject(db: Client, userId: string, name: string, state: DesignState, projectType: 'amazon' | 'shopify' = 'amazon'): Promise<string | null> {
   const { data, error } = await db
     .from('projects')
-    .insert({ user_id: userId, name, state: stripProjectBlobUrls(state) })
+    .insert({ user_id: userId, name, state: stripProjectBlobUrls(state), project_type: projectType })
     .select('id')
     .single()
   if (error) { console.error('createProject:', error.message); return null }
@@ -123,11 +124,11 @@ export async function createProject(db: Client, userId: string, name: string, st
 export async function loadProject(db: Client, id: string): Promise<DbProject | null> {
   const { data } = await db
     .from('projects')
-    .select('id, user_id, name, state, thumbnail_url, created_at, updated_at')
+    .select('id, user_id, name, state, project_type, thumbnail_url, created_at, updated_at')
     .eq('id', id)
     .single()
   if (!data) return null
-  return { ...data, state: data.state as unknown as DesignState }
+  return { ...data, state: data.state as unknown as DesignState, project_type: (data.project_type ?? 'amazon') as 'amazon' | 'shopify' }
 }
 
 export async function saveProject(db: Client, id: string, state: DesignState): Promise<void> {

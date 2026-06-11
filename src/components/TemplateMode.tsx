@@ -653,6 +653,7 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
 
 interface TemplateModeProps {
   projectId?: string
+  platform?: 'amazon' | 'shopify'
   designState: DesignState
   folderConfig: FolderConfig
   exportFnRef: React.MutableRefObject<() => void>
@@ -693,12 +694,14 @@ function buildNavHash(selectedId: string | null, activeSlotIdx: number, activeIs
 
 export default function TemplateMode({
   projectId,
+  platform = 'amazon',
   designState, folderConfig,
   exportFnRef, exportCurrentFnRef, renderAllFnRef, previewFnRef, thumbnailFnRef,
   onCanExportChange, onCanExportCurrentChange, onRenderingAllChange, onStatsChange,
   blockCommentStatus, onOpenFeedback,
   isDark = false,
 }: TemplateModeProps) {
+  const isShopify = platform === 'shopify'
   // Per-project storage key — isolates state between Dashboard projects
   const storageKey = projectId ? `${STORAGE_KEY}-${projectId}` : STORAGE_KEY
   const storageKeyRef = useRef(storageKey)
@@ -742,7 +745,7 @@ export default function TemplateMode({
   const [statuses, setStatuses] = useState<Record<string, ProductStatus>>({})
 
   // Slot config (global)
-  const [aplusSlots, setAplusSlots]         = useState(typeof sv.aplusSlots === 'number' ? sv.aplusSlots : 5)
+  const [aplusSlots, setAplusSlots]         = useState(typeof sv.aplusSlots === 'number' ? sv.aplusSlots : (isShopify ? 0 : 5))
   const [slotConfigs, setSlotConfigs]       = useState<SlotConfig[]>(Array.isArray(sv.slotConfigs) ? sv.slotConfigs as SlotConfig[] : defaultSlotConfigs(5))
   const [galleryCount, setGalleryCount]     = useState(typeof sv.galleryCount === 'number' ? sv.galleryCount : 2)
   const [galleryConfigs, setGalleryConfigs] = useState<GallerySlotConfig[]>(Array.isArray(sv.galleryConfigs) ? sv.galleryConfigs as GallerySlotConfig[] : defaultGalleryConfigs(2))
@@ -805,11 +808,12 @@ export default function TemplateMode({
     const aplusH  = aplusSlots  * 600  + Math.max(0, aplusSlots  - 1) * SLOT_GAP
     const galH    = galleryCount * 1500 + Math.max(0, galleryCount - 1) * SLOT_GAP
     const totalH  = Math.max(aplusH, galH, 600)
-    const z = Math.min((vw - PADDING * 2) / CANVAS_W, (vh - PADDING * 2) / totalH, 1)
-    const px = Math.max(PADDING, (vw - CANVAS_W * z) / 2)
+    const effectiveW = isShopify ? GALLERY_W : CANVAS_W
+    const z = Math.min((vw - PADDING * 2) / effectiveW, (vh - PADDING * 2) / totalH, 1)
+    const px = Math.max(PADDING, (vw - effectiveW * z) / 2)
     const py = Math.max(PADDING, (vh - totalH * z) / 2)
     zoomRef.current = z; setZoom(z); setPan({ x: px, y: py })
-  }, [aplusSlots, galleryCount])
+  }, [aplusSlots, galleryCount, isShopify])
 
   const adjustZoom = (factor: number) => {
     const el = wrapperRef.current; if (!el) return
@@ -882,7 +886,7 @@ export default function TemplateMode({
   // ── Init ──────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!logoAsset) {
+    if (!isShopify && !logoAsset) {
       fetch(`/api/canto/folder?albumId=${DEFAULT_LOGO_ALBUM}`)
         .then(r => r.json())
         .then((items: { id: string; name: string; previewUrl: string }[]) => {
@@ -1826,8 +1830,8 @@ export default function TemplateMode({
 
         {/* Slot tabs — A+ and Gallery */}
         <div className="shrink-0 px-4 py-3 border-b border-gray-100 dark:border-gray-700 space-y-2.5">
-          {/* A+ slots */}
-          <div>
+          {/* A+ slots — Amazon only */}
+          {!isShopify && <div>
             <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">A+ Slots</p>
             <div className="flex gap-1 flex-wrap">
               {slotConfigs.slice(0, aplusSlots).map((_, idx) => (
@@ -1876,7 +1880,7 @@ export default function TemplateMode({
                 </button>
               )}
             </div>
-          </div>
+          </div>}
           {/* Gallery slots */}
           <div>
             <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">Gallery</p>
@@ -2112,8 +2116,8 @@ export default function TemplateMode({
           {/* Settings — moved from top bar */}
           <Section title="Settings" defaultOpen={false}>
             <div className="space-y-4">
-              {/* A+ Slots stepper */}
-              <div>
+              {/* A+ Slots stepper — Amazon only */}
+              {!isShopify && <div>
                 <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">A+ Slots</label>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => setAplusSlots(n => Math.max(1, n - 1))}
@@ -2122,7 +2126,7 @@ export default function TemplateMode({
                   <button onClick={() => setAplusSlots(n => Math.min(10, n + 1))}
                     className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors font-bold">+</button>
                 </div>
-              </div>
+              </div>}
 
               {/* Gallery Slides stepper */}
               <div>
@@ -2217,8 +2221,8 @@ export default function TemplateMode({
               {/* Two columns: A+ (left) and Gallery (right) */}
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: COL_GAP }}>
 
-                {/* ── Left: A+ slots ── */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: SLOT_GAP }}>
+                {/* ── Left: A+ slots — Amazon only ── */}
+                {!isShopify && <div style={{ display: 'flex', flexDirection: 'column', gap: SLOT_GAP }}>
                   {slotConfigs.slice(0, aplusSlots).map((cfg, slotIdx) => {
                     const isActive = !activeIsGallery && slotIdx === activeSlotIdx
                     const isIcons  = cfg.template === 'icons' || cfg.template === 'icons-text'
@@ -2309,14 +2313,14 @@ export default function TemplateMode({
 
                         {/* Desktop + Mobile frames */}
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
-                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false); const _st = blockCommentStatus?.[`${selected.id}:aplus:${slotIdx}`]; if (_st && (_st.open > 0 || _st.approval)) onOpenFeedback?.() }}
+                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false) }}
                             style={{ width: 1464, height: 600, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                             {isIcons
                               ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
                               : <CanvasContent      design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
                             }
                           </div>
-                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false); const _st = blockCommentStatus?.[`${selected.id}:aplus:${slotIdx}`]; if (_st && (_st.open > 0 || _st.approval)) onOpenFeedback?.() }}
+                          <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false) }}
                             style={{ width: 600, height: 450, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                             {isIcons
                               ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
@@ -2327,7 +2331,7 @@ export default function TemplateMode({
                       </div>
                     )
                   })}
-                </div>
+                </div>}
 
                 {/* ── Right: Gallery slides ── */}
                 {galleryCount > 0 && (
@@ -2422,7 +2426,7 @@ export default function TemplateMode({
                             </div>
 
                             {/* Gallery frame */}
-                            <div onClick={() => { setActiveGalleryIdx(gIdx); setActiveIsGallery(true); const _st = blockCommentStatus?.[`${selected.id}:gallery:${gIdx}`]; if (_st && (_st.open > 0 || _st.approval)) onOpenFeedback?.() }}
+                            <div onClick={() => { setActiveGalleryIdx(gIdx); setActiveIsGallery(true) }}
                               style={{ width: 1500, height: 1500, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 2, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                               {isGIcons
                                 ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
