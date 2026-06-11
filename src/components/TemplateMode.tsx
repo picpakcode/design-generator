@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
@@ -126,6 +126,61 @@ const GALLERY_ICONS: Record<GalleryTemplate, React.ReactNode> = {
       <line x1="9.5" y1="8.5" x2="13.5" y2="8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
     </svg>
   ),
+}
+
+const APLUS_TEMPLATES: SlotTemplate[]     = ['5050-right', '5050-left', 'icons', 'icons-text']
+const GALLERY_TEMPLATES: GalleryTemplate[] = ['gallery-hero', 'gallery-icons', 'gallery-icons-text']
+
+// ─── Animated segmented picker ────────────────────────────────────────────────
+
+function SegmentedPicker<T extends string>({ options, selected, onSelect, labels, icons }: {
+  options: readonly T[]
+  selected: T
+  onSelect: (t: T) => void
+  labels: Record<string, string>
+  icons: Record<string, React.ReactNode>
+}) {
+  const btnRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
+
+  useLayoutEffect(() => {
+    const idx = options.indexOf(selected)
+    const btn = btnRefs.current[idx]
+    if (!btn) return
+    setPill({ left: btn.offsetLeft, width: btn.offsetWidth })
+  }, [selected, options])
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex', gap: 2, background: '#E5E7EB', borderRadius: 5, padding: 2 }}>
+      {pill && (
+        <div style={{
+          position: 'absolute', top: 2, bottom: 2,
+          left: pill.left, width: pill.width,
+          borderRadius: 4, background: '#fff',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+          transition: 'left 160ms cubic-bezier(0.4,0,0.2,1), width 160ms cubic-bezier(0.4,0,0.2,1)',
+          pointerEvents: 'none', zIndex: 0,
+        }} />
+      )}
+      {options.map((t, i) => (
+        <button
+          key={t}
+          ref={el => { btnRefs.current[i] = el }}
+          onClick={e => { e.stopPropagation(); onSelect(t) }}
+          title={labels[t]}
+          style={{
+            padding: '3px 6px', borderRadius: 4, border: 'none',
+            background: 'transparent',
+            color: selected === t ? '#1F2937' : '#9CA3AF',
+            cursor: 'pointer', display: 'flex', alignItems: 'center',
+            position: 'relative', zIndex: 1,
+            transition: 'color 120ms',
+          }}>
+          {icons[t]}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 function slotLabel(i: number)          { return String.fromCharCode(65 + i) + '1' }
@@ -2495,28 +2550,18 @@ export default function TemplateMode({
                                 </>
                               )
                             })()}
-                            <div style={{ display: 'flex', gap: 2, background: '#E5E7EB', borderRadius: 5, padding: 2 }}>
-                              {(['5050-right', '5050-left', 'icons', 'icons-text'] as SlotTemplate[]).map(t => (
-                                <button key={t}
-                                  onClick={e => {
-                                    e.stopPropagation()
-                                    setSlotConfigs(prev => prev.map((c, i) => i === slotIdx ? { template: t } : c))
-                                    setActiveSlotIdx(slotIdx)
-                                    setActiveIsGallery(false)
-                                    setActiveIsShopifyGallery(false)
-                                  }}
-                                  title={APLUS_LABELS[t]}
-                                  style={{
-                                    padding: '3px 6px', borderRadius: 4, border: 'none',
-                                    background: cfg.template === t ? '#fff' : 'transparent',
-                                    color: cfg.template === t ? '#1F2937' : '#9CA3AF',
-                                    boxShadow: cfg.template === t ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
-                                    cursor: 'pointer', display: 'flex', alignItems: 'center',
-                                  }}>
-                                  {APLUS_ICONS[t]}
-                                </button>
-                              ))}
-                            </div>
+                            <SegmentedPicker<SlotTemplate>
+                              options={APLUS_TEMPLATES}
+                              selected={cfg.template}
+                              onSelect={t => {
+                                setSlotConfigs(prev => prev.map((c, i) => i === slotIdx ? { template: t } : c))
+                                setActiveSlotIdx(slotIdx)
+                                setActiveIsGallery(false)
+                                setActiveIsShopifyGallery(false)
+                              }}
+                              labels={APLUS_LABELS}
+                              icons={APLUS_ICONS}
+                            />
                           </div>
                           {aplusSlots > 1 && (
                             <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top right' }}>
@@ -2610,28 +2655,18 @@ export default function TemplateMode({
                                     </>
                                   )
                                 })()}
-                                <div style={{ display: 'flex', gap: 2, background: '#E5E7EB', borderRadius: 5, padding: 2 }}>
-                                  {(['gallery-hero', 'gallery-icons', 'gallery-icons-text'] as GalleryTemplate[]).map(t => (
-                                    <button key={t}
-                                      onClick={e => {
-                                        e.stopPropagation()
-                                        setGalleryConfigs(prev => prev.map((c, i) => i === gIdx ? { template: t } : c))
-                                        setActiveGalleryIdx(gIdx)
-                                        setActiveIsGallery(true)
-                                        setActiveIsShopifyGallery(false)
-                                      }}
-                                      title={GALLERY_LABELS[t]}
-                                      style={{
-                                        padding: '3px 6px', borderRadius: 4, border: 'none',
-                                        background: cfg.template === t ? '#fff' : 'transparent',
-                                        color: cfg.template === t ? '#1F2937' : '#9CA3AF',
-                                        boxShadow: cfg.template === t ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
-                                        cursor: 'pointer', display: 'flex', alignItems: 'center',
-                                      }}>
-                                      {GALLERY_ICONS[t]}
-                                    </button>
-                                  ))}
-                                </div>
+                                <SegmentedPicker<GalleryTemplate>
+                                  options={GALLERY_TEMPLATES}
+                                  selected={cfg.template}
+                                  onSelect={t => {
+                                    setGalleryConfigs(prev => prev.map((c, i) => i === gIdx ? { template: t } : c))
+                                    setActiveGalleryIdx(gIdx)
+                                    setActiveIsGallery(true)
+                                    setActiveIsShopifyGallery(false)
+                                  }}
+                                  labels={GALLERY_LABELS}
+                                  icons={GALLERY_ICONS}
+                                />
                               </div>
                               {galleryCount > 1 && (
                                 <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', alignItems: 'center', transform: `scale(${1/zoom})`, transformOrigin: 'top right' }}>
