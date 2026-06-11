@@ -74,12 +74,14 @@ interface Props {
   initialCsv: string
   aplusSlots: number
   galleryCount: number
+  platform?: 'amazon' | 'shopify'
   onApply: (csvText: string, result: ParseResult) => void
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, galleryCount, onApply }: Props) {
+export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, galleryCount, platform = 'amazon', onApply }: Props) {
+  const isShopify = platform === 'shopify'
   const { settings } = useAppSettings()
   const isDark = settings.theme === 'dark'
 
@@ -92,7 +94,7 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
     if (!open) return
     setClosing(false)
     setMounted(true)
-    const result = parseCSV(initialCsv, { requireSku: false })
+    const result = parseCSV(initialCsv, { requireSku: false, shopify: isShopify })
     if (result.products.length > 0) {
       setRows(fromBulkProducts(result.products, aplusSlots, galleryCount))
       setSelectedIdx(0)
@@ -147,7 +149,7 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
   const handleApply = () => {
     const bulk    = editorRowsToBulk(rows)
     const csvText = productsToCSV(bulk, aplusSlots, galleryCount)
-    const result  = parseCSV(csvText, { requireSku: false })
+    const result  = parseCSV(csvText, { requireSku: false, shopify: isShopify })
     onApply(csvText, result)
     handleClose()
   }

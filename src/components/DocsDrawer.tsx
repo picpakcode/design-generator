@@ -244,7 +244,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
 
             <div className="mt-auto pt-4 border-t border-gray-100 dark:border-white/6">
               <button
-                onClick={downloadTemplate}
+                onClick={() => downloadTemplate()}
                 className="w-full flex items-center justify-center gap-1.5 h-8 rounded border border-accent-200 dark:border-accent-800 text-[11px] font-semibold text-accent-600 dark:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/30 hover:border-accent-300 dark:hover:border-accent-700 transition-colors"
               >
                 <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -366,7 +366,7 @@ SB-002,Recovery Snatch Block,Maximum Pull,Rated for 8000 lb working load,High st
 
             {/* Download button (mobile — sidebar not visible) */}
             <button
-              onClick={downloadTemplate}
+              onClick={() => downloadTemplate()}
               className="md:hidden w-full flex items-center justify-center gap-1.5 h-9 rounded-lg border border-accent-200 dark:border-accent-800 text-[12px] font-semibold text-accent-600 dark:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/30 transition-colors mb-4"
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

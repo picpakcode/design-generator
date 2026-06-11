@@ -629,7 +629,7 @@ function CSVGuideModal({ open, onClose, isDark = false }: { open: boolean; onClo
         {/* Footer */}
         <div className={`shrink-0 flex items-center justify-between px-6 py-3.5 border-t ${hdrBg}`}>
           <button
-            onClick={downloadTemplate}
+            onClick={() => downloadTemplate()}
             className="flex items-center gap-1.5 text-[12px] font-semibold text-accent-500 hover:text-accent-600 dark:hover:text-accent-400 transition-colors"
           >
             <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1133,12 +1133,12 @@ export default function TemplateMode({
     reader.onload = e => {
       const text = e.target?.result as string
       setRawCsv(text)
-      const result = parseCSV(text, { requireSku: false })
+      const result = parseCSV(text, { requireSku: false, shopify: isShopify })
 
       // Derive slot/gallery counts from the new CSV — never inherit from a previous project
       const first = result.products[0]
-      const newAplusSlots   = Math.max(1, first?.slots.length ?? 5)
-      const newGalleryCount = Math.max(0, first?.gallerySlots?.length ?? 0)
+      const newAplusSlots   = isShopify ? 0 : Math.max(1, first?.slots.length ?? 5)
+      const newGalleryCount = Math.max(isShopify ? 1 : 0, first?.gallerySlots?.length ?? (isShopify ? 3 : 0))
 
       setParseResult(result)
       setSelectedId(result.products[0]?.id ?? null)
@@ -1695,11 +1695,13 @@ export default function TemplateMode({
             {/* Column reference */}
             <div className="mt-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
               <p className="text-[11px] text-gray-400 dark:text-gray-500 leading-relaxed">
-                <span className="font-semibold text-gray-500 dark:text-gray-400">A+:</span>{' '}
-                <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">a1_title</code>{' '}
-                <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">a1_desc</code>{' '}
-                <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">b1_title</code>…
-                <br />
+                {!isShopify && <>
+                  <span className="font-semibold text-gray-500 dark:text-gray-400">A+:</span>{' '}
+                  <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">a1_title</code>{' '}
+                  <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">a1_desc</code>{' '}
+                  <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">b1_title</code>…
+                  <br />
+                </>}
                 <span className="font-semibold text-gray-500 dark:text-gray-400">Gallery:</span>{' '}
                 <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">g1_title</code>{' '}
                 <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">g1_desc</code>{' '}
@@ -1709,7 +1711,7 @@ export default function TemplateMode({
 
             {/* Download template */}
             <button
-              onClick={e => { e.stopPropagation(); downloadTemplate() }}
+              onClick={e => { e.stopPropagation(); downloadTemplate(platform) }}
               className="mt-3 w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-[12px] font-semibold text-gray-500 dark:text-gray-400 hover:text-accent-600 dark:hover:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-950/30 border border-gray-200 dark:border-gray-700 hover:border-accent-200 dark:hover:border-accent-800 transition-all"
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2556,6 +2558,7 @@ export default function TemplateMode({
         initialCsv={rawCsv || (parseResult ? productsToCSV(parseResult.products, aplusSlots, galleryCount) : '')}
         aplusSlots={aplusSlots}
         galleryCount={galleryCount}
+        platform={platform}
         onApply={applyEditedCsv}
       />
     </>

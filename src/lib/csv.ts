@@ -141,8 +141,9 @@ function rowToProduct(row: Record<string, string>, idx: number): BulkProduct {
 
 // ─── Public entry point ───────────────────────────────────────────────────────
 
-export function parseCSV(text: string, options?: { requireSku?: boolean }): ParseResult {
+export function parseCSV(text: string, options?: { requireSku?: boolean; shopify?: boolean }): ParseResult {
   const requireSku = options?.requireSku ?? true
+  const shopify    = options?.shopify    ?? false
   const errors: string[] = []
 
   if (!text.trim()) {
@@ -157,8 +158,11 @@ export function parseCSV(text: string, options?: { requireSku?: boolean }): Pars
   // Validate required headers exist
   const headers = Object.keys(rows[0])
   if (requireSku && !headers.includes('sku')) errors.push('Missing column: sku')
-  if (!headers.some(h => h.startsWith('a1_title') || h === 'a1_title')) {
+  if (!shopify && !headers.some(h => h.startsWith('a1_title') || h === 'a1_title')) {
     errors.push('Missing column: a1_title')
+  }
+  if (shopify && !headers.some(h => h.startsWith('g1_title') || h === 'g1_title')) {
+    errors.push('Missing column: g1_title')
   }
 
   if (errors.length > 0) return { products: [], errors }
@@ -211,8 +215,76 @@ export function productsToCSV(products: BulkProduct[], aplusSlots: number, galle
 
 // ─── Template CSV download ────────────────────────────────────────────────────
 
-export function downloadTemplate() {
-  // Template Mode CSV — no photo columns (photos are picked via the Canto UI picker)
+export function downloadTemplate(platform: 'amazon' | 'shopify' = 'amazon') {
+  if (platform === 'shopify') {
+    // Shopify gallery-only CSV — no A+ columns
+    // Column layout:
+    //   g1 → gallery-hero       (title + desc, no icons)
+    //   g2 → gallery-icons-text (title + desc + icons)
+    //   g3 → gallery-hero       (title + desc, no icons)
+    const headers = [
+      'sku', 'product_name',
+      'g1_title', 'g1_desc',
+      'g2_title', 'g2_desc', 'g2_icon1', 'g2_icon2', 'g2_icon3', 'g2_icon4',
+      'g3_title', 'g3_desc',
+    ]
+    const rows: string[][] = [
+      [
+        'DH515146',
+        "Doc's Diesel Chevrolet/GMC 6.6L Duramax RWD/SRW Premium E-Coated Front Wheel Hub Assembly 2011-2019",
+        // g1 — gallery-hero
+        'Premium E-Coated Hub Assembly',
+        "Precision-engineered for 2011–2019 Duramax RWD/SRW. E-coat protection, sealed bearing, direct OEM fit.",
+        // g2 — gallery-icons-text
+        'Built to Last',
+        "Heavy-duty bearing rated for loaded towing. Corrosion-resistant coating outlasts bare alternatives.",
+        'e-coat', 'sealed bearing', 'direct fit', 'OEM spec',
+        // g3 — gallery-hero
+        'Fits Your Truck Exactly',
+        "Compatible with Chevrolet Silverado and GMC Sierra 2500/3500 RWD/SRW. No modifications required.",
+      ],
+      [
+        'DETAIL5',
+        "Doc's Diesel The Diesel Detail Kit",
+        // g1
+        "The Diesel Detail Kit",
+        "Pro-level clean in one box. Every product chosen to work together on Duramax, Cummins, and Powerstroke trucks.",
+        // g2 — gallery-icons-text
+        'Formulated for Diesel',
+        "Targets DEF residue, exhaust staining, and heavy road grime — because diesel grime is different.",
+        'wash', 'degrease', 'polish', 'protect',
+        // g3
+        'Shop-Tested',
+        "The same products used in Doc's Diesel's own service bays — trusted by technicians every day.",
+      ],
+      [
+        'keeptruckinhoodie3XL',
+        "Doc's Diesel Keep Truckin' Hoodie — 3XL",
+        // g1
+        "Keep Truckin' Hoodie",
+        "Premium cotton-blend fleece. Built for the shop, comfortable enough for everywhere else.",
+        // g2 — gallery-icons-text
+        'Built Different',
+        "Heavy-duty fleece construction with reinforced stitching — made for long days in the shop.",
+        'soft fleece', 'durable stitching', 'preshrunk', 'true to size',
+        // g3
+        'Represent the Brand',
+        "Officially designed by Doc's Diesel — the diesel specialists trusted by Duramax, Cummins, and Powerstroke owners.",
+      ],
+    ]
+    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`
+    const csv = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = 'shopify-gallery-template.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+    return
+  }
+
+  // Amazon Template Mode CSV
   // Column layout:
   //   a1 → 5050-right  (title + desc, no icons)
   //   b1 → icons-text  (title + desc + icon callouts  → auto-detected as icons-text)

@@ -789,7 +789,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
                     {fileErrors.map((e, i) => <p key={i} className="text-[10px] text-red-600">{e}</p>)}
                   </div>
                 )}
-                <button onClick={downloadTemplate}
+                <button onClick={() => downloadTemplate()}
                   className="w-full h-7 flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                   <DownloadIcon className="w-3 h-3" /> Download Template
                 </button>
@@ -809,7 +809,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
                   </div>
                   <button onClick={handleClear} className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 underline underline-offset-2">Remove</button>
                 </div>
-                <button onClick={downloadTemplate}
+                <button onClick={() => downloadTemplate()}
                   className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
                   <DownloadIcon className="w-3 h-3" /> Download template
                 </button>
@@ -1027,7 +1027,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
       {/* ══ Main content ══ */}
       <main className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
         {!hasProducts ? (
-          <EmptyState onDownloadTemplate={downloadTemplate} />
+          <EmptyState onDownloadTemplate={() => downloadTemplate()} />
         ) : (
           <>
             <div className="flex items-center justify-between">
