@@ -1702,8 +1702,9 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     disabled={!templateCanExport || templateRenderingAll}
                     className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                    <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
                     Save All to Canto
+                    <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">In dev</span>
                   </button>
                   <button
                     onClick={async () => {
@@ -1714,8 +1715,9 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     disabled={!templateCanExportCurrent}
                     className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                    <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
                     Save Current to Canto
+                    <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">In dev</span>
                   </button>
                 </div>
               </>
@@ -3110,6 +3112,17 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
         files={cantoFiles}
       />
     </div>
+  )
+}
+
+// ─── Canto logo mark ─────────────────────────────────────────────────────────
+
+function CantoLogoMark({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="24" height="24" rx="5" fill="#F5A623" />
+      <path d="M16 8.4A5.6 5.6 0 1 0 16 15.6" stroke="white" strokeWidth="2.6" strokeLinecap="round" />
+    </svg>
   )
 }
 

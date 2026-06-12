@@ -284,14 +284,11 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
-          {/* Canto icon */}
-          <div className="w-7 h-7 rounded-lg bg-[#F5A623] flex items-center justify-center shrink-0">
-            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" opacity=".15" />
-              <path d="M12 4a8 8 0 100 16A8 8 0 0012 4zm0 14a6 6 0 110-12 6 6 0 010 12z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </div>
+          {/* Canto logo */}
+          <svg className="w-7 h-7 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="24" height="24" rx="5" fill="#F5A623" />
+            <path d="M16 8.4A5.6 5.6 0 1 0 16 15.6" stroke="white" strokeWidth="2.6" strokeLinecap="round" />
+          </svg>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Save to Canto</p>
             <p className="text-[10px] text-gray-400 dark:text-gray-500">{files.length} file{files.length !== 1 ? 's' : ''}</p>
