@@ -1539,6 +1539,12 @@ export default function TemplateMode({
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href)
   }, [outputFormat, parseResult, selectedId, productNames, statuses, renderProduct])
 
+  // Sanitize product names for use as Canto asset names / filenames.
+  // Replaces forward/back slashes and other chars that cause API/filesystem rejections.
+  function sanitizeForFilename(s: string): string {
+    return s.replace(/[/\\:*?"<>|]/g, '-').replace(/-{2,}/g, '-').trim()
+  }
+
   const handleCantoAll = useCallback(async (): Promise<CantoExportFile[]> => {
     if (!parseResult?.products.length) return []
     const unrendered = parseResult.products.filter(p => statuses[p.id] !== 'done')
@@ -1559,9 +1565,10 @@ export default function TemplateMode({
       const pid     = key.slice(0, slash)
       const lbl     = key.slice(slash + 1)
       const product = parseResult.products.find(p => p.id === pid)
-      const name    = (productNames[pid] !== undefined && productNames[pid] !== ''
+      const rawName = (productNames[pid] !== undefined && productNames[pid] !== ''
         ? productNames[pid]
         : product?.productName) || product?.sku || pid
+      const name = sanitizeForFilename(rawName)
       files.push({ filename: `${name}-${lbl}.${ext}`, dataUrl })
     })
     return files
@@ -1575,9 +1582,10 @@ export default function TemplateMode({
     const entries = Array.from(capturedRef.current.entries()).filter(([k]) => k.startsWith(`${selectedId}/`))
     if (entries.length === 0) return []
     const ext = outputFormat === 'jpeg' ? 'jpg' : 'png'
-    const effectiveName = (productNames[selectedId] !== undefined && productNames[selectedId] !== ''
+    const rawName = (productNames[selectedId] !== undefined && productNames[selectedId] !== ''
       ? productNames[selectedId]
       : product.productName) || product.sku || selectedId
+    const effectiveName = sanitizeForFilename(rawName)
     return entries.map(([k, dataUrl]) => ({
       filename: `${effectiveName}-${k.slice(k.indexOf('/') + 1)}.${ext}`,
       dataUrl,

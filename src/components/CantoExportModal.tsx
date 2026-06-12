@@ -417,11 +417,11 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
 
               {/* Error details */}
               {failed > 0 && (
-                <div className="max-h-40 overflow-y-auto space-y-0.5">
+                <div className="max-h-48 overflow-y-auto space-y-2">
                   {results.filter(r => !r.ok).map(r => (
-                    <div key={r.filename} className="text-[11px] text-red-500 truncate">
-                      <span className="font-medium">{r.filename}</span>
-                      {r.error && <span className="text-red-400"> — {r.error}</span>}
+                    <div key={r.filename} className="text-[11px]">
+                      <p className="font-medium text-red-500 truncate">{r.filename}</p>
+                      {r.error && <p className="text-red-400 break-words">{r.error}</p>}
                     </div>
                   ))}
                 </div>
