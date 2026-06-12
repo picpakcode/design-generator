@@ -32,7 +32,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useTransitionRouter } from '@/components/ViewTransitions'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -297,7 +297,7 @@ function DeleteConfirmModal({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const router = useTransitionRouter()
+  const router = useRouter()
   const { user, loading: authLoading, signOut } = useAuth()
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [projects, setProjects] = useState<ProjectRow[]>([])
