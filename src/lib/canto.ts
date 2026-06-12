@@ -82,13 +82,14 @@ export interface CantoFolder {
   id: string
   name: string
   namePath: string
+  scheme?: string     // 'folder' | 'album' — only albums accept uploads
   children?: CantoFolder[]
 }
 
 function flattenTree(nodes: CantoFolder[]): CantoFolder[] {
   const out: CantoFolder[] = []
   for (const n of nodes) {
-    out.push({ id: n.id, name: n.name, namePath: n.namePath })
+    out.push({ id: n.id, name: n.name, namePath: n.namePath, scheme: n.scheme })
     if (n.children?.length) out.push(...flattenTree(n.children))
   }
   return out
@@ -174,13 +175,25 @@ export async function uploadAsset(
   if (meta?.tags?.length)     form.append('tag',     meta.tags.join(','))
 
   const res = await fetch(`${BASE}/api/v1/upload`, {
-    method:  'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body:    form,
+    method:   'POST',
+    headers:  { Authorization: `Bearer ${token}` },
+    body:     form,
+    redirect: 'manual',   // don't silently follow auth redirects
   })
+
+  console.log(`[canto/upload] ${filename} → album ${albumId} | status ${res.status} | content-type: ${res.headers.get('content-type')} | location: ${res.headers.get('location')}`)
+
+  // 3xx → typically a redirect to the login page (auth token missing upload scope)
+  if (res.status >= 300 && res.status < 400) {
+    throw new Error(
+      `Canto upload redirected (${res.status}) to ${res.headers.get('location') ?? '?'}. ` +
+      `This usually means the OAuth app lacks the upload scope — enable it in Canto Settings → API.`
+    )
+  }
 
   if (!res.ok) {
     const text = await res.text()
+    console.log(`[canto/upload] error body:`, text.slice(0, 600))
     if (res.status === 401 || res.status === 403) {
       throw new Error(
         `Canto upload permission denied (${res.status}). ` +
@@ -190,13 +203,15 @@ export async function uploadAsset(
     throw new Error(`Canto upload failed ${res.status}: ${text.slice(0, 400)}`)
   }
 
-  // Canto may return JSON, plain text, or an HTML redirect page on success.
-  // Treat any 2xx as success regardless of content type.
+  // Canto may return JSON, plain text, or HTML on success.
   const contentType = res.headers.get('content-type') ?? ''
   if (contentType.includes('application/json')) {
-    return res.json() as Promise<CantoUploadResult>
+    const json = await res.json() as CantoUploadResult
+    console.log(`[canto/upload] success JSON:`, JSON.stringify(json).slice(0, 200))
+    return json
   }
   const text = await res.text()
+  console.log(`[canto/upload] success body (non-JSON):`, text.slice(0, 400))
   try { return JSON.parse(text) as CantoUploadResult } catch { /* not JSON */ }
-  return { id: name }  // upload succeeded but no parseable ID in response
+  return { id: name }
 }

@@ -13,6 +13,7 @@ interface Album {
   id:       string
   name:     string
   namePath: string
+  scheme?:  string   // 'folder' | 'album' — only albums accept uploads
 }
 
 type Phase = 'configure' | 'uploading' | 'done'
@@ -81,9 +82,12 @@ function AlbumPicker({
   onSelect: (a: Album) => void
 }) {
   const [search, setSearch] = useState('')
+  // Only show actual albums (scheme === 'album'), or all items if scheme is absent (older API)
+  const hasScheme = albums.some(a => a.scheme)
+  const uploadable = hasScheme ? albums.filter(a => a.scheme === 'album') : albums
   const filtered = search
-    ? albums.filter(a => a.namePath.toLowerCase().includes(search.toLowerCase()))
-    : albums
+    ? uploadable.filter(a => a.namePath.toLowerCase().includes(search.toLowerCase()))
+    : uploadable
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -411,6 +415,9 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
                   )}
                   <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
                     → {selectedAlbum?.namePath}
+                    {selectedAlbum?.scheme && selectedAlbum.scheme !== 'album' && (
+                      <span className="ml-1 text-amber-500">(scheme: {selectedAlbum.scheme} — may not accept uploads)</span>
+                    )}
                   </p>
                 </div>
               </div>
