@@ -17,6 +17,7 @@ import TexturePicker from './TexturePicker'
 import type { CantoPick } from './CantoAssetPicker'
 import { FolderConfig } from '@/lib/canto-folders'
 import { useAppSettings } from '@/hooks/useAppSettings'
+import type { CantoExportFile } from './CantoExportModal'
 
 const RichTextEditor  = dynamic(() => import('./RichTextEditor'),  { ssr: false })
 const DocsDrawer      = dynamic(() => import('./DocsDrawer'),      { ssr: false })
@@ -556,6 +557,8 @@ interface TemplateModeProps {
   folderConfig: FolderConfig
   exportFnRef: React.MutableRefObject<() => void>
   exportCurrentFnRef: React.MutableRefObject<() => void>
+  cantoFnRef: React.MutableRefObject<() => Promise<CantoExportFile[]>>
+  cantoCurrentFnRef: React.MutableRefObject<() => Promise<CantoExportFile[]>>
   renderAllFnRef: React.MutableRefObject<() => void>
   previewFnRef: React.MutableRefObject<() => void>
   thumbnailFnRef: React.MutableRefObject<() => Promise<Blob | null>>
@@ -595,7 +598,8 @@ export default function TemplateMode({
   projectId,
   platform = 'amazon',
   designState, folderConfig,
-  exportFnRef, exportCurrentFnRef, renderAllFnRef, previewFnRef, thumbnailFnRef,
+  exportFnRef, exportCurrentFnRef, cantoFnRef, cantoCurrentFnRef,
+  renderAllFnRef, previewFnRef, thumbnailFnRef,
   onCanExportChange, onCanExportCurrentChange, onRenderingAllChange, onStatsChange,
   blockCommentStatus, onOpenFeedback,
   isDark = false,
@@ -1535,9 +1539,56 @@ export default function TemplateMode({
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href)
   }, [outputFormat, parseResult, selectedId, productNames, statuses, renderProduct])
 
+  const handleCantoAll = useCallback(async (): Promise<CantoExportFile[]> => {
+    if (!parseResult?.products.length) return []
+    const unrendered = parseResult.products.filter(p => statuses[p.id] !== 'done')
+    if (unrendered.length > 0) {
+      cancelRef.current = false
+      setRenderingAll(true)
+      for (const p of unrendered) {
+        if (cancelRef.current) break
+        await renderProduct(p)
+      }
+      setRenderingAll(false)
+    }
+    if (capturedRef.current.size === 0) return []
+    const ext = outputFormat === 'jpeg' ? 'jpg' : 'png'
+    const files: CantoExportFile[] = []
+    capturedRef.current.forEach((dataUrl, key) => {
+      const slash   = key.indexOf('/')
+      const pid     = key.slice(0, slash)
+      const lbl     = key.slice(slash + 1)
+      const product = parseResult.products.find(p => p.id === pid)
+      const name    = (productNames[pid] !== undefined && productNames[pid] !== ''
+        ? productNames[pid]
+        : product?.productName) || product?.sku || pid
+      files.push({ filename: `${name}-${lbl}.${ext}`, dataUrl })
+    })
+    return files
+  }, [outputFormat, parseResult, productNames, statuses, renderProduct])
+
+  const handleCantoCurrentProduct = useCallback(async (): Promise<CantoExportFile[]> => {
+    if (!selectedId) return []
+    const product = parseResult?.products.find(p => p.id === selectedId)
+    if (!product) return []
+    if (statuses[selectedId] !== 'done') await renderProduct(product)
+    const entries = Array.from(capturedRef.current.entries()).filter(([k]) => k.startsWith(`${selectedId}/`))
+    if (entries.length === 0) return []
+    const ext = outputFormat === 'jpeg' ? 'jpg' : 'png'
+    const effectiveName = (productNames[selectedId] !== undefined && productNames[selectedId] !== ''
+      ? productNames[selectedId]
+      : product.productName) || product.sku || selectedId
+    return entries.map(([k, dataUrl]) => ({
+      filename: `${effectiveName}-${k.slice(k.indexOf('/') + 1)}.${ext}`,
+      dataUrl,
+    }))
+  }, [outputFormat, parseResult, selectedId, productNames, statuses, renderProduct])
+
   // Wire refs for parent
-  useEffect(() => { exportFnRef.current    = handleExportAll     }, [exportFnRef, handleExportAll])
-  useEffect(() => { exportCurrentFnRef.current = handleExportCurrent }, [exportCurrentFnRef, handleExportCurrent])
+  useEffect(() => { exportFnRef.current        = handleExportAll            }, [exportFnRef, handleExportAll])
+  useEffect(() => { exportCurrentFnRef.current = handleExportCurrent        }, [exportCurrentFnRef, handleExportCurrent])
+  useEffect(() => { cantoFnRef.current         = handleCantoAll             }, [cantoFnRef, handleCantoAll])
+  useEffect(() => { cantoCurrentFnRef.current  = handleCantoCurrentProduct  }, [cantoCurrentFnRef, handleCantoCurrentProduct])
   useEffect(() => { renderAllFnRef.current = renderAll           }, [renderAllFnRef, renderAll])
 
   // ── Derived ───────────────────────────────────────────────────────────────────

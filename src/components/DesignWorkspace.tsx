@@ -26,6 +26,7 @@ import { useAppSettings } from '@/hooks/useAppSettings'
 import AuthModal from './AuthModal'
 import PreviewModal from './PreviewModal'
 import GalleryPreviewModal from './GalleryPreviewModal'
+import CantoExportModal, { type CantoExportFile } from './CantoExportModal'
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
 
@@ -266,9 +267,13 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const [templateExportOpen, setTemplateExportOpen]             = useState(false)
   const templateExportFnRef        = useRef<() => void>(() => {})
   const templateExportCurrentFnRef = useRef<() => void>(() => {})
+  const templateCantoFnRef         = useRef<() => Promise<CantoExportFile[]>>(() => Promise.resolve([]))
+  const templateCantoCurrentFnRef  = useRef<() => Promise<CantoExportFile[]>>(() => Promise.resolve([]))
   const templateRenderAllFnRef     = useRef<() => void>(() => {})
   const templatePreviewFnRef       = useRef<() => void>(() => {})
   const templateThumbnailFnRef     = useRef<() => Promise<Blob | null>>(() => Promise.resolve(null))
+  const [cantoFiles, setCantoFiles]         = useState<CantoExportFile[]>([])
+  const [cantoModalOpen, setCantoModalOpen] = useState(false)
 
   const canvasRef         = useRef<HTMLDivElement>(null)
   const altCanvasRef      = useRef<HTMLDivElement>(null)
@@ -1687,6 +1692,31 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     Export Current Product
                   </button>
+                  <div className="h-px bg-gray-100 dark:bg-gray-800 my-2" />
+                  <button
+                    onClick={async () => {
+                      setTemplateExportOpen(false)
+                      const files = await templateCantoFnRef.current()
+                      if (files.length > 0) { setCantoFiles(files); setCantoModalOpen(true) }
+                    }}
+                    disabled={!templateCanExport || templateRenderingAll}
+                    className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                    Save All to Canto
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setTemplateExportOpen(false)
+                      const files = await templateCantoCurrentFnRef.current()
+                      if (files.length > 0) { setCantoFiles(files); setCantoModalOpen(true) }
+                    }}
+                    disabled={!templateCanExportCurrent}
+                    className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                    Save Current to Canto
+                  </button>
                 </div>
               </>
             )}
@@ -1974,6 +2004,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           folderConfig={folderConfig}
           exportFnRef={templateExportFnRef}
           exportCurrentFnRef={templateExportCurrentFnRef}
+          cantoFnRef={templateCantoFnRef}
+          cantoCurrentFnRef={templateCantoCurrentFnRef}
           renderAllFnRef={templateRenderAllFnRef}
           previewFnRef={templatePreviewFnRef}
           thumbnailFnRef={templateThumbnailFnRef}
@@ -3071,6 +3103,11 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
         onClose={() => setPhotoPickerOpen(false)}
         initialQuery={design.productName}
         onSelect={pick => addCurrentAsset({ id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }, 0)}
+      />
+      <CantoExportModal
+        open={cantoModalOpen}
+        onClose={() => setCantoModalOpen(false)}
+        files={cantoFiles}
       />
     </div>
   )

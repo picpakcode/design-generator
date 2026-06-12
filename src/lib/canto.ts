@@ -138,3 +138,57 @@ export async function getAlbumContents(folderId: string, limit = 100): Promise<C
 export function proxyUrl(directUrl: string): string {
   return `/api/canto/proxy?url=${encodeURIComponent(directUrl)}`
 }
+
+// ─── Upload ───────────────────────────────────────────────────────────────────
+
+export interface CantoUploadMeta {
+  tags?:        string[]
+  keywords?:    string[]
+  description?: string
+}
+
+export interface CantoUploadResult {
+  id:      string
+  name?:   string
+  scheme?: string
+}
+
+export async function uploadAsset(
+  buffer:   Buffer,
+  filename: string,  // e.g. "widgetpro-a1-desktop.png"
+  albumId:  string,
+  meta?:    CantoUploadMeta,
+): Promise<CantoUploadResult> {
+  const token = await getAccessToken()
+  const ext   = filename.split('.').pop()?.toLowerCase() ?? 'png'
+  const mime  = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
+  const name  = filename.includes('.') ? filename.slice(0, filename.lastIndexOf('.')) : filename
+
+  const form = new FormData()
+  const arrayBuf = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
+  form.append('file', new Blob([arrayBuf], { type: mime }), filename)
+  form.append('id',   albumId)
+  form.append('name', name)
+  if (meta?.description)    form.append('description', meta.description)
+  if (meta?.keywords?.length) form.append('keyword', meta.keywords.join(','))
+  if (meta?.tags?.length)     form.append('tag',     meta.tags.join(','))
+
+  const res = await fetch(`${BASE}/api/v1/upload`, {
+    method:  'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body:    form,
+  })
+
+  if (!res.ok) {
+    const text = await res.text()
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        `Canto upload permission denied (${res.status}). ` +
+        `Ensure your OAuth app has upload scope enabled in Canto admin settings.`
+      )
+    }
+    throw new Error(`Canto upload failed ${res.status}: ${text.slice(0, 400)}`)
+  }
+
+  return res.json() as Promise<CantoUploadResult>
+}
