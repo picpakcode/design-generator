@@ -331,6 +331,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const [blockCommentStatus, setBlockCommentStatus] = useState<BlockCommentStatus>({})
   const [saveToShareName, setSaveToShareName] = useState('')
   const [saveToShareSaving, setSaveToShareSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'pending' | 'saved' | 'error'>('idle')
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const isApplyingRemoteRef = useRef(false)
 
   const isGallery = design.activeCategory === 'gallery'
@@ -566,10 +568,14 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   useEffect(() => {
     if (!projectId || !user) return
     if (!appSettings.autosaveInterval) return
+    setSaveStatus('pending')
     const supabase = createClient()
     const t = setTimeout(async () => {
       try {
         await saveProject(supabase, projectId, design)
+        clearTimeout(savedTimerRef.current)
+        setSaveStatus('saved')
+        savedTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2500)
 
         // Capture thumbnail once per session after first successful save
         if (!hasSavedThumbnailRef.current && canvasRef.current) {
@@ -585,16 +591,24 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             }
           } catch (thumbErr) {
             console.warn('Thumbnail capture failed (non-fatal):', thumbErr)
-            // Reset so it can retry on next save
             hasSavedThumbnailRef.current = false
           }
         }
       } catch (err) {
         console.error('Supabase project save failed:', err)
+        setSaveStatus('error')
       }
     }, appSettings.autosaveInterval)
     return () => clearTimeout(t)
   }, [design, projectId, user, appSettings.autosaveInterval]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Warn before closing with unsaved changes
+  useEffect(() => {
+    if (saveStatus !== 'pending') return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [saveStatus])
 
   // Template mode thumbnail — capture when products are loaded (once per session)
   useEffect(() => {
@@ -1499,6 +1513,24 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             <img src="/Favicon.png" alt="Doc's Design Generator" className="w-7 h-7 rounded-lg object-contain shrink-0" />
             <span className="font-bold text-gray-900 dark:text-white text-base tracking-tight shrink-0">Doc&rsquo;s Design Generator</span>
           </>
+        )}
+
+        {/* Save status indicator */}
+        {projectId && appSettings.autosaveInterval > 0 && saveStatus !== 'idle' && (
+          <div className={`flex items-center gap-1.5 text-[10px] font-medium shrink-0 ${
+            saveStatus === 'saved' ? 'text-emerald-500 dark:text-emerald-400' :
+            saveStatus === 'error' ? 'text-red-400' :
+            'text-gray-400 dark:text-gray-500'
+          }`}>
+            {saveStatus === 'pending' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />}
+            {saveStatus === 'saved'   && (
+              <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            {saveStatus === 'error'   && <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />}
+            {saveStatus === 'pending' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Save failed'}
+          </div>
         )}
 
         {/* Beta badge */}

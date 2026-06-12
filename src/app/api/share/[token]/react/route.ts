@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { postShareReactionSchema, parseBody } from '@/lib/validation'
 
 export async function POST(req: Request, { params }: { params: { token: string } }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminClient() as any
+  const supabase = createAdminClient()
 
   const { data: share } = await supabase
     .from('project_shares')
@@ -12,12 +12,9 @@ export async function POST(req: Request, { params }: { params: { token: string }
     .single()
   if (!share || !share.is_public) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const body = await req.json().catch(() => ({}))
-  const { commentId, emoji, authorName } = body as { commentId: string; emoji: string; authorName: string }
-
-  if (!commentId || !emoji || !authorName?.trim()) {
-    return NextResponse.json({ error: 'commentId, emoji, and authorName required' }, { status: 400 })
-  }
+  const parsed = parseBody(postShareReactionSchema, await req.json().catch(() => ({})))
+  if (!parsed.ok) return parsed.res
+  const { commentId, emoji, authorName } = parsed.data
 
   const { data: comment } = await supabase
     .from('project_comments')
@@ -26,14 +23,13 @@ export async function POST(req: Request, { params }: { params: { token: string }
     .single()
   if (!comment) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const reactions = (comment.reactions as Record<string, string[]>) ?? {}
-  const name = authorName.trim()
+  const reactions = (comment.reactions ?? {}) as Record<string, string[]>
   const existing = reactions[emoji] ?? []
-  if (existing.includes(name)) {
-    reactions[emoji] = existing.filter((r: string) => r !== name)
+  if (existing.includes(authorName)) {
+    reactions[emoji] = existing.filter(r => r !== authorName)
     if (!reactions[emoji].length) delete reactions[emoji]
   } else {
-    reactions[emoji] = [...existing, name]
+    reactions[emoji] = [...existing, authorName]
   }
 
   const { data, error } = await supabase

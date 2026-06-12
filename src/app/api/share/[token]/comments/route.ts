@@ -1,21 +1,20 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { postCommentSchema, parseBody } from '@/lib/validation'
 
 export const dynamic = 'force-dynamic'
 
 const COMMENT_FIELDS = 'id, block_id, parent_id, author_name, author_type, body, created_at, resolved_at, resolved_by, reactions'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function resolveProject(token: string): Promise<{ supabase: any; projectId: string } | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const supabase = createAdminClient() as any
+async function resolveProject(token: string) {
+  const supabase = createAdminClient()
   const { data: share } = await supabase
     .from('project_shares')
     .select('project_id, is_public')
     .eq('token', token)
     .single()
   if (!share || !share.is_public) return null
-  return { supabase, projectId: share.project_id as string }
+  return { supabase, projectId: share.project_id }
 }
 
 export async function GET(_req: Request, { params }: { params: { token: string } }) {
@@ -47,23 +46,20 @@ export async function POST(req: Request, { params }: { params: { token: string }
   if (!resolved) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const { supabase, projectId } = resolved
 
-  const body = await req.json().catch(() => ({}))
-  const { blockId, authorName, body: commentBody, parentId } = body as Record<string, string>
-
-  if (!blockId?.trim() || !authorName?.trim() || !commentBody?.trim()) {
-    return NextResponse.json({ error: 'blockId, authorName, and body are required' }, { status: 400 })
-  }
+  const parsed = parseBody(postCommentSchema, await req.json().catch(() => ({})))
+  if (!parsed.ok) return parsed.res
+  const { blockId, authorName, body: commentBody, parentId } = parsed.data
 
   const { data, error } = await supabase
     .from('project_comments')
     .insert({
       project_id:  projectId,
-      block_id:    blockId.trim(),
+      block_id:    blockId,
       share_token: params.token,
-      author_name: authorName.trim(),
+      author_name: authorName,
       author_type: 'reviewer',
-      body:        commentBody.trim(),
-      ...(parentId?.trim() ? { parent_id: parentId.trim() } : {}),
+      body:        commentBody,
+      ...(parentId ? { parent_id: parentId } : {}),
     })
     .select(COMMENT_FIELDS)
     .single()

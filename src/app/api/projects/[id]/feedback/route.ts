@@ -11,8 +11,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any
+  const admin = createAdminClient()
 
   const { data: project } = await admin.from('projects').select('user_id').eq('id', params.id).single()
   if (!project || project.user_id !== user.id) {

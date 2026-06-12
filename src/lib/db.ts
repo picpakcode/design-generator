@@ -1,9 +1,8 @@
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database'
 import type { DesignState, UploadedAsset, TemplateShareState, TemplateShareSlotState } from '@/types'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Client = SupabaseClient<any>
+type Client = SupabaseClient<Database>
 
 // ── Design session (auto-save) ────────────────────────────────────────────────
 

@@ -1,23 +1,23 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { resolveCommentSchema, parseBody } from '@/lib/validation'
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const admin = createAdminClient() as any
+  const admin = createAdminClient()
 
   const { data: project } = await admin.from('projects').select('user_id').eq('id', params.id).single()
   if (!project || project.user_id !== user.id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const body = await req.json().catch(() => ({}))
-  const { commentId } = body as { commentId: string }
-  if (!commentId) return NextResponse.json({ error: 'commentId required' }, { status: 400 })
+  const parsed = parseBody(resolveCommentSchema, await req.json().catch(() => ({})))
+  if (!parsed.ok) return parsed.res
+  const { commentId } = parsed.data
 
   const { data: comment } = await admin
     .from('project_comments')
