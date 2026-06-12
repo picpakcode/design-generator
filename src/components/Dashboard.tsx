@@ -32,7 +32,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useTransitionRouter } from '@/components/ViewTransitions'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -297,7 +297,7 @@ function DeleteConfirmModal({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const router = useRouter()
+  const router = useTransitionRouter()
   const { user, loading: authLoading, signOut } = useAuth()
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [projects, setProjects] = useState<ProjectRow[]>([])
@@ -699,8 +699,8 @@ export default function Dashboard() {
                   cursor: creating ? 'default' : 'pointer',
                 }}
               >
-                {/* Content area — fills to match thumbnail height */}
-                <div className="relative flex-1" style={{ minHeight: 0 }}>
+                {/* Content area — same bg as project tile thumbnails */}
+                <div className="relative flex-1 bg-gray-100" style={{ minHeight: 0 }}>
 
                   {/* Platform half-fills — shown on hover */}
                   <div style={{
@@ -819,16 +819,13 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Footer — height-matches project tile footer */}
-                <div className="px-3 py-2.5 flex items-center" style={{
-                  borderTop: `1px dashed ${newProjectHovered ? '#CBD5E1' : '#E5E7EB'}`,
-                  transition: 'border-color 180ms ease',
-                }}>
-                  <span style={{
-                    fontSize: 13, fontWeight: 600,
-                    color: newProjectHovered ? '#374151' : '#9CA3AF',
+                {/* Footer — mirrors the two-line structure of regular project tile footers */}
+                <div className="px-3 py-2.5">
+                  <p className="text-sm font-semibold truncate" style={{
+                    color: newProjectHovered ? '#111827' : '#9CA3AF',
                     transition: 'color 180ms ease',
-                  }}>New project</span>
+                  }}>New project</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Amazon · Shopify</p>
                 </div>
               </div>
 
