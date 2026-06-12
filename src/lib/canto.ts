@@ -190,5 +190,13 @@ export async function uploadAsset(
     throw new Error(`Canto upload failed ${res.status}: ${text.slice(0, 400)}`)
   }
 
-  return res.json() as Promise<CantoUploadResult>
+  // Canto may return JSON, plain text, or an HTML redirect page on success.
+  // Treat any 2xx as success regardless of content type.
+  const contentType = res.headers.get('content-type') ?? ''
+  if (contentType.includes('application/json')) {
+    return res.json() as Promise<CantoUploadResult>
+  }
+  const text = await res.text()
+  try { return JSON.parse(text) as CantoUploadResult } catch { /* not JSON */ }
+  return { id: name }  // upload succeeded but no parseable ID in response
 }
