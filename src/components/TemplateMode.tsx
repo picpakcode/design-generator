@@ -2250,7 +2250,7 @@ export default function TemplateMode({
                 {/* ── Left: A+ slots — Amazon only ── */}
                 {!isShopify && <div style={{ display: 'flex', flexDirection: 'column', gap: SLOT_GAP }}>
                   {slotConfigs.slice(0, aplusSlots).map((cfg, slotIdx) => {
-                    const isActive = !activeIsGallery && slotIdx === activeSlotIdx
+                    const isActive = !activeIsGallery && !activeIsShopifyGallery && slotIdx === activeSlotIdx
                     const isIcons  = cfg.template === 'icons' || cfg.template === 'icons-text'
                     const flip     = cfg.template === '5050-left'
                     const sd       = buildSlotDesign(selected.id, slotIdx)
