@@ -14,7 +14,7 @@ import AssetUploader from './AssetUploader'
 import ExportButton from './ExportButton'
 import { exportAllAsZip } from '@/lib/export'
 import BulkMode from './BulkMode'
-import TemplateMode from './TemplateMode'
+import TemplateMode, { type SlotGroup } from './TemplateMode'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import TexturePicker from './TexturePicker'
 import CantoIconPickerModal from './CantoIconPickerModal'
@@ -269,11 +269,15 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const templateExportCurrentFnRef = useRef<() => void>(() => {})
   const templateCantoFnRef         = useRef<() => Promise<CantoExportFile[]>>(() => Promise.resolve([]))
   const templateCantoCurrentFnRef  = useRef<() => Promise<CantoExportFile[]>>(() => Promise.resolve([]))
+  const templateGetSlotsFnRef      = useRef<() => SlotGroup[]>(() => [])
+  const templateExportSelectedFnRef = useRef<(slotIds: string[]) => Promise<void>>(() => Promise.resolve())
   const templateRenderAllFnRef     = useRef<() => void>(() => {})
   const templatePreviewFnRef       = useRef<() => void>(() => {})
   const templateThumbnailFnRef     = useRef<() => Promise<Blob | null>>(() => Promise.resolve(null))
   const [cantoFiles, setCantoFiles]         = useState<CantoExportFile[]>([])
   const [cantoModalOpen, setCantoModalOpen] = useState(false)
+  const [slotGroups, setSlotGroups]         = useState<SlotGroup[]>([])
+  const [selectedSlots, setSelectedSlots]   = useState<Set<string>>(new Set())
 
   const canvasRef         = useRef<HTMLDivElement>(null)
   const altCanvasRef      = useRef<HTMLDivElement>(null)
@@ -1663,7 +1667,16 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             ) : null}
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
             <div className="relative">
-            <Btn variant="primary" onClick={() => setTemplateExportOpen(o => !o)}>
+            <Btn variant="primary" onClick={() => {
+              setTemplateExportOpen(o => {
+                if (!o) {
+                  const groups = templateGetSlotsFnRef.current()
+                  setSlotGroups(groups)
+                  setSelectedSlots(new Set())
+                }
+                return !o
+              })
+            }}>
               {templateRenderingAll ? (
                 <><svg className="animate-spin w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Rendering…</>
               ) : 'Export'}
@@ -1692,6 +1705,60 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     Export Current Product
                   </button>
+                  {/* ── Slot picker ── */}
+                  {slotGroups.length > 0 && (
+                    <>
+                      <div className="h-px bg-gray-100 dark:bg-gray-800 my-2" />
+                      <div className="px-1 pb-1">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Select slots</span>
+                          <button
+                            onClick={() => setSelectedSlots(
+                              selectedSlots.size === slotGroups.length
+                                ? new Set()
+                                : new Set(slotGroups.map(g => g.id))
+                            )}
+                            className="text-[10px] text-accent-500 hover:text-accent-600 dark:text-accent-400 font-semibold"
+                          >
+                            {selectedSlots.size === slotGroups.length ? 'None' : 'All'}
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {slotGroups.map(g => {
+                            const active = selectedSlots.has(g.id)
+                            return (
+                              <button
+                                key={g.id}
+                                onClick={() => setSelectedSlots(prev => {
+                                  const next = new Set(prev)
+                                  active ? next.delete(g.id) : next.add(g.id)
+                                  return next
+                                })}
+                                className={`h-6 px-2 rounded text-[11px] font-bold transition-colors ${
+                                  active
+                                    ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                }`}
+                              >
+                                {g.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <button
+                          onClick={async () => {
+                            setTemplateExportOpen(false)
+                            await templateExportSelectedFnRef.current(Array.from(selectedSlots))
+                          }}
+                          disabled={selectedSlots.size === 0}
+                          className="w-full h-8 flex items-center justify-center gap-1.5 px-3 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                          {selectedSlots.size === 0 ? 'Pick slots above' : `Export ${selectedSlots.size} slot${selectedSlots.size !== 1 ? 's' : ''}`}
+                        </button>
+                      </div>
+                    </>
+                  )}
                   <div className="h-px bg-gray-100 dark:bg-gray-800 my-2" />
                   <button
                     onClick={async () => {
@@ -2008,6 +2075,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           exportCurrentFnRef={templateExportCurrentFnRef}
           cantoFnRef={templateCantoFnRef}
           cantoCurrentFnRef={templateCantoCurrentFnRef}
+          getSlotGroupsFnRef={templateGetSlotsFnRef}
+          exportSelectedFnRef={templateExportSelectedFnRef}
           renderAllFnRef={templateRenderAllFnRef}
           previewFnRef={templatePreviewFnRef}
           thumbnailFnRef={templateThumbnailFnRef}

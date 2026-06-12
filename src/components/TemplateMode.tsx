@@ -550,6 +550,12 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+export interface SlotGroup {
+  id:    string   // 'a1' | 'b1' | 'g1' | 'sg1' etc.
+  label: string   // 'A1' | 'B1' | 'G1' | 'SG1'
+  type:  'aplus' | 'gallery' | 'sg'
+}
+
 interface TemplateModeProps {
   projectId?: string
   platform?: 'amazon' | 'shopify'
@@ -559,6 +565,8 @@ interface TemplateModeProps {
   exportCurrentFnRef: React.MutableRefObject<() => void>
   cantoFnRef: React.MutableRefObject<() => Promise<CantoExportFile[]>>
   cantoCurrentFnRef: React.MutableRefObject<() => Promise<CantoExportFile[]>>
+  getSlotGroupsFnRef: React.MutableRefObject<() => SlotGroup[]>
+  exportSelectedFnRef: React.MutableRefObject<(slotIds: string[]) => Promise<void>>
   renderAllFnRef: React.MutableRefObject<() => void>
   previewFnRef: React.MutableRefObject<() => void>
   thumbnailFnRef: React.MutableRefObject<() => Promise<Blob | null>>
@@ -599,6 +607,7 @@ export default function TemplateMode({
   platform = 'amazon',
   designState, folderConfig,
   exportFnRef, exportCurrentFnRef, cantoFnRef, cantoCurrentFnRef,
+  getSlotGroupsFnRef, exportSelectedFnRef,
   renderAllFnRef, previewFnRef, thumbnailFnRef,
   onCanExportChange, onCanExportCurrentChange, onRenderingAllChange, onStatsChange,
   blockCommentStatus, onOpenFeedback,
@@ -1592,11 +1601,67 @@ export default function TemplateMode({
     }))
   }, [outputFormat, parseResult, selectedId, productNames, statuses, renderProduct])
 
+  // ── Selective export ─────────────────────────────────────────────────────────
+
+  const getSlotGroups = useCallback((): SlotGroup[] => {
+    if (!selectedId) return []
+    const groups: SlotGroup[] = []
+    for (let j = 0; j < aplusSlots; j++) {
+      const lbl = slotLabel(j)
+      groups.push({ id: lbl.toLowerCase(), label: lbl, type: 'aplus' })
+    }
+    for (let g = 0; g < galleryCount; g++) {
+      groups.push({ id: `g${g + 1}`, label: `G${g + 1}`, type: 'gallery' })
+    }
+    if (!isShopify && includeGallery) {
+      for (let g = 0; g < galleryCount; g++) {
+        groups.push({ id: `sg${g + 1}`, label: `SG${g + 1}`, type: 'sg' })
+      }
+    }
+    return groups
+  }, [selectedId, aplusSlots, galleryCount, isShopify, includeGallery])
+
+  const handleExportSelected = useCallback(async (slotIds: string[]) => {
+    if (!selectedId || slotIds.length === 0) return
+    const product = parseResult?.products.find(p => p.id === selectedId)
+    if (!product) return
+    if (statuses[selectedId] !== 'done') await renderProduct(product)
+
+    const slotSet = new Set(slotIds)
+    const entries = Array.from(capturedRef.current.entries()).filter(([k]) => {
+      if (!k.startsWith(`${selectedId}/`)) return false
+      const lbl     = k.slice(k.indexOf('/') + 1)
+      // Strip suffixes to get the group id: "a1-desktop" → "a1", "g1-gallery" → "g1", "sg1" → "sg1"
+      const groupId = lbl.replace(/-desktop$|-mobile$|-gallery$/, '')
+      return slotSet.has(groupId)
+    })
+    if (entries.length === 0) return
+
+    const JSZip  = (await import('jszip')).default
+    const zip    = new JSZip()
+    const ext    = outputFormat === 'jpeg' ? 'jpg' : 'png'
+    const rawName = (productNames[selectedId] !== undefined && productNames[selectedId] !== ''
+      ? productNames[selectedId]
+      : product.productName) || product.sku || selectedId
+    const effectiveName = rawName
+    entries.forEach(([k, d]) => {
+      zip.file(`${effectiveName}-${k.slice(k.indexOf('/') + 1)}.${ext}`, d.split(',')[1], { base64: true })
+    })
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob),
+      download: `${effectiveName}-selected.zip`,
+    })
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href)
+  }, [outputFormat, parseResult, selectedId, productNames, statuses, renderProduct])
+
   // Wire refs for parent
   useEffect(() => { exportFnRef.current        = handleExportAll            }, [exportFnRef, handleExportAll])
   useEffect(() => { exportCurrentFnRef.current = handleExportCurrent        }, [exportCurrentFnRef, handleExportCurrent])
   useEffect(() => { cantoFnRef.current         = handleCantoAll             }, [cantoFnRef, handleCantoAll])
   useEffect(() => { cantoCurrentFnRef.current  = handleCantoCurrentProduct  }, [cantoCurrentFnRef, handleCantoCurrentProduct])
+  useEffect(() => { getSlotGroupsFnRef.current  = getSlotGroups             }, [getSlotGroupsFnRef, getSlotGroups])
+  useEffect(() => { exportSelectedFnRef.current = handleExportSelected      }, [exportSelectedFnRef, handleExportSelected])
   useEffect(() => { renderAllFnRef.current = renderAll           }, [renderAllFnRef, renderAll])
 
   // ── Derived ───────────────────────────────────────────────────────────────────
