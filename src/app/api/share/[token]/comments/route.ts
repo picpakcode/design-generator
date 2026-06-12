@@ -42,12 +42,13 @@ export async function GET(_req: Request, { params }: { params: { token: string }
 }
 
 export async function POST(req: Request, { params }: { params: { token: string } }) {
+  const parsed = parseBody(postCommentSchema, await req.json().catch(() => ({})))
+  if (!parsed.ok) return parsed.res
+
   const resolved = await resolveProject(params.token)
   if (!resolved) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const { supabase, projectId } = resolved
 
-  const parsed = parseBody(postCommentSchema, await req.json().catch(() => ({})))
-  if (!parsed.ok) return parsed.res
   const { blockId, authorName, body: commentBody, parentId } = parsed.data
 
   const { data, error } = await supabase

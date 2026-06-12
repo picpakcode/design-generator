@@ -3,6 +3,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { postApprovalSchema, parseBody } from '@/lib/validation'
 
 export async function POST(req: Request, { params }: { params: { token: string } }) {
+  const parsed = parseBody(postApprovalSchema, await req.json().catch(() => ({})))
+  if (!parsed.ok) return parsed.res
+
   const supabase = createAdminClient()
 
   const { data: share } = await supabase
@@ -15,8 +18,6 @@ export async function POST(req: Request, { params }: { params: { token: string }
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
-  const parsed = parseBody(postApprovalSchema, await req.json().catch(() => ({})))
-  if (!parsed.ok) return parsed.res
   const { blockId, authorName, status } = parsed.data
 
   const { data, error } = await supabase

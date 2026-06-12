@@ -6,6 +6,7 @@ import { getTemplate, getGalleryTemplate } from '@/lib/templates'
 import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import { usePresence, type Peer } from '@/hooks/usePresence'
 import { createClient } from '@/lib/supabase/client'
+import { blockApprovalSummary } from '@/lib/feedbackUtils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,17 +65,6 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d ago`
 }
 
-function blockApprovalSummary(approvals: Approval[], blockId: string): 'approved' | 'changes_requested' | null {
-  const relevant = approvals.filter(a => a.block_id === blockId)
-  if (relevant.length === 0) return null
-  const latest = new Map<string, Approval>()
-  for (const a of relevant) {
-    const ex = latest.get(a.author_name)
-    if (!ex || new Date(a.created_at) > new Date(ex.created_at)) latest.set(a.author_name, a)
-  }
-  const statuses = Array.from(latest.values()).map(a => a.status)
-  return statuses.includes('changes_requested') ? 'changes_requested' : 'approved'
-}
 
 // ─── Peer avatars (top-right header) ─────────────────────────────────────────
 
@@ -928,9 +918,10 @@ export default function ShareView({ token }: { token: string }) {
   const [error,    setError]    = useState<string | null>(null)
   const [loading,  setLoading]  = useState(true)
 
-  const [selectedBlockId,  setSelectedBlockId]  = useState<string | null>(null)
-  const [feedback,         setFeedback]         = useState<Feedback>({ comments: [], approvals: [] })
-  const [feedbackLoading,  setFeedbackLoading]  = useState(false)
+  const [selectedBlockId,       setSelectedBlockId]       = useState<string | null>(null)
+  const [feedback,              setFeedback]              = useState<Feedback>({ comments: [], approvals: [] })
+  const [feedbackLoading,       setFeedbackLoading]       = useState(false)
+  const [consecutiveFailures,   setConsecutiveFailures]   = useState(0)
 
   // Template Mode state
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
@@ -977,18 +968,17 @@ export default function ShareView({ token }: { token: string }) {
   }, [token])
 
   const loadShareData = useCallback(async () => {
-    // Snapshot when this request was fired so we can compare against broadcast timestamp
     const startedAt = Date.now()
     try {
-      // _t cache-buster bypasses CDN / Next.js Data Cache on every call
       const res = await fetch(`/api/share/${token}?_t=${startedAt}`, { cache: 'no-store' })
-      if (!res.ok) return
+      if (!res.ok) {
+        if (res.status === 404) setConsecutiveFailures(f => f + 1)
+        return
+      }
       const d: ShareData = await res.json()
-      // If a broadcast applied newer state after this request was fired, discard this
-      // response — it was in-flight before the DB write and carries the old data.
       if (broadcastAppliedAtRef.current > startedAt) return
+      setConsecutiveFailures(0)
       setData(d)
-      // do NOT call setDesign here — presence manages live design state
     } catch { /* silent — keep showing existing data */ }
   }, [token])
 
@@ -1012,31 +1002,20 @@ export default function ShareView({ token }: { token: string }) {
       .finally(() => setLoading(false))
   }, [token, loadFeedback])
 
-  // Poll comments every 10s — pauses when tab is hidden, resumes on visibility
+  // Poll state + comments together every 10s — immediately refetch when tab becomes visible
   useEffect(() => {
     if (!token) return
+    const poll = () => Promise.all([loadShareData(), loadFeedback()])
     const pollRef = { current: null as ReturnType<typeof setInterval> | null }
-    const start = () => { pollRef.current = setInterval(loadFeedback, 10000) }
-    const stop  = () => { pollRef.current && clearInterval(pollRef.current); pollRef.current = null }
-    const onVisibility = () => document.hidden ? stop() : (stop(), start())
-    if (!document.hidden) start()
-    document.addEventListener('visibilitychange', onVisibility)
-    return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
-  }, [token, loadFeedback])
-
-  // Poll project state every 5s — immediately reload when tab becomes visible (don't wait for interval)
-  useEffect(() => {
-    if (!token) return
-    const pollRef = { current: null as ReturnType<typeof setInterval> | null }
-    const start = () => { pollRef.current = setInterval(loadShareData, 5000) }
-    const stop  = () => { pollRef.current && clearInterval(pollRef.current); pollRef.current = null }
+    const start = () => { pollRef.current = setInterval(poll, 10_000) }
+    const stop  = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null } }
     const onVisibility = () => {
-      if (document.hidden) { stop() } else { stop(); loadShareData(); start() }
+      if (document.hidden) { stop() } else { stop(); void poll(); start() }
     }
     if (!document.hidden) start()
     document.addEventListener('visibilitychange', onVisibility)
     return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
-  }, [token, loadShareData])
+  }, [token, loadShareData, loadFeedback])
 
   // Subscribe to the same broadcast channel editors use — instant reload on any save.
   // Editors send the full templateState in the payload so we can apply it without an
@@ -1119,6 +1098,15 @@ export default function ShareView({ token }: { token: string }) {
 
   // ── Template Mode rendering ───────────────────────────────────────────────
 
+  const revokedBanner = consecutiveFailures >= 3 ? (
+    <div className="shrink-0 px-4 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2 text-xs text-amber-700">
+      <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+      </svg>
+      This share link may have been revoked. Content may be out of date.
+    </div>
+  ) : null
+
   const tState = data.templateState
   const effectiveProductId = selectedProductId ?? tState?.products[0]?.id ?? null
   if (tState && effectiveProductId) {
@@ -1164,6 +1152,7 @@ export default function ShareView({ token }: { token: string }) {
             </span>
           </div>
         </header>
+        {revokedBanner}
 
         {/* Product tab bar */}
         {(() => {
@@ -1407,6 +1396,7 @@ export default function ShareView({ token }: { token: string }) {
           </span>
         </div>
       </header>
+      {revokedBanner}
 
       {/* ── Body ────────────────────────────────────────────────────────────── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">

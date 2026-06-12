@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import { blockApprovalSummary } from '@/lib/feedbackUtils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,17 +65,6 @@ function blockLabel(blockId: string): string {
   return blockId.slice(0, 8)
 }
 
-function blockApprovalSummary(approvals: Approval[], blockId: string): 'approved' | 'changes_requested' | null {
-  const relevant = approvals.filter(a => a.block_id === blockId)
-  if (!relevant.length) return null
-  const map = new Map<string, Approval>()
-  for (const a of relevant) {
-    const ex = map.get(a.author_name)
-    if (!ex || new Date(a.created_at) > new Date(ex.created_at)) map.set(a.author_name, a)
-  }
-  const statuses = Array.from(map.values()).map(a => a.status)
-  return statuses.includes('changes_requested') ? 'changes_requested' : 'approved'
-}
 
 function Avatar({ name, isOwner }: { name: string; isOwner?: boolean }) {
   const initials = name.split(/[\s@]/)[0]?.[0]?.toUpperCase() ?? '?'
