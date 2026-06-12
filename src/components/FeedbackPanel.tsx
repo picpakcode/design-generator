@@ -80,12 +80,24 @@ function Avatar({ name, isOwner }: { name: string; isOwner?: boolean }) {
 // ─── Reaction bar ─────────────────────────────────────────────────────────────
 
 function ReactionBar({
-  comment, projectId, onUpdate,
-}: { comment: FeedbackComment; projectId: string; onUpdate: (id: string, reactions: Record<string, string[]>) => void }) {
+  comment, projectId, authorName, onUpdate,
+}: { comment: FeedbackComment; projectId: string; authorName: string; onUpdate: (id: string, reactions: Record<string, string[]>) => void }) {
   const [pickerOpen, setPickerOpen] = useState(false)
 
   async function toggleReaction(emoji: string) {
     setPickerOpen(false)
+    const prev = comment.reactions ?? {}
+    // Optimistic update — same toggle logic the server uses
+    const optimistic: Record<string, string[]> = { ...prev }
+    const existing = optimistic[emoji] ?? []
+    if (existing.includes(authorName)) {
+      optimistic[emoji] = existing.filter(r => r !== authorName)
+      if (!optimistic[emoji].length) delete optimistic[emoji]
+    } else {
+      optimistic[emoji] = [...existing, authorName]
+    }
+    onUpdate(comment.id, optimistic)
+
     const res = await fetch(`/api/projects/${projectId}/feedback/react`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -94,6 +106,8 @@ function ReactionBar({
     if (res.ok) {
       const d = await res.json()
       onUpdate(comment.id, d.reactions ?? {})
+    } else {
+      onUpdate(comment.id, prev)  // revert on failure
     }
   }
 
@@ -151,10 +165,11 @@ function ReactionBar({
 // ─── Single thread ────────────────────────────────────────────────────────────
 
 function ThreadCard({
-  thread, projectId, onResolve, onReply, onReactionUpdate,
+  thread, projectId, authorName, onResolve, onReply, onReactionUpdate,
 }: {
   thread: Thread
   projectId: string
+  authorName: string
   onResolve: (commentId: string) => void
   onReply: (parentId: string, blockId: string, text: string) => Promise<void>
   onReactionUpdate: (id: string, reactions: Record<string, string[]>) => void
@@ -194,7 +209,7 @@ function ThreadCard({
               <span className="text-[10px] text-gray-300 dark:text-gray-600 ml-auto shrink-0">{timeAgo(root.created_at)}</span>
             </div>
             <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed">{root.body}</p>
-            <ReactionBar comment={root} projectId={projectId} onUpdate={onReactionUpdate} />
+            <ReactionBar comment={root} projectId={projectId} authorName={authorName} onUpdate={onReactionUpdate} />
           </div>
           {/* Resolve toggle */}
           <button
@@ -229,7 +244,7 @@ function ThreadCard({
                     <span className="text-[10px] text-gray-300 dark:text-gray-600 ml-auto shrink-0">{timeAgo(reply.created_at)}</span>
                   </div>
                   <p className="text-[11px] text-gray-600 dark:text-gray-400 leading-relaxed">{reply.body}</p>
-                  <ReactionBar comment={reply} projectId={projectId} onUpdate={onReactionUpdate} />
+                  <ReactionBar comment={reply} projectId={projectId} authorName={authorName} onUpdate={onReactionUpdate} />
                 </div>
               </div>
             </div>
@@ -536,6 +551,7 @@ export default function FeedbackPanel({ projectId, user, isOpen, onClose, onUnre
                         key={thread.root.id}
                         thread={thread}
                         projectId={projectId}
+                        authorName={user.email ?? 'Owner'}
                         onResolve={handleResolve}
                         onReply={handleReply}
                         onReactionUpdate={handleReactionUpdate}

@@ -30,7 +30,7 @@
  *   using (bucket_id = 'project-thumbnails' and auth.uid()::text = (storage.foldername(name))[1]);
  */
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
@@ -62,6 +62,149 @@ function timeAgo(iso: string): string {
 const EMPTY_PROJECT_STATE = {} as DesignState
 
 type ProjectRow = Omit<DbProject, 'state'>
+
+// ─── Project card (memoized) ──────────────────────────────────────────────────
+
+interface ProjectCardProps {
+  project: ProjectRow
+  isSelected: boolean
+  isSelectMode: boolean
+  isMenuOpen: boolean
+  isRenaming: boolean
+  renameValue: string | undefined
+  renameInputRef: React.RefObject<HTMLInputElement>
+  animationDelay: number
+  onToggleSelect: (id: string) => void
+  onToggleMenu: (id: string) => void
+  onCloseMenu: () => void
+  onStartRename: (project: ProjectRow) => void
+  onCommitRename: (id: string) => void
+  onRenameKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, id: string) => void
+  onSetRenameValue: (value: string) => void
+  onDelete: (id: string) => void
+}
+
+const ProjectCard = React.memo(function ProjectCard({
+  project, isSelected, isSelectMode, isMenuOpen, isRenaming, renameValue,
+  renameInputRef, animationDelay,
+  onToggleSelect, onToggleMenu, onCloseMenu,
+  onStartRename, onCommitRename, onRenameKeyDown, onSetRenameValue, onDelete,
+}: ProjectCardProps) {
+  const timeStr = useMemo(() => timeAgo(project.updated_at), [project.updated_at])
+
+  return (
+    <div
+      className={`group relative flex flex-col bg-white dark:bg-gray-900 rounded border transition-all overflow-hidden animate-fade-in ${
+        isSelected
+          ? 'border-accent-400 dark:border-accent-500 ring-2 ring-accent-200 dark:ring-accent-900 shadow-sm'
+          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-px'
+      }`}
+      style={{ animationDelay: `${animationDelay}ms` }}
+    >
+      {/* Checkbox */}
+      <button
+        onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleSelect(project.id) }}
+        className={`absolute top-2 left-2 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+          isSelected
+            ? 'bg-accent-600 border-accent-600 opacity-100'
+            : 'bg-white/90 dark:bg-gray-900/90 border-gray-300 dark:border-gray-500 backdrop-blur-sm opacity-0 group-hover:opacity-100'
+        } ${isSelectMode ? 'opacity-100' : ''}`}
+        title={isSelected ? 'Deselect' : 'Select'}
+      >
+        {isSelected && (
+          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+      </button>
+
+      {/* Thumbnail */}
+      <a
+        href={isSelectMode ? undefined : `/project/${project.id}`}
+        onClick={isSelectMode ? e => { e.preventDefault(); onToggleSelect(project.id) } : undefined}
+        className="relative block aspect-video bg-gray-100 dark:bg-gray-800 overflow-hidden"
+        tabIndex={0}
+      >
+        {project.thumbnail_url ? (
+          <img
+            src={project.thumbnail_url}
+            alt={project.name || 'Untitled'}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+            <div className="w-10 h-10 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+              <span className="text-lg font-bold text-gray-400 dark:text-gray-500">
+                {(project.name || 'U')[0].toUpperCase()}
+              </span>
+            </div>
+          </div>
+        )}
+        <div className={`absolute bottom-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest ${
+          project.project_type === 'shopify' ? 'bg-green-600 text-white' : 'bg-orange-500 text-white'
+        }`}>
+          {project.project_type === 'shopify' ? 'Shopify' : 'Amazon'}
+        </div>
+      </a>
+
+      {/* Footer */}
+      <div className="px-3 py-2.5 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          {isRenaming ? (
+            <input
+              ref={renameInputRef}
+              type="text"
+              value={renameValue ?? ''}
+              onChange={e => onSetRenameValue(e.target.value)}
+              onBlur={() => onCommitRename(project.id)}
+              onKeyDown={e => onRenameKeyDown(e, project.id)}
+              className="w-full text-sm font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              onClick={e => e.stopPropagation()}
+            />
+          ) : (
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+              {project.name || 'Untitled'}
+            </p>
+          )}
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+            Updated {timeStr}
+          </p>
+        </div>
+
+        {!isSelectMode && (
+          <div className="relative shrink-0">
+            <button
+              onClick={e => { e.stopPropagation(); onToggleMenu(project.id) }}
+              className="w-7 h-7 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+              title="Project options"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="5" cy="12" r="1.5" />
+                <circle cx="12" cy="12" r="1.5" />
+                <circle cx="19" cy="12" r="1.5" />
+              </svg>
+            </button>
+            {isMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={onCloseMenu} />
+                <div className="absolute bottom-full right-0 mb-1 w-36 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 py-1.5 z-50 animate-slide-down" style={{ transformOrigin: 'bottom right' }}>
+                  <button
+                    onClick={e => { e.stopPropagation(); onStartRename(project) }}
+                    className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >Rename</button>
+                  <button
+                    onClick={e => { e.stopPropagation(); onDelete(project.id) }}
+                    className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                  >Delete</button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+})
 
 // ─── Project guide modal ──────────────────────────────────────────────────────
 
@@ -356,13 +499,13 @@ export default function Dashboard() {
 
   // ── Selection helpers ──────────────────────────────────────────────────────
 
-  const toggleSelect = (id: string) => {
+  const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
-  }
+  }, [])
 
   const selectAll = () => setSelectedIds(new Set(projects.map(p => p.id)))
   const clearSelection = () => setSelectedIds(new Set())
@@ -390,10 +533,10 @@ export default function Dashboard() {
     }
   }
 
-  const handleDeleteProject = (id: string) => {
+  const handleDeleteProject = useCallback((id: string) => {
     setMenuOpenId(null)
     setDeleteTarget([id])
-  }
+  }, [])
 
   const handleDeleteSelected = () => {
     setDeleteTarget(Array.from(selectedIds))
@@ -415,14 +558,18 @@ export default function Dashboard() {
     }
   }
 
-  const startRename = (project: ProjectRow) => {
+  const startRename = useCallback((project: ProjectRow) => {
     setMenuOpenId(null)
     setRenamingId(project.id)
     setRenameValue(project.name || 'Untitled')
-  }
+  }, [])
 
-  const commitRename = async (id: string) => {
-    const name = renameValue.trim() || 'Untitled'
+  // Track latest renameValue in a ref so commitRename doesn't need it as a dep
+  const renameValueRef = useRef(renameValue)
+  renameValueRef.current = renameValue
+
+  const commitRename = useCallback(async (id: string) => {
+    const name = renameValueRef.current.trim() || 'Untitled'
     setProjects(ps => ps.map(p => p.id === id ? { ...p, name } : p))
     setRenamingId(null)
     try {
@@ -430,12 +577,18 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Failed to rename project:', err)
     }
-  }
+  }, [supabase])
 
-  const handleRenameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, id: string) => {
+  const handleRenameKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>, id: string) => {
     if (e.key === 'Enter') commitRename(id)
     if (e.key === 'Escape') setRenamingId(null)
-  }
+  }, [commitRename])
+
+  const handleToggleMenu = useCallback((id: string) => {
+    setMenuOpenId(prev => prev === id ? null : id)
+  }, [])
+
+  const handleCloseMenu = useCallback(() => setMenuOpenId(null), [])
 
   const isLoading = authLoading || loading
 
@@ -830,131 +983,27 @@ export default function Dashboard() {
               </div>
 
               {/* Project cards */}
-              {projects.map((project, idx) => {
-                const isSelected = selectedIds.has(project.id)
-                return (
-                  <div
-                    key={project.id}
-                    className={`group relative flex flex-col bg-white dark:bg-gray-900 rounded border transition-all overflow-hidden animate-fade-in ${
-                      isSelected
-                        ? 'border-accent-400 dark:border-accent-500 ring-2 ring-accent-200 dark:ring-accent-900 shadow-sm'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-px'
-                    }`}
-                    style={{ animationDelay: `${idx * 40}ms` }}
-                  >
-                    {/* Checkbox */}
-                    <button
-                      onClick={e => { e.preventDefault(); e.stopPropagation(); toggleSelect(project.id) }}
-                      className={`absolute top-2 left-2 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                        isSelected
-                          ? 'bg-accent-600 border-accent-600 opacity-100'
-                          : 'bg-white/90 dark:bg-gray-900/90 border-gray-300 dark:border-gray-500 backdrop-blur-sm opacity-0 group-hover:opacity-100'
-                      } ${isSelectMode ? 'opacity-100' : ''}`}
-                      title={isSelected ? 'Deselect' : 'Select'}
-                    >
-                      {isSelected && (
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </button>
-
-                    {/* Thumbnail */}
-                    <a
-                      href={isSelectMode ? undefined : `/project/${project.id}`}
-                      onClick={isSelectMode ? e => { e.preventDefault(); toggleSelect(project.id) } : undefined}
-                      className="relative block aspect-video bg-gray-100 dark:bg-gray-800 overflow-hidden"
-                      tabIndex={0}
-                    >
-                      {project.thumbnail_url ? (
-                        <img
-                          src={project.thumbnail_url}
-                          alt={project.name || 'Untitled'}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                          <div className="w-10 h-10 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                            <span className="text-lg font-bold text-gray-400 dark:text-gray-500">
-                              {(project.name || 'U')[0].toUpperCase()}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                      {/* Platform badge */}
-                      <div className={`absolute bottom-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest ${
-                        project.project_type === 'shopify'
-                          ? 'bg-green-600 text-white'
-                          : 'bg-orange-500 text-white'
-                      }`}>
-                        {project.project_type === 'shopify' ? 'Shopify' : 'Amazon'}
-                      </div>
-                    </a>
-
-                    {/* Card footer */}
-                    <div className="px-3 py-2.5 flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        {renamingId === project.id ? (
-                          <input
-                            ref={renameInputRef}
-                            type="text"
-                            value={renameValue}
-                            onChange={e => setRenameValue(e.target.value)}
-                            onBlur={() => commitRename(project.id)}
-                            onKeyDown={e => handleRenameKeyDown(e, project.id)}
-                            className="w-full text-sm font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-gray-400"
-                            onClick={e => e.stopPropagation()}
-                          />
-                        ) : (
-                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                            {project.name || 'Untitled'}
-                          </p>
-                        )}
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-                          Updated {timeAgo(project.updated_at)}
-                        </p>
-                      </div>
-
-                      {/* 3-dot menu — hidden in select mode */}
-                      {!isSelectMode && (
-                        <div className="relative shrink-0">
-                          <button
-                            onClick={e => { e.stopPropagation(); setMenuOpenId(menuOpenId === project.id ? null : project.id) }}
-                            className="w-7 h-7 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                            title="Project options"
-                          >
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <circle cx="5" cy="12" r="1.5" />
-                              <circle cx="12" cy="12" r="1.5" />
-                              <circle cx="19" cy="12" r="1.5" />
-                            </svg>
-                          </button>
-
-                          {menuOpenId === project.id && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setMenuOpenId(null)} />
-                              <div className="absolute bottom-full right-0 mb-1 w-36 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 py-1.5 z-50 animate-slide-down" style={{ transformOrigin: 'bottom right' }}>
-                                <button
-                                  onClick={e => { e.stopPropagation(); startRename(project) }}
-                                  className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                                >
-                                  Rename
-                                </button>
-                                <button
-                                  onClick={e => { e.stopPropagation(); handleDeleteProject(project.id) }}
-                                  className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
+              {projects.map((project, idx) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  isSelected={selectedIds.has(project.id)}
+                  isSelectMode={isSelectMode}
+                  isMenuOpen={menuOpenId === project.id}
+                  isRenaming={renamingId === project.id}
+                  renameValue={renamingId === project.id ? renameValue : undefined}
+                  renameInputRef={renameInputRef}
+                  animationDelay={idx * 40}
+                  onToggleSelect={toggleSelect}
+                  onToggleMenu={handleToggleMenu}
+                  onCloseMenu={handleCloseMenu}
+                  onStartRename={startRename}
+                  onCommitRename={commitRename}
+                  onRenameKeyDown={handleRenameKeyDown}
+                  onSetRenameValue={setRenameValue}
+                  onDelete={handleDeleteProject}
+                />
+              ))}
             </div>
           )}
 

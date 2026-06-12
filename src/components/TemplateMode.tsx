@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import dynamic from 'next/dynamic'
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
-import { toPng, toJpeg } from 'html-to-image'
 import { BulkProduct, ParseResult, parseCSV, productsToCSV, downloadTemplate } from '@/lib/csv'
 import { DesignState, UploadedAsset, TemplateShareState } from '@/types'
 import { saveTemplateState, loadTemplateState, stripTemplateBlobUrls } from '@/lib/db'
@@ -278,6 +277,7 @@ async function captureToDataUrl(
       : new Promise<void>(r => { img.onload = () => r(); img.onerror = () => r() })
   ))
   try {
+    const { toPng, toJpeg } = await import('html-to-image')
     const opts = { includeQueryParams: true, cacheBust: true, onImageErrorHandler: () => {} }
     return format === 'jpeg'
       ? await toJpeg(div, { quality: 0.95, backgroundColor: '#ffffff', ...opts })
