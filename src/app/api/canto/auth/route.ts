@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-const APP_ID  = process.env.CANTO_APP_ID!
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+const APP_ID   = process.env.CANTO_APP_ID!
+const APP_URL  = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+const BASE_URL = process.env.CANTO_BASE_URL!  // e.g. https://docsdiesel.canto.com
 
 export async function GET() {
   const supabase = await createClient()
@@ -12,7 +13,8 @@ export async function GET() {
   const state = Buffer.from(JSON.stringify({ userId: user.id, ts: Date.now() })).toString('base64url')
 
   const redirect = `${APP_URL}/api/canto/callback`
-  const url = new URL('https://oauth.canto.com/oauth/api/oauth2/auth')
+  // Authorization endpoint is tenant-specific; token exchange uses oauth.canto.com
+  const url = new URL(`${BASE_URL}/oauth/api/oauth2/auth`)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('client_id',     APP_ID)
   url.searchParams.set('redirect_uri',  redirect)
