@@ -240,14 +240,18 @@ export async function uploadAsset(
   } else {
     token = await getAccessToken()
   }
-  const ext   = filename.split('.').pop()?.toLowerCase() ?? 'png'
-  const mime  = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
-  const name  = filename.includes('.') ? filename.slice(0, filename.lastIndexOf('.')) : filename
+  const ext  = filename.split('.').pop()?.toLowerCase() ?? 'png'
+  const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
+
+  // Sanitize: strip special chars Canto dislikes, cap name at 100 chars
+  const rawName = filename.includes('.') ? filename.slice(0, filename.lastIndexOf('.')) : filename
+  const safeName = rawName.replace(/['"]/g, '').replace(/[^\w\s\-().]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100)
+  const safeFilename = `${safeName}.${ext}`
 
   const form = new FormData()
   const arrayBuf = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
-  form.append('file', new Blob([arrayBuf], { type: mime }), filename)
-  form.append('name', name)
+  form.append('file', new Blob([arrayBuf], { type: mime }), safeFilename)
+  form.append('name', safeName)
   form.append('scheme', ext === 'jpg' ? 'image' : ext === 'png' ? 'image' : 'document')
   if (meta?.description)      form.append('description', meta.description)
   if (meta?.keywords?.length) form.append('keyword', meta.keywords.join(','))
@@ -261,36 +265,23 @@ export async function uploadAsset(
     redirect: 'manual',
   })
 
-  console.log(`[canto/upload] ${filename} → album ${albumId} | status ${res.status} | content-type: ${res.headers.get('content-type')} | location: ${res.headers.get('location')}`)
+  // Single log line per upload: status + body combined to stay within Vercel's 50-line cap
+  const responseText = await res.text()
+  console.log(`[canto/upload] "${safeName}" → album ${albumId} | status ${res.status} | body: ${responseText.slice(0, 300)}`)
 
   // 3xx — unexpected redirect
   if (res.status >= 300 && res.status < 400) {
-    throw new Error(
-      `Canto upload redirected (${res.status}) to ${res.headers.get('location') ?? '?'}.`
-    )
+    throw new Error(`Canto upload redirected (${res.status}) to ${res.headers.get('location') ?? '?'}.`)
   }
 
   if (!res.ok) {
-    const text = await res.text()
-    console.log(`[canto/upload] error body:`, text.slice(0, 600))
     if (res.status === 401 || res.status === 403) {
-      throw new Error(
-        `Canto upload permission denied (${res.status}). ` +
-        `Ensure your OAuth app has upload scope enabled in Canto admin settings.`
-      )
+      throw new Error(`Canto upload permission denied (${res.status}): ${responseText.slice(0, 200)}`)
     }
-    throw new Error(`Canto upload failed ${res.status}: ${text.slice(0, 400)}`)
+    throw new Error(`Canto upload failed ${res.status}: ${responseText.slice(0, 400)}`)
   }
 
-  // Canto may return JSON, plain text, or HTML on success.
-  const contentType = res.headers.get('content-type') ?? ''
-  if (contentType.includes('application/json')) {
-    const json = await res.json() as CantoUploadResult
-    console.log(`[canto/upload] success JSON:`, JSON.stringify(json).slice(0, 200))
-    return json
-  }
-  const text = await res.text()
-  console.log(`[canto/upload] success body (non-JSON):`, text.slice(0, 400))
-  try { return JSON.parse(text) as CantoUploadResult } catch { /* not JSON */ }
-  return { id: name }
+  // responseText already read above — parse if JSON
+  try { return JSON.parse(responseText) as CantoUploadResult } catch { /* not JSON */ }
+  return { id: safeName }
 }
