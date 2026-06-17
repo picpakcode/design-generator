@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getFolders, searchAssets } from '@/lib/canto'
 
-const BASE     = process.env.CANTO_BASE_URL ?? ''
-const APP_ID   = process.env.CANTO_APP_ID  ?? ''
-const SECRET   = process.env.CANTO_APP_SECRET ?? ''
-const CC_TOKEN = process.env.CANTO_CLIENT_CREDENTIALS_TOKEN ?? ''
+const BASE   = process.env.CANTO_BASE_URL ?? ''
+const APP_ID = process.env.CANTO_APP_ID  ?? ''
+const SECRET = process.env.CANTO_APP_SECRET ?? ''
 
 async function getOAuthToken(): Promise<string | null> {
   const res = await fetch('https://oauth.canto.com/oauth/api/oauth2/token', {
@@ -17,21 +16,56 @@ async function getOAuthToken(): Promise<string | null> {
   return (d.accessToken ?? d.access_token) as string | null
 }
 
-// Valid 1×1 black PNG as Uint8Array (avoids Buffer→Blob issues)
-const PNG_BYTES = new Uint8Array(Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-  'base64'
-))
+// Valid 1×1 black PNG
+const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+const PNG_BYTES = Buffer.from(PNG_B64, 'base64')
 
-async function post(path: string, token: string, body: FormData | string | null, extraHeaders?: Record<string, string>): Promise<{ status: number; body: string }> {
+// Hand-rolled multipart — bypasses any Node.js FormData serialization quirks
+function buildMultipart(albumId: string): { body: Buffer; contentType: string } {
+  const boundary = `----CantoUploadBoundary${Date.now()}`
+  const crlf = '\r\n'
+
+  const textPart = (name: string, value: string) =>
+    Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="${name}"${crlf}${crlf}${value}${crlf}`)
+
+  const filePart = Buffer.concat([
+    Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="file"; filename="test.png"${crlf}Content-Type: image/png${crlf}${crlf}`),
+    PNG_BYTES,
+    Buffer.from(crlf),
+  ])
+
+  const closing = Buffer.from(`--${boundary}--${crlf}`)
+
+  const body = Buffer.concat([
+    filePart,
+    textPart('name', 'api-test'),
+    textPart('id', albumId),
+    textPart('scheme', 'image'),
+    closing,
+  ])
+  return { body, contentType: `multipart/form-data; boundary=${boundary}` }
+}
+
+async function postRaw(path: string, token: string, body: Buffer, contentType: string): Promise<{ status: number; body: string }> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, ...extraHeaders },
-    body: body ?? undefined,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType },
+    body: new Uint8Array(body),
     redirect: 'manual',
   })
   const text = await res.text().catch(() => '')
-  return { status: res.status, body: text.slice(0, 300) }
+  return { status: res.status, body: text.slice(0, 400) }
+}
+
+async function postForm(path: string, token: string, form: FormData): Promise<{ status: number; body: string }> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+    redirect: 'manual',
+  })
+  const text = await res.text().catch(() => '')
+  return { status: res.status, body: text.slice(0, 400) }
 }
 
 export async function GET(req: Request) {
@@ -46,41 +80,38 @@ export async function GET(req: Request) {
   }
 
   if (upload) {
-    const tok = await getOAuthToken() ?? CC_TOKEN
+    const tok = await getOAuthToken()
+    if (!tok) return NextResponse.json({ error: 'OAuth exchange failed' }, { status: 500 })
+
     const r: Record<string, unknown> = {}
 
-    // 1. Empty POST — what does Canto say without any body?
-    r['empty_body'] = await post(`/api/v1/album/${upload}/upload`, tok, null)
+    // 1. Hand-rolled multipart to /api/v1/album/{id}/upload
+    const { body: mp1, contentType: ct1 } = buildMultipart(upload)
+    r['manual_multipart_album_path'] = await postRaw(`/api/v1/album/${upload}/upload`, tok, mp1, ct1)
 
-    // 2. File only (no name, no scheme)
-    const f1 = new FormData()
-    f1.append('file', new Blob([PNG_BYTES], { type: 'image/png' }), 'test.png')
-    r['file_only'] = await post(`/api/v1/album/${upload}/upload`, tok, f1)
+    // 2. Hand-rolled multipart to /api/v1/upload (original endpoint — maybe now works with right token?)
+    const { body: mp2, contentType: ct2 } = buildMultipart(upload)
+    r['manual_multipart_v1_upload'] = await postRaw('/api/v1/upload', tok, mp2, ct2)
 
-    // 3. File + name (no scheme)
-    const f2 = new FormData()
-    f2.append('file', new Blob([PNG_BYTES], { type: 'image/png' }), 'test.png')
-    f2.append('name', 'api-test')
-    r['file_name'] = await post(`/api/v1/album/${upload}/upload`, tok, f2)
+    // 3. FormData to /api/v1/album/{id}/upload for comparison
+    const f = new FormData()
+    f.append('file', new Blob([PNG_BYTES], { type: 'image/png' }), 'test.png')
+    f.append('name', 'api-test')
+    f.append('id', upload)
+    r['formdata_album_path'] = await postForm(`/api/v1/album/${upload}/upload`, tok, f)
 
-    // 4. File + name + scheme (current approach)
-    const f3 = new FormData()
-    f3.append('file', new Blob([PNG_BYTES], { type: 'image/png' }), 'test.png')
-    f3.append('name', 'api-test')
-    f3.append('scheme', 'image')
-    r['file_name_scheme'] = await post(`/api/v1/album/${upload}/upload`, tok, f3)
-
-    // 5. File + name — but with File object instead of Blob
-    const f4 = new FormData()
-    f4.append('file', new File([PNG_BYTES], 'test.png', { type: 'image/png' }))
-    f4.append('name', 'api-test')
-    r['file_obj_name'] = await post(`/api/v1/album/${upload}/upload`, tok, f4)
-
-    // 6. Try test export album OH03P with file+name
-    const f5 = new FormData()
-    f5.append('file', new Blob([PNG_BYTES], { type: 'image/png' }), 'test.png')
-    f5.append('name', 'api-test')
-    r['test_album_OH03P'] = await post(`/api/v1/album/OH03P/upload`, tok, f5)
+    // 4. Text-only (no file) — does Canto describe what's missing?
+    const { body: mpText, contentType: ctText } = (() => {
+      const boundary = '----TextOnly'
+      const crlf = '\r\n'
+      const b = Buffer.concat([
+        Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="id"${crlf}${crlf}${upload}${crlf}`),
+        Buffer.from(`--${boundary}${crlf}Content-Disposition: form-data; name="name"${crlf}${crlf}api-test${crlf}`),
+        Buffer.from(`--${boundary}--${crlf}`),
+      ])
+      return { body: b, contentType: `multipart/form-data; boundary=${boundary}` }
+    })()
+    r['text_fields_only_no_file'] = await postRaw(`/api/v1/album/${upload}/upload`, tok, mpText, ctText)
 
     return NextResponse.json(r)
   }
