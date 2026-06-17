@@ -1771,6 +1771,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   >
                     <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
                     Save All to Canto
+                    <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">In dev</span>
                   </button>
                   <button
                     onClick={async () => {
@@ -1783,6 +1784,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   >
                     <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
                     Save Current to Canto
+                    <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">In dev</span>
                   </button>
                 </div>
               </>
