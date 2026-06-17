@@ -11,9 +11,6 @@ let cachedToken: string | null = null
 let tokenExpiry = 0
 
 async function getAccessToken(): Promise<string> {
-  // If a pre-generated client credentials token is configured, use it directly.
-  if (CC_TOKEN) return CC_TOKEN
-
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken
 
   const res = await fetch('https://oauth.canto.com/oauth/api/oauth2/token', {
@@ -28,6 +25,8 @@ async function getAccessToken(): Promise<string> {
 
   if (!res.ok) {
     const text = await res.text()
+    // Fall back to pre-generated token if OAuth exchange fails
+    if (CC_TOKEN) return CC_TOKEN
     throw new Error(`Canto auth failed ${res.status}: ${text}`)
   }
 
