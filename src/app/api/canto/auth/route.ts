@@ -13,8 +13,8 @@ export async function GET() {
   const state = Buffer.from(JSON.stringify({ userId: user.id, ts: Date.now() })).toString('base64url')
 
   const redirect = `${APP_URL}/api/canto/callback`
-  // Authorization endpoint is tenant-specific; token exchange uses oauth.canto.com
-  const url = new URL(`${BASE_URL}/oauth/api/oauth2/auth`)
+  // Authorization endpoint: oauth.canto.com with /authorize (not /auth, not tenant domain)
+  const url = new URL('https://oauth.canto.com/oauth/api/oauth2/authorize')
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('client_id',     APP_ID)
   url.searchParams.set('redirect_uri',  redirect)
