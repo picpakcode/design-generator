@@ -248,20 +248,35 @@ export async function uploadAsset(
   const safeName = rawName.replace(/['"]/g, '').replace(/[^\w\s\-().]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100)
   const safeFilename = `${safeName}.${ext}`
 
-  const form = new FormData()
-  const arrayBuf = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
-  form.append('file', new Blob([arrayBuf], { type: mime }), safeFilename)
-  form.append('name', safeName)
-  // Note: 'scheme' field omitted — Canto should infer from MIME type; explicit value may cause server error
-  if (meta?.description)      form.append('description', meta.description)
-  if (meta?.keywords?.length) form.append('keyword', meta.keywords.join(','))
-  if (meta?.tags?.length)     form.append('tag',     meta.tags.join(','))
+  // Build raw multipart instead of using Node.js FormData — avoids serialization quirks
+  const boundary = `----CantoUpload${Math.random().toString(36).slice(2, 10)}`
+  const CRLF = '\r\n'
+  const field = (name: string, value: string) =>
+    Buffer.from(`--${boundary}${CRLF}Content-Disposition: form-data; name="${name}"${CRLF}${CRLF}${value}${CRLF}`)
 
-  // Correct Canto upload endpoint: album ID goes in the URL path, not the form body
+  const fileBytes = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+  const filePart = Buffer.concat([
+    Buffer.from(`--${boundary}${CRLF}Content-Disposition: form-data; name="file"; filename="${safeFilename}"${CRLF}Content-Type: ${mime}${CRLF}${CRLF}`),
+    Buffer.from(fileBytes),
+    Buffer.from(CRLF),
+  ])
+
+  const parts: Buffer[] = [
+    filePart,
+    field('name',   safeName),
+    field('scheme', 'image'),
+  ]
+  if (meta?.description)      parts.push(field('description', meta.description))
+  if (meta?.keywords?.length) parts.push(field('keyword',     meta.keywords.join(',')))
+  if (meta?.tags?.length)     parts.push(field('tag',         meta.tags.join(',')))
+  parts.push(Buffer.from(`--${boundary}--${CRLF}`))
+
+  const body = Buffer.concat(parts)
+
   const res = await fetch(`${BASE}/api/v1/album/${albumId}/upload`, {
     method:   'POST',
-    headers:  { Authorization: `Bearer ${token}` },
-    body:     form,
+    headers:  { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+    body:     new Uint8Array(body),
     redirect: 'manual',
   })
 
