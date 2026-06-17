@@ -275,7 +275,13 @@ export async function uploadAsset(
 
   const res = await fetch(`${BASE}/api/v1/album/${albumId}/upload`, {
     method:   'POST',
-    headers:  { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+    headers:  {
+      Authorization:  `Bearer ${token}`,
+      'Content-Type': `multipart/form-data; boundary=${boundary}`,
+      'Accept':       'application/json',
+      'Origin':       BASE,
+      'Referer':      `${BASE}/`,
+    },
     body:     new Uint8Array(body),
     redirect: 'manual',
   })
