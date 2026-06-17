@@ -1810,6 +1810,16 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                         <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
                         Save Current to Canto
                       </button>
+                      <button
+                        onClick={async () => {
+                          await fetch('/api/canto/disconnect', { method: 'POST' })
+                          setCantoConnected(false)
+                          setTemplateExportOpen(false)
+                        }}
+                        className="w-full h-7 flex items-center gap-2 px-3 rounded text-[10px] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      >
+                        Disconnect Canto
+                      </button>
                     </>
                   )}
                 </div>
