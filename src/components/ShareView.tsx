@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import type { DesignState, TemplateShareState, TemplateShareSlotState, TemplateId, GalleryTemplateId } from '@/types'
 import { getTemplate, getGalleryTemplate } from '@/lib/templates'
-import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
+import { CanvasContent, CanvasContentIcons, CanvasContentSplit, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import { usePresence, type Peer } from '@/hooks/usePresence'
 import { createClient } from '@/lib/supabase/client'
 import { blockApprovalSummary } from '@/lib/feedbackUtils'
@@ -177,6 +177,8 @@ function AplusBlockCanvas({ block, design, scale, format }: {
         <div style={{ width: tpl.width, height: tpl.height, position: 'relative' }}>
           {block.templateId === 'aplus-icons'
             ? <CanvasContentIcons design={rd} settings={settings} />
+            : block.templateId === 'aplus-split'
+            ? <CanvasContentSplit design={rd} settings={settings} />
             : <CanvasContent      design={rd} settings={settings} />
           }
         </div>
@@ -242,7 +244,7 @@ function buildTemplateSlotDesign(
     iconLabels:          s.iconLabels,
     iconCount:           s.iconCount,
     iconsMobileShowDesc: (cfg as { mobileShowDesc?: boolean }).mobileShowDesc ?? true,
-    activeTemplate:      (cfg.template === 'icons' || cfg.template === 'icons-text') ? 'aplus-icons' : 'aplus-5050',
+    activeTemplate:      (cfg.template === 'icons' || cfg.template === 'icons-text') ? 'aplus-icons' : (cfg.template === 'split-right' || cfg.template === 'split-left') ? 'aplus-split' : 'aplus-5050',
     activeFormat:        'desktop',
   }
 }
@@ -316,7 +318,8 @@ function TemplateModeAplusItem({
   const sd  = buildTemplateSlotDesign(productId, slotIdx, tState, baseDesign)
   const cfg = tState.slotConfigs[slotIdx] ?? { template: '5050-right' }
   const isIcons = cfg.template === 'icons' || cfg.template === 'icons-text'
-  const flip    = cfg.template === '5050-left'
+  const isSplit = cfg.template === 'split-right' || cfg.template === 'split-left'
+  const flip    = cfg.template === '5050-left' || cfg.template === 'split-left'
   const W = 1464
   const H = 600
   return (
@@ -326,6 +329,8 @@ function TemplateModeAplusItem({
           <div style={{ width: W, height: H, position: 'relative' }}>
             {isIcons
               ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...baseDesign.desktop, layoutFlipped: flip }} />
+              : isSplit
+              ? <CanvasContentSplit design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...baseDesign.desktop, layoutFlipped: flip }} />
               : <CanvasContent      design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...baseDesign.desktop, layoutFlipped: flip }} />
             }
           </div>
@@ -352,7 +357,8 @@ function TemplateModeAplusMobileItem({
   const sd  = buildTemplateSlotDesign(productId, slotIdx, tState, baseDesign)
   const cfg = tState.slotConfigs[slotIdx] ?? { template: '5050-right' }
   const isIcons = cfg.template === 'icons' || cfg.template === 'icons-text'
-  const flip    = cfg.template === '5050-left'
+  const isSplit = cfg.template === 'split-right' || cfg.template === 'split-left'
+  const flip    = cfg.template === '5050-left' || cfg.template === 'split-left'
   const W = 600
   const H = 450
   return (
@@ -362,6 +368,8 @@ function TemplateModeAplusMobileItem({
           <div style={{ width: W, height: H, position: 'relative' }}>
             {isIcons
               ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...baseDesign.mobile, layoutFlipped: flip }} />
+              : isSplit
+              ? <CanvasContentSplit design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...baseDesign.mobile, layoutFlipped: flip }} />
               : <CanvasContent      design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...baseDesign.mobile, layoutFlipped: flip }} />
             }
           </div>
