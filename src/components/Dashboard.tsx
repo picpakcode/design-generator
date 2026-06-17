@@ -836,7 +836,10 @@ export default function Dashboard() {
 
           {/* Grid */}
           {!isLoading && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className={projects.length === 0
+              ? 'max-w-[220px] mx-auto'
+              : 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6'
+            }>
               {/* New project card */}
               <div
                 onMouseEnter={() => { if (!creating && user) setNewProjectHovered(true) }}
@@ -852,8 +855,8 @@ export default function Dashboard() {
                   cursor: creating ? 'default' : 'pointer',
                 }}
               >
-                {/* Content area — same bg as project tile thumbnails */}
-                <div className="relative flex-1 bg-gray-100" style={{ minHeight: 0 }}>
+                {/* Content area — same aspect ratio as project tile thumbnails */}
+                <div className="relative aspect-video bg-gray-100">
 
                   {/* Platform half-fills — shown on hover */}
                   <div style={{
@@ -1007,12 +1010,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Empty state */}
-          {!isLoading && projects.length === 0 && (
-            <div className="text-center py-16">
-              <p className="text-sm text-gray-400 dark:text-gray-500">No projects yet. Create your first one above.</p>
-            </div>
-          )}
         </div>
       </div>
 
