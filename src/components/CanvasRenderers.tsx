@@ -451,6 +451,101 @@ export function CanvasContent({ design, settings, onPhotoMouseDown }: { design: 
   )
 }
 
+// ─── A+ Split (dual-photo) canvas renderer ───────────────────────────────────
+// Layout: two photos stacked vertically on one side | 8px accent seam | text panel
+
+export function CanvasContentSplit({ design, settings, onPhotoMouseDown }: { design: DesignState; settings: FormatSettings; onPhotoMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void }) {
+  const productImg = design.assets[0]   // top photo (primary, with pan/zoom)
+  const textureImg = design.assets[1]
+  const logoImg    = design.assets[2]
+  const photo2Img  = design.assets[3]   // bottom photo (from iconAssets[0])
+
+  const contentPad = `${settings.contentPaddingV}px ${settings.contentPaddingX}px`
+
+  const logoPos: React.CSSProperties = {
+    position: 'absolute',
+    top:    settings.logoCorner.startsWith('t') ? settings.logoPadding : undefined,
+    bottom: settings.logoCorner.startsWith('b') ? settings.logoPadding : undefined,
+    left:   settings.logoCorner.endsWith('l') ? (settings.layoutFlipped ? settings.logoPadding : settings.logoPadding + 5) : undefined,
+    right:  settings.logoCorner.endsWith('r') ? (settings.layoutFlipped ? settings.logoPadding + 5 : settings.logoPadding) : undefined,
+  }
+
+  const PhotoStack = (
+    <div style={{ width: '50%', flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }} onMouseDown={onPhotoMouseDown}>
+        {productImg ? (
+          <img src={productImg.url} alt="" crossOrigin="anonymous" style={applyPhotoComposition(settings.photoComposition ?? DEFAULT_PHOTO_COMP)} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', backgroundColor: '#c4c4c4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: '#9ca3af', fontSize: 13, fontFamily: 'system-ui' }}>Photo 1</span>
+          </div>
+        )}
+      </div>
+      <div style={{ height: 8, backgroundColor: design.accentColor, flexShrink: 0 }} />
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        {photo2Img ? (
+          <img src={photo2Img.url} alt="" crossOrigin="anonymous" style={applyPhotoComposition(DEFAULT_PHOTO_COMP)} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', backgroundColor: '#b0b0b0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: '#9ca3af', fontSize: 13, fontFamily: 'system-ui' }}>Photo 2</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  const ContentPanel = (
+    <div style={{ width: '50%', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
+      {textureImg ? (
+        <img src={textureImg.url} alt="background" crossOrigin="anonymous" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      ) : (
+        <div style={{ position: 'absolute', inset: 0, backgroundColor: design.primaryColor }} />
+      )}
+      <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.35)' }} />
+      <div style={{ position: 'relative', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: contentPad }}>
+        {logoImg && (
+          <div style={logoPos}>
+            <img src={logoImg.url} alt="logo" crossOrigin="anonymous" style={{ maxHeight: settings.logoSize, maxWidth: settings.logoSize * 3.5, objectFit: 'contain', display: 'block' }} />
+          </div>
+        )}
+        <div className="rich-title" style={{
+          fontFamily: 'var(--font-anton), Anton, sans-serif',
+          fontSize: settings.titleFontSize,
+          fontWeight: 400,
+          lineHeight: settings.titleLineHeight,
+          color: design.accentColor,
+          margin: '0 0 14px',
+          letterSpacing: '0.01em',
+          textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+          textTransform: settings.titleTextTransform,
+          maxWidth: settings.titleWidth < 100 ? `${settings.titleWidth}%` : undefined,
+        }} dangerouslySetInnerHTML={{ __html: design.title || '<p>Product Title</p>' }} />
+        {design.subtitleHtml && (
+          <div className="rich-subtitle" style={{
+            fontFamily: 'Inter, sans-serif',
+            fontSize: settings.subtitleFontSize,
+            lineHeight: `${settings.subtitleLineHeight}px`,
+            fontWeight: 400,
+            color: design.bodyColor,
+            margin: 0,
+            textTransform: settings.subtitleTextTransform,
+            maxWidth: settings.subtitleWidth < 100 ? `${settings.subtitleWidth}%` : undefined,
+          }} dangerouslySetInnerHTML={{ __html: design.subtitleHtml }} />
+        )}
+      </div>
+    </div>
+  )
+
+  // layoutFlipped false → PhotoStack LEFT, ContentPanel RIGHT
+  // layoutFlipped true  → ContentPanel LEFT, PhotoStack RIGHT
+  return (
+    <div style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden', position: 'relative' }}>
+      {settings.layoutFlipped ? <>{ContentPanel}{PhotoStack}</> : <>{PhotoStack}{ContentPanel}</>}
+      <div style={{ position: 'absolute', top: 0, bottom: 0, left: 'calc(50% - 4px)', width: 8, backgroundColor: design.accentColor, zIndex: 2 }} />
+    </div>
+  )
+}
+
 // ─── A+ Icons canvas renderer ─────────────────────────────────────────────────
 
 export function CanvasContentIcons({ design, settings, onPhotoMouseDown }: { design: DesignState; settings: FormatSettings; onPhotoMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void }) {

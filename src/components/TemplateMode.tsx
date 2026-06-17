@@ -9,7 +9,7 @@ import { DesignState, UploadedAsset, TemplateShareState } from '@/types'
 import { saveTemplateState, loadTemplateState, stripTemplateBlobUrls } from '@/lib/db'
 import { createClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
-import { CanvasContent, CanvasContentIcons, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
+import { CanvasContent, CanvasContentIcons, CanvasContentSplit, CanvasContentGallery, CanvasContentGalleryIcons } from './CanvasRenderers'
 import { type BlockCommentStatus } from './FeedbackPanel'
 import CantoPhotoPickerModal, { PhotoPick } from './CantoPhotoPickerModal'
 import CantoIconPickerModal from './CantoIconPickerModal'
@@ -25,7 +25,7 @@ const CsvEditorModal  = dynamic(() => import('./CsvEditorModal'),  { ssr: false 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SlotTemplate    = '5050-right' | '5050-left' | 'icons' | 'icons-text'
+type SlotTemplate    = '5050-right' | '5050-left' | 'icons' | 'icons-text' | 'split-right' | 'split-left'
 type GalleryTemplate = 'gallery-hero' | 'gallery-icons' | 'gallery-icons-text'
 
 interface SlotConfig        { template: SlotTemplate; mobileShowDesc?: boolean }
@@ -57,10 +57,12 @@ const GALLERY_W  = 1500
 const CANVAS_W   = APLUS_W + COL_GAP + GALLERY_W  // 3716
 
 const APLUS_LABELS: Record<SlotTemplate, string> = {
-  '5050-right': 'Img | Txt',
-  '5050-left':  'Txt | Img',
-  'icons':      'Icons',
-  'icons-text': 'Icn+Txt',
+  '5050-right':  'Img | Txt',
+  '5050-left':   'Txt | Img',
+  'icons':       'Icons',
+  'icons-text':  'Icn+Txt',
+  'split-right': '2P | Txt',
+  'split-left':  'Txt | 2P',
 }
 
 const GALLERY_LABELS: Record<GalleryTemplate, string> = {
@@ -101,6 +103,24 @@ const APLUS_ICONS: Record<SlotTemplate, React.ReactNode> = {
       <line x1="9.5" y1="8.5" x2="14.5" y2="8.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
     </svg>
   ),
+  'split-right': (
+    <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+      <rect x="0.5" y="0.5" width="6.5" height="3.75" rx="1" fill="currentColor" opacity="0.55"/>
+      <rect x="0.5" y="5.75" width="6.5" height="3.75" rx="1" fill="currentColor" opacity="0.55"/>
+      <line x1="9" y1="2" x2="15.5" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="9" y1="5" x2="15.5" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="9" y1="8" x2="13" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ),
+  'split-left': (
+    <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+      <line x1="0.5" y1="2" x2="6" y2="2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="0.5" y1="5" x2="6" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="0.5" y1="8" x2="4" y2="8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <rect x="9" y="0.5" width="6.5" height="3.75" rx="1" fill="currentColor" opacity="0.55"/>
+      <rect x="9" y="5.75" width="6.5" height="3.75" rx="1" fill="currentColor" opacity="0.55"/>
+    </svg>
+  ),
 }
 
 const GALLERY_ICONS: Record<GalleryTemplate, React.ReactNode> = {
@@ -128,7 +148,7 @@ const GALLERY_ICONS: Record<GalleryTemplate, React.ReactNode> = {
   ),
 }
 
-const APLUS_TEMPLATES: SlotTemplate[]     = ['5050-right', '5050-left', 'icons', 'icons-text']
+const APLUS_TEMPLATES: SlotTemplate[]     = ['5050-right', '5050-left', 'icons', 'icons-text', 'split-right', 'split-left']
 const GALLERY_TEMPLATES: GalleryTemplate[] = ['gallery-hero', 'gallery-icons', 'gallery-icons-text']
 
 // ─── Animated segmented picker ────────────────────────────────────────────────
@@ -411,8 +431,9 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
                 <div className="max-w-[1200px] mx-auto px-8 pt-8 pb-12">
                   <div ref={dRef}>
                     {aplusDesigns.map(({ design: sd, cfg, label }) => {
-                      const flip = cfg.template === '5050-left'
+                      const flip = cfg.template === '5050-left' || cfg.template === 'split-left'
                       const isIcons = cfg.template === 'icons' || cfg.template === 'icons-text'
+                      const isSplit = cfg.template === 'split-right' || cfg.template === 'split-left'
                       return (
                         <div key={label} className="mb-8">
                           <p style={{ fontSize: 10, fontWeight: 700, color: labelColor, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} — DESKTOP · 1464×600</p>
@@ -420,7 +441,9 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
                             <div style={{ width: 1464, height: 600, transform: `scale(${ds})`, transformOrigin: 'top left', position: 'absolute' }}>
                               {isIcons
                                 ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
-                                : <CanvasContent      design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+                                : isSplit
+                                  ? <CanvasContentSplit design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+                                  : <CanvasContent     design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
                               }
                             </div>
                           </div>
@@ -436,8 +459,9 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
                 <div className="max-w-[680px] mx-auto px-8 pt-8 pb-12">
                   <div ref={mRef}>
                     {aplusDesigns.map(({ design: sd, cfg, label }) => {
-                      const flip = cfg.template === '5050-left'
+                      const flip = cfg.template === '5050-left' || cfg.template === 'split-left'
                       const isIcons = cfg.template === 'icons' || cfg.template === 'icons-text'
+                      const isSplit = cfg.template === 'split-right' || cfg.template === 'split-left'
                       return (
                         <div key={label} className="mb-8">
                           <p style={{ fontSize: 10, fontWeight: 700, color: labelColor, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} — MOBILE · 600×450</p>
@@ -445,7 +469,9 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
                             <div style={{ width: 600, height: 450, transform: `scale(${ms})`, transformOrigin: 'top left', position: 'absolute' }}>
                               {isIcons
                                 ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
-                                : <CanvasContent      design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
+                                : isSplit
+                                  ? <CanvasContentSplit design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
+                                  : <CanvasContent     design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
                               }
                             </div>
                           </div>
@@ -671,6 +697,7 @@ export default function TemplateMode({
 
   // Pickers
   const [photoPickerOpen, setPhotoPickerOpen]     = useState(false)
+  const [photoPickerFor, setPhotoPickerFor]       = useState<'main' | 'split2'>('main')
   const [iconPickerOpen, setIconPickerOpen]       = useState(false)
   const [iconPickerSlotIdx, setIconPickerSlotIdx] = useState(0)
 
@@ -1036,8 +1063,9 @@ export default function TemplateMode({
       const s   = allSlots[product.id]?.[0] ?? emptySlotState()
       const cfg = slotConfigs[0] ?? { template: '5050-right' as SlotTemplate }
       const showDesc = cfg.template !== 'icons'
-      const flip     = cfg.template === '5050-left'
+      const flip     = cfg.template === '5050-left' || cfg.template === 'split-left'
       const isIcons  = cfg.template === 'icons' || cfg.template === 'icons-text'
+      const isSplit  = cfg.template === 'split-right' || cfg.template === 'split-left'
       const blocks   = [...(designState.blocks ?? []), ...(designState.galleryBlocks ?? [])]
       const active   = designState.blocks?.find(b => b.id === designState.activeBlockId)
       const fallback = (idx: number) => {
@@ -1059,7 +1087,9 @@ export default function TemplateMode({
       }
       const element = isIcons
         ? <CanvasContentIcons design={sd} settings={{ ...designState.desktop, layoutFlipped: flip }} />
-        : <CanvasContent      design={sd} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+        : isSplit
+          ? <CanvasContentSplit design={sd} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+          : <CanvasContent     design={sd} settings={{ ...designState.desktop, layoutFlipped: flip }} />
       const dataUrl = await captureToDataUrl(element, 1464, 600, 'jpeg')
       if (!dataUrl) return null
       const res = await fetch(dataUrl)
@@ -1422,22 +1452,27 @@ export default function TemplateMode({
     for (let j = 0; j < aplusSlots; j++) {
       if (cancelRef.current) break
       const cfg  = slotConfigs[j] ?? { template: '5050-right' }
-      const flip = cfg.template === '5050-left'
+      const flip = cfg.template === '5050-left' || cfg.template === 'split-left'
       const isIcons = cfg.template === 'icons' || cfg.template === 'icons-text'
+      const isSplit = cfg.template === 'split-right' || cfg.template === 'split-left'
       const sd  = buildSlotDesign(product.id, j)
       const lbl = slotLabel(j).toLowerCase()
 
       const d = await captureToDataUrl(
         isIcons
           ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
-          : <CanvasContent      design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />,
+          : isSplit
+            ? <CanvasContentSplit design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+            : <CanvasContent     design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />,
         1464, 600, outputFormat)
       if (d) capturedRef.current.set(`${product.id}/${lbl}-desktop`, d)
 
       const m = await captureToDataUrl(
         isIcons
           ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
-          : <CanvasContent      design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />,
+          : isSplit
+            ? <CanvasContentSplit design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
+            : <CanvasContent     design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />,
         600, 450, outputFormat)
       if (m) capturedRef.current.set(`${product.id}/${lbl}-mobile`, m)
     }
@@ -2220,20 +2255,49 @@ export default function TemplateMode({
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={activeSlot.photoAsset.url} alt={activeSlot.photoAsset.name} className="w-full h-full object-cover" />
                       </div>
-                      <button onClick={() => setPhotoPickerOpen(true)} className="flex-1 text-left text-[10px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 truncate transition-colors" title={activeSlot.photoAsset.name}>{activeSlot.photoAsset.name}</button>
+                      <button onClick={() => { setPhotoPickerFor('main'); setPhotoPickerOpen(true) }} className="flex-1 text-left text-[10px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 truncate transition-colors" title={activeSlot.photoAsset.name}>{activeSlot.photoAsset.name}</button>
                       <button onClick={() => patchActive({ photoAsset: undefined })}
                         className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
                   ) : (
-                    <button onClick={() => setPhotoPickerOpen(true)}
+                    <button onClick={() => { setPhotoPickerFor('main'); setPhotoPickerOpen(true) }}
                       className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
                       <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                       Pick from library
                     </button>
                   )}
                 </div>
+                {/* Photo 2 — only for split templates */}
+                {!activeIsGallery && !activeIsShopifyGallery &&
+                  (activeCfgAplus.template === 'split-right' || activeCfgAplus.template === 'split-left') && (
+                  <div>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Photo 2 (Bottom)</p>
+                    {activeSlot.iconAssets[0] ? (
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-12 h-8 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={activeSlot.iconAssets[0].url} alt={activeSlot.iconAssets[0].name} className="w-full h-full object-cover" />
+                        </div>
+                        <button onClick={() => { setPhotoPickerFor('split2'); setPhotoPickerOpen(true) }} className="flex-1 text-left text-[10px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 truncate transition-colors" title={activeSlot.iconAssets[0].name}>{activeSlot.iconAssets[0].name}</button>
+                        <button onClick={() => {
+                          const newIcons = [...activeSlot.iconAssets] as (UploadedAsset | undefined)[]
+                          newIcons[0] = undefined
+                          patchActive({ iconAssets: newIcons })
+                        }} className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setPhotoPickerFor('split2'); setPhotoPickerOpen(true) }}
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
+                        <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                        Pick from library
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div>
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Background Texture</p>
                   <TexturePicker albumId={null} value={textureAsset} onChange={asset => setTextureAsset(asset)} />
@@ -2376,7 +2440,8 @@ export default function TemplateMode({
                   {slotConfigs.slice(0, aplusSlots).map((cfg, slotIdx) => {
                     const isActive = !activeIsGallery && !activeIsShopifyGallery && slotIdx === activeSlotIdx
                     const isIcons  = cfg.template === 'icons' || cfg.template === 'icons-text'
-                    const flip     = cfg.template === '5050-left'
+                    const isSplit  = cfg.template === 'split-right' || cfg.template === 'split-left'
+                    const flip     = cfg.template === '5050-left' || cfg.template === 'split-left'
                     const sd       = buildSlotDesign(selected.id, slotIdx)
 
                     const activeOutline  = `${2/zoom}px solid #2563eb`
@@ -2458,14 +2523,18 @@ export default function TemplateMode({
                             style={{ width: 1464, height: 600, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                             {isIcons
                               ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
-                              : <CanvasContent      design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+                              : isSplit
+                                ? <CanvasContentSplit design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+                                : <CanvasContent     design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
                             }
                           </div>
                           <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
                             style={{ width: 600, height: 450, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
                             {isIcons
                               ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
-                              : <CanvasContent      design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
+                              : isSplit
+                                ? <CanvasContentSplit design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
+                                : <CanvasContent     design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
                             }
                           </div>
                         </div>
@@ -2639,9 +2708,18 @@ export default function TemplateMode({
         onSelect={(pick: PhotoPick) => {
           if (!selected) return
           const asset: UploadedAsset = { id: pick.id, name: pick.name, url: pick.previewUrl, type: 'image' }
-          if (activeIsShopifyGallery)    patchGallerySlotState(selected.id, activeShopifyGalleryIdx, { photoAsset: asset })
-          else if (activeIsGallery)      patchGallerySlotState(selected.id, activeGalleryIdx, { photoAsset: asset })
-          else                           patchSlotState(selected.id, activeSlotIdx, { photoAsset: asset })
+          if (photoPickerFor === 'split2') {
+            const s = getSlotState(selected.id, activeSlotIdx)
+            const newIcons = [...s.iconAssets] as (UploadedAsset | undefined)[]
+            newIcons[0] = asset
+            patchSlotState(selected.id, activeSlotIdx, { iconAssets: newIcons })
+          } else if (activeIsShopifyGallery) {
+            patchGallerySlotState(selected.id, activeShopifyGalleryIdx, { photoAsset: asset })
+          } else if (activeIsGallery) {
+            patchGallerySlotState(selected.id, activeGalleryIdx, { photoAsset: asset })
+          } else {
+            patchSlotState(selected.id, activeSlotIdx, { photoAsset: asset })
+          }
         }}
       />
       <CantoIconPickerModal

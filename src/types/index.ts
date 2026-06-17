@@ -3,7 +3,7 @@ export type TextTransform = 'none' | 'uppercase' | 'lowercase' | 'capitalize'
 export type LogoCorner = 'tl' | 'tr' | 'bl' | 'br'
 export type Format = 'desktop' | 'mobile'
 export type Category = 'aplus' | 'gallery'
-export type TemplateId = 'aplus-5050' | 'aplus-icons' | 'aplus-hero' | 'aplus-brand-story'
+export type TemplateId = 'aplus-5050' | 'aplus-icons' | 'aplus-split' | 'aplus-hero' | 'aplus-brand-story'
 export type GalleryTemplateId = 'gallery-hero' | 'gallery-icons' | 'gallery-feature' | 'gallery-lifestyle'
 
 export interface TemplateConfig {
