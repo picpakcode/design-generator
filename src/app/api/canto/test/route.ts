@@ -17,12 +17,10 @@ async function getOAuthToken(): Promise<string | null> {
   return (d.accessToken ?? d.access_token) as string | null
 }
 
-const PNG_1X1 = Buffer.from(
-  '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6260000000020001e221bc330000000049454e44ae426082',
-  'hex'
-)
+// Valid 1×1 black PNG (known-good)
+const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64')
 
-async function probe(method: string, path: string, token: string, body?: FormData | string, extraHeaders?: Record<string, string>): Promise<{ status: number; location: string | null; body: string }> {
+async function probe(method: string, path: string, token: string, body?: FormData, extraHeaders?: Record<string, string>): Promise<{ status: number; location: string | null; body: string }> {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: { Authorization: `Bearer ${token}`, ...extraHeaders },
@@ -30,14 +28,15 @@ async function probe(method: string, path: string, token: string, body?: FormDat
     redirect: 'manual',
   })
   const text = await res.text().catch(() => '')
-  return { status: res.status, location: res.headers.get('location'), body: text.slice(0, 150) }
+  return { status: res.status, location: res.headers.get('location'), body: text.slice(0, 300) }
 }
 
-function makeForm(albumId: string) {
+function makeForm(albumId: string, withId = false) {
   const f = new FormData()
-  f.append('file', new Blob([PNG_1X1], { type: 'image/png' }), 'test.png')
-  f.append('id', albumId)
+  f.append('file', new Blob([PNG_1X1], { type: 'image/png' }), 'api-test.png')
   f.append('name', 'api-test')
+  f.append('scheme', 'image')
+  if (withId) f.append('id', albumId)
   return f
 }
 
@@ -60,28 +59,17 @@ export async function GET(req: Request) {
     const tok = await getOAuthToken() ?? CC_TOKEN
     const results: Record<string, unknown> = {}
 
-    // 1. GET probe — does /api/v1/upload even exist?
-    results['GET_/api/v1/upload'] = await probe('GET', '/api/v1/upload', tok)
+    // Focus on the working endpoint: /api/v1/album/{id}/upload
+    // Try variations of form fields
+    results['album_path_no_id_field']   = await probe('POST', `/api/v1/album/${upload}/upload`, tok, makeForm(upload, false))
+    results['album_path_with_id_field'] = await probe('POST', `/api/v1/album/${upload}/upload`, tok, makeForm(upload, true))
 
-    // 2. Standard POST with multipart to /api/v1/upload
-    results['POST_/api/v1/upload_multipart'] = await probe('POST', '/api/v1/upload', tok, makeForm(upload))
+    // Also try /api/v1/album/{id} without /upload suffix
+    results['album_path_no_suffix']     = await probe('POST', `/api/v1/album/${upload}`, tok, makeForm(upload, false))
 
-    // 3. POST to /api/v1/image (scheme-specific)
-    results['POST_/api/v1/image_multipart'] = await probe('POST', '/api/v1/image', tok, makeForm(upload))
-
-    // 4. POST with album in URL path
-    results['POST_/api/v1/album/ID/upload'] = await probe('POST', `/api/v1/album/${upload}/upload`, tok, makeForm(upload))
-
-    // 5. POST with query params instead of form fields + raw binary body
-    const qPath = `/api/v1/upload?id=${upload}&name=api-test&scheme=image`
-    results['POST_/api/v1/upload_queryparams'] = await probe('POST', qPath, tok, PNG_1X1 as unknown as string, { 'Content-Type': 'image/png' })
-
-    // 6. POST JSON body to /api/v1/upload (two-step initiate?)
-    results['POST_/api/v1/upload_json'] = await probe('POST', '/api/v1/upload', tok, JSON.stringify({ id: upload, name: 'api-test', scheme: 'image' }), { 'Content-Type': 'application/json' })
-
-    // 7. CC_TOKEN directly for standard multipart
+    // Try with CC_TOKEN directly
     if (CC_TOKEN) {
-      results['POST_/api/v1/upload_cctoken'] = await probe('POST', '/api/v1/upload', CC_TOKEN, makeForm(upload))
+      results['album_path_cc_token'] = await probe('POST', `/api/v1/album/${upload}/upload`, CC_TOKEN, makeForm(upload, false))
     }
 
     return NextResponse.json(results)

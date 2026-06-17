@@ -177,26 +177,26 @@ export async function uploadAsset(
   const form = new FormData()
   const arrayBuf = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
   form.append('file', new Blob([arrayBuf], { type: mime }), filename)
-  form.append('id',   albumId)
   form.append('name', name)
-  if (meta?.description)    form.append('description', meta.description)
+  form.append('scheme', ext === 'jpg' ? 'image' : ext === 'png' ? 'image' : 'document')
+  if (meta?.description)      form.append('description', meta.description)
   if (meta?.keywords?.length) form.append('keyword', meta.keywords.join(','))
   if (meta?.tags?.length)     form.append('tag',     meta.tags.join(','))
 
-  const res = await fetch(`${BASE}/api/v1/upload`, {
+  // Correct Canto upload endpoint: album ID goes in the URL path, not the form body
+  const res = await fetch(`${BASE}/api/v1/album/${albumId}/upload`, {
     method:   'POST',
     headers:  { Authorization: `Bearer ${token}` },
     body:     form,
-    redirect: 'manual',   // don't silently follow auth redirects
+    redirect: 'manual',
   })
 
   console.log(`[canto/upload] ${filename} → album ${albumId} | status ${res.status} | content-type: ${res.headers.get('content-type')} | location: ${res.headers.get('location')}`)
 
-  // 3xx → typically a redirect to the login page (auth token missing upload scope)
+  // 3xx — unexpected redirect
   if (res.status >= 300 && res.status < 400) {
     throw new Error(
-      `Canto upload redirected (${res.status}) to ${res.headers.get('location') ?? '?'}. ` +
-      `This usually means the OAuth app lacks the upload scope — enable it in Canto Settings → API.`
+      `Canto upload redirected (${res.status}) to ${res.headers.get('location') ?? '?'}.`
     )
   }
 
