@@ -149,6 +149,56 @@ export function proxyUrl(directUrl: string): string {
   return `/api/canto/proxy?url=${encodeURIComponent(directUrl)}`
 }
 
+// ─── User OAuth token (required for uploads) ──────────────────────────────────
+
+export async function getUserUploadToken(userId: string): Promise<string | null> {
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const admin = createAdminClient()
+
+  const { data, error } = await admin
+    .from('canto_tokens')
+    .select('access_token, refresh_token, expires_at')
+    .eq('user_id', userId)
+    .single()
+
+  if (error || !data) return null
+
+  if (new Date(data.expires_at).getTime() > Date.now()) return data.access_token
+
+  if (!data.refresh_token) return null
+
+  // Refresh the token
+  const res = await fetch('https://oauth.canto.com/oauth/api/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type:    'refresh_token',
+      refresh_token: data.refresh_token,
+      client_id:     APP_ID,
+      client_secret: SECRET,
+    }),
+  })
+  if (!res.ok) return null
+
+  const refreshed = await res.json() as {
+    accessToken?: string;  access_token?: string
+    refreshToken?: string; refresh_token?: string
+    expiresIn?: number;    expires_in?: number
+  }
+  const newToken   = refreshed.accessToken  ?? refreshed.access_token
+  const newRefresh = refreshed.refreshToken ?? refreshed.refresh_token ?? data.refresh_token
+  const newExpires = Number(refreshed.expiresIn ?? refreshed.expires_in ?? 3600)
+  if (!newToken) return null
+
+  const newExpiresAt = new Date(Date.now() + (newExpires - 60) * 1000).toISOString()
+  await admin
+    .from('canto_tokens')
+    .update({ access_token: newToken, refresh_token: newRefresh, expires_at: newExpiresAt, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+
+  return newToken
+}
+
 // ─── Upload ───────────────────────────────────────────────────────────────────
 
 export interface CantoUploadMeta {
@@ -168,8 +218,11 @@ export async function uploadAsset(
   filename: string,  // e.g. "widgetpro-a1-desktop.png"
   albumId:  string,
   meta?:    CantoUploadMeta,
+  userId?:  string,
 ): Promise<CantoUploadResult> {
-  const token = await getAccessToken()
+  const token = userId
+    ? (await getUserUploadToken(userId) ?? await getAccessToken())
+    : await getAccessToken()
   const ext   = filename.split('.').pop()?.toLowerCase() ?? 'png'
   const mime  = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
   const name  = filename.includes('.') ? filename.slice(0, filename.lastIndexOf('.')) : filename

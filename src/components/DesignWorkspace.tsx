@@ -276,6 +276,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const templateThumbnailFnRef     = useRef<() => Promise<Blob | null>>(() => Promise.resolve(null))
   const [cantoFiles, setCantoFiles]         = useState<CantoExportFile[]>([])
   const [cantoModalOpen, setCantoModalOpen] = useState(false)
+  const [cantoConnected, setCantoConnected] = useState<boolean | null>(null)
   const [slotGroups, setSlotGroups]         = useState<SlotGroup[]>([])
   const [selectedSlots, setSelectedSlots]   = useState<Set<string>>(new Set())
 
@@ -981,6 +982,20 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp) }
   }, [fitView])
 
+  // Canto OAuth connection status + callback result
+  useEffect(() => {
+    fetch('/api/canto/connect-status').then(r => r.json()).then((d: { connected: boolean }) => {
+      setCantoConnected(d.connected)
+    }).catch(() => setCantoConnected(false))
+
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('canto_connected')) {
+      setCantoConnected(true)
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (params.has('canto_error')) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
 
   const handleAddAsset = (asset: UploadedAsset, slotIndex?: number) => {
     fetch(asset.url).then(r => r.blob()).then(blob => storeBlob(asset.id, blob)).catch(console.error)
@@ -1760,32 +1775,43 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     </>
                   )}
                   <div className="h-px bg-gray-100 dark:bg-gray-800 my-2" />
-                  <button
-                    onClick={async () => {
-                      setTemplateExportOpen(false)
-                      const files = await templateCantoFnRef.current()
-                      if (files.length > 0) { setCantoFiles(files); setCantoModalOpen(true) }
-                    }}
-                    disabled={!templateCanExport || templateRenderingAll}
-                    className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
-                    Save All to Canto
-                    <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">In dev</span>
-                  </button>
-                  <button
-                    onClick={async () => {
-                      setTemplateExportOpen(false)
-                      const files = await templateCantoCurrentFnRef.current()
-                      if (files.length > 0) { setCantoFiles(files); setCantoModalOpen(true) }
-                    }}
-                    disabled={!templateCanExportCurrent}
-                    className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
-                    Save Current to Canto
-                    <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">In dev</span>
-                  </button>
+                  {cantoConnected === false ? (
+                    <button
+                      onClick={() => { setTemplateExportOpen(false); window.location.href = '/api/canto/auth' }}
+                      className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                    >
+                      <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
+                      Connect Canto to Upload
+                      <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 shrink-0">Login</span>
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={async () => {
+                          setTemplateExportOpen(false)
+                          const files = await templateCantoFnRef.current()
+                          if (files.length > 0) { setCantoFiles(files); setCantoModalOpen(true) }
+                        }}
+                        disabled={!templateCanExport || templateRenderingAll}
+                        className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
+                        Save All to Canto
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setTemplateExportOpen(false)
+                          const files = await templateCantoCurrentFnRef.current()
+                          if (files.length > 0) { setCantoFiles(files); setCantoModalOpen(true) }
+                        }}
+                        disabled={!templateCanExportCurrent}
+                        className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
+                        Save Current to Canto
+                      </button>
+                    </>
+                  )}
                 </div>
               </>
             )}

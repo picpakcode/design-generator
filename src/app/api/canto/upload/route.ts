@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   const buffer = Buffer.from(base64, 'base64')
 
   try {
-    const result = await uploadAsset(buffer, filename, albumId, { tags, keywords, description })
+    const result = await uploadAsset(buffer, filename, albumId, { tags, keywords, description }, user.id)
     return NextResponse.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
