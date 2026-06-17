@@ -3,7 +3,7 @@
 const BASE    = process.env.CANTO_BASE_URL!          // https://docsdiesel.canto.com
 const APP_ID  = process.env.CANTO_APP_ID!
 const SECRET  = process.env.CANTO_APP_SECRET!
-const CC_TOKEN = process.env.CANTO_CLIENT_CREDENTIALS_TOKEN!
+const CC_TOKEN = process.env.CANTO_CLIENT_CREDENTIALS_TOKEN ?? ''
 
 // ─── Token cache ─────────────────────────────────────────────────────────────
 
@@ -11,6 +11,9 @@ let cachedToken: string | null = null
 let tokenExpiry = 0
 
 async function getAccessToken(): Promise<string> {
+  // If a pre-generated client credentials token is configured, use it directly.
+  if (CC_TOKEN) return CC_TOKEN
+
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken
 
   const res = await fetch('https://oauth.canto.com/oauth/api/oauth2/token', {
