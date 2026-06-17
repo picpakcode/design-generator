@@ -252,7 +252,7 @@ export async function uploadAsset(
   const arrayBuf = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
   form.append('file', new Blob([arrayBuf], { type: mime }), safeFilename)
   form.append('name', safeName)
-  form.append('scheme', ext === 'jpg' ? 'image' : ext === 'png' ? 'image' : 'document')
+  // Note: 'scheme' field omitted — Canto should infer from MIME type; explicit value may cause server error
   if (meta?.description)      form.append('description', meta.description)
   if (meta?.keywords?.length) form.append('keyword', meta.keywords.join(','))
   if (meta?.tags?.length)     form.append('tag',     meta.tags.join(','))
