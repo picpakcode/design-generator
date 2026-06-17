@@ -17,57 +17,71 @@ async function getOAuthToken(): Promise<string | null> {
   return (d.accessToken ?? d.access_token) as string | null
 }
 
-// Minimal valid 1×1 white PNG
 const PNG_1X1 = Buffer.from(
   '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6260000000020001e221bc330000000049454e44ae426082',
   'hex'
 )
 
-async function tryUpload(token: string, endpoint: string, albumId: string): Promise<{ status: number; location: string | null; body: string }> {
-  const form = new FormData()
-  form.append('file', new Blob([PNG_1X1], { type: 'image/png' }), 'test-1x1.png')
-  form.append('id',   albumId)
-  form.append('name', 'test-1x1')
-  const res = await fetch(`${BASE}${endpoint}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: form,
+async function probe(method: string, path: string, token: string, body?: FormData | string, extraHeaders?: Record<string, string>): Promise<{ status: number; location: string | null; body: string }> {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${token}`, ...extraHeaders },
+    body,
     redirect: 'manual',
   })
-  const body = await res.text().catch(() => '')
-  return { status: res.status, location: res.headers.get('location'), body: body.slice(0, 200) }
+  const text = await res.text().catch(() => '')
+  return { status: res.status, location: res.headers.get('location'), body: text.slice(0, 150) }
+}
+
+function makeForm(albumId: string) {
+  const f = new FormData()
+  f.append('file', new Blob([PNG_1X1], { type: 'image/png' }), 'test.png')
+  f.append('id', albumId)
+  f.append('name', 'api-test')
+  return f
 }
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const q      = searchParams.get('q')
   const auth   = searchParams.get('auth')
-  const upload = searchParams.get('upload') // ?upload=ALBUM_ID
+  const upload = searchParams.get('upload')
 
   if (auth) {
-    const oauthToken = await getOAuthToken()
+    const t = await getOAuthToken()
     return NextResponse.json({
-      exchangeOk: !!oauthToken,
-      oauthTokenSnippet: oauthToken ? `${oauthToken.slice(0, 6)}...${oauthToken.slice(-4)}` : null,
-      ccTokenSnippet: CC_TOKEN ? `${CC_TOKEN.slice(0, 6)}...${CC_TOKEN.slice(-4)}` : null,
-      appIdPresent: !!APP_ID,
+      exchangeOk: !!t,
+      snippet: t ? `${t.slice(0, 6)}...${t.slice(-4)}` : null,
+      ccPresent: !!CC_TOKEN,
     })
   }
 
   if (upload) {
-    const oauthToken = await getOAuthToken()
+    const tok = await getOAuthToken() ?? CC_TOKEN
     const results: Record<string, unknown> = {}
 
-    // Try multiple endpoint variants with OAuth token
-    if (oauthToken) {
-      results['oauth_/api/v1/upload']  = await tryUpload(oauthToken, '/api/v1/upload', upload)
-      results['oauth_/api/v1/image']   = await tryUpload(oauthToken, '/api/v1/image', upload)
-    }
+    // 1. GET probe — does /api/v1/upload even exist?
+    results['GET_/api/v1/upload'] = await probe('GET', '/api/v1/upload', tok)
 
-    // Try same endpoints with CC_TOKEN
+    // 2. Standard POST with multipart to /api/v1/upload
+    results['POST_/api/v1/upload_multipart'] = await probe('POST', '/api/v1/upload', tok, makeForm(upload))
+
+    // 3. POST to /api/v1/image (scheme-specific)
+    results['POST_/api/v1/image_multipart'] = await probe('POST', '/api/v1/image', tok, makeForm(upload))
+
+    // 4. POST with album in URL path
+    results['POST_/api/v1/album/ID/upload'] = await probe('POST', `/api/v1/album/${upload}/upload`, tok, makeForm(upload))
+
+    // 5. POST with query params instead of form fields + raw binary body
+    const qPath = `/api/v1/upload?id=${upload}&name=api-test&scheme=image`
+    results['POST_/api/v1/upload_queryparams'] = await probe('POST', qPath, tok, PNG_1X1 as unknown as string, { 'Content-Type': 'image/png' })
+
+    // 6. POST JSON body to /api/v1/upload (two-step initiate?)
+    results['POST_/api/v1/upload_json'] = await probe('POST', '/api/v1/upload', tok, JSON.stringify({ id: upload, name: 'api-test', scheme: 'image' }), { 'Content-Type': 'application/json' })
+
+    // 7. CC_TOKEN directly for standard multipart
     if (CC_TOKEN) {
-      results['cc_/api/v1/upload'] = await tryUpload(CC_TOKEN, '/api/v1/upload', upload)
-      results['cc_/api/v1/image']  = await tryUpload(CC_TOKEN, '/api/v1/image', upload)
+      results['POST_/api/v1/upload_cctoken'] = await probe('POST', '/api/v1/upload', CC_TOKEN, makeForm(upload))
     }
 
     return NextResponse.json(results)
