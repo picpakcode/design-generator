@@ -20,6 +20,7 @@ async function getAccessToken(): Promise<string> {
       grant_type:    'client_credentials',
       client_id:     APP_ID,
       client_secret: SECRET,
+      scope:         'admin',
     }),
   })
 
