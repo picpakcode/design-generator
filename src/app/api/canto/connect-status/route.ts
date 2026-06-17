@@ -8,12 +8,19 @@ export async function GET() {
   if (!user) return NextResponse.json({ connected: false })
 
   const admin = createAdminClient()
-  const { data } = await admin
+  const { data, error } = await admin
     .from('canto_tokens')
-    .select('expires_at')
+    .select('expires_at, access_token')
     .eq('user_id', user.id)
     .single()
 
-  const connected = !!data && new Date(data.expires_at).getTime() > Date.now()
-  return NextResponse.json({ connected })
+  if (!data) return NextResponse.json({ connected: false, debug: error?.message })
+
+  const expiresAt = new Date(data.expires_at).getTime()
+  const connected = expiresAt > Date.now()
+  return NextResponse.json({
+    connected,
+    expires_at: data.expires_at,
+    token_prefix: data.access_token.slice(0, 8),
+  })
 }

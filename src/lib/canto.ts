@@ -161,9 +161,16 @@ export async function getUserUploadToken(userId: string): Promise<string | null>
     .eq('user_id', userId)
     .single()
 
-  if (error || !data) return null
+  if (error || !data) {
+    console.log(`[canto/token] no stored token for user ${userId}:`, error?.message)
+    return null
+  }
 
-  if (new Date(data.expires_at).getTime() > Date.now()) return data.access_token
+  const expiresAt = new Date(data.expires_at).getTime()
+  const valid = expiresAt > Date.now()
+  console.log(`[canto/token] found token for user ${userId} | expires ${data.expires_at} | valid=${valid} | prefix=${data.access_token.slice(0,8)}...`)
+
+  if (valid) return data.access_token
 
   if (!data.refresh_token) return null
 
@@ -220,9 +227,19 @@ export async function uploadAsset(
   meta?:    CantoUploadMeta,
   userId?:  string,
 ): Promise<CantoUploadResult> {
-  const token = userId
-    ? (await getUserUploadToken(userId) ?? await getAccessToken())
-    : await getAccessToken()
+  let token: string
+  if (userId) {
+    const userTok = await getUserUploadToken(userId)
+    if (userTok) {
+      console.log(`[canto/upload] using OAuth user token for ${userId}`)
+      token = userTok
+    } else {
+      console.log(`[canto/upload] no user token found, falling back to client credentials (upload will likely fail)`)
+      token = await getAccessToken()
+    }
+  } else {
+    token = await getAccessToken()
+  }
   const ext   = filename.split('.').pop()?.toLowerCase() ?? 'png'
   const mime  = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
   const name  = filename.includes('.') ? filename.slice(0, filename.lastIndexOf('.')) : filename
