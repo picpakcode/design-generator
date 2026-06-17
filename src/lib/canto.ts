@@ -30,10 +30,16 @@ async function getAccessToken(): Promise<string> {
     throw new Error(`Canto auth failed ${res.status}: ${text}`)
   }
 
-  // Canto returns camelCase fields and expiresIn as a string
-  const data = await res.json() as { accessToken: string; expiresIn?: string | number }
-  cachedToken = data.accessToken
-  tokenExpiry = Date.now() + ((Number(data.expiresIn) || 3600) - 60) * 1000
+  // Canto may return camelCase (accessToken) or standard snake_case (access_token)
+  const data = await res.json() as { accessToken?: string; access_token?: string; expiresIn?: string | number; expires_in?: string | number }
+  const token = data.accessToken ?? data.access_token
+  if (!token) {
+    if (CC_TOKEN) return CC_TOKEN
+    throw new Error(`Canto auth: token exchange succeeded but response had no token. Keys: ${Object.keys(data).join(', ')}`)
+  }
+  cachedToken = token
+  const expiresIn = data.expiresIn ?? data.expires_in
+  tokenExpiry = Date.now() + ((Number(expiresIn) || 3600) - 60) * 1000
   return cachedToken
 }
 
