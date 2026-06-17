@@ -17,27 +17,21 @@ async function getOAuthToken(): Promise<string | null> {
   return (d.accessToken ?? d.access_token) as string | null
 }
 
-// Valid 1×1 black PNG (known-good)
-const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64')
+// Valid 1×1 black PNG as Uint8Array (avoids Buffer→Blob issues)
+const PNG_BYTES = new Uint8Array(Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64'
+))
 
-async function probe(method: string, path: string, token: string, body?: FormData, extraHeaders?: Record<string, string>): Promise<{ status: number; location: string | null; body: string }> {
+async function post(path: string, token: string, body: FormData | string | null, extraHeaders?: Record<string, string>): Promise<{ status: number; body: string }> {
   const res = await fetch(`${BASE}${path}`, {
-    method,
+    method: 'POST',
     headers: { Authorization: `Bearer ${token}`, ...extraHeaders },
-    body,
+    body: body ?? undefined,
     redirect: 'manual',
   })
   const text = await res.text().catch(() => '')
-  return { status: res.status, location: res.headers.get('location'), body: text.slice(0, 300) }
-}
-
-function makeForm(albumId: string, withId = false) {
-  const f = new FormData()
-  f.append('file', new Blob([PNG_1X1], { type: 'image/png' }), 'api-test.png')
-  f.append('name', 'api-test')
-  f.append('scheme', 'image')
-  if (withId) f.append('id', albumId)
-  return f
+  return { status: res.status, body: text.slice(0, 300) }
 }
 
 export async function GET(req: Request) {
@@ -48,31 +42,47 @@ export async function GET(req: Request) {
 
   if (auth) {
     const t = await getOAuthToken()
-    return NextResponse.json({
-      exchangeOk: !!t,
-      snippet: t ? `${t.slice(0, 6)}...${t.slice(-4)}` : null,
-      ccPresent: !!CC_TOKEN,
-    })
+    return NextResponse.json({ exchangeOk: !!t, snippet: t ? `${t.slice(0,6)}...${t.slice(-4)}` : null })
   }
 
   if (upload) {
     const tok = await getOAuthToken() ?? CC_TOKEN
-    const results: Record<string, unknown> = {}
+    const r: Record<string, unknown> = {}
 
-    // Focus on the working endpoint: /api/v1/album/{id}/upload
-    // Try variations of form fields
-    results['album_path_no_id_field']   = await probe('POST', `/api/v1/album/${upload}/upload`, tok, makeForm(upload, false))
-    results['album_path_with_id_field'] = await probe('POST', `/api/v1/album/${upload}/upload`, tok, makeForm(upload, true))
+    // 1. Empty POST — what does Canto say without any body?
+    r['empty_body'] = await post(`/api/v1/album/${upload}/upload`, tok, null)
 
-    // Also try /api/v1/album/{id} without /upload suffix
-    results['album_path_no_suffix']     = await probe('POST', `/api/v1/album/${upload}`, tok, makeForm(upload, false))
+    // 2. File only (no name, no scheme)
+    const f1 = new FormData()
+    f1.append('file', new Blob([PNG_BYTES], { type: 'image/png' }), 'test.png')
+    r['file_only'] = await post(`/api/v1/album/${upload}/upload`, tok, f1)
 
-    // Try with CC_TOKEN directly
-    if (CC_TOKEN) {
-      results['album_path_cc_token'] = await probe('POST', `/api/v1/album/${upload}/upload`, CC_TOKEN, makeForm(upload, false))
-    }
+    // 3. File + name (no scheme)
+    const f2 = new FormData()
+    f2.append('file', new Blob([PNG_BYTES], { type: 'image/png' }), 'test.png')
+    f2.append('name', 'api-test')
+    r['file_name'] = await post(`/api/v1/album/${upload}/upload`, tok, f2)
 
-    return NextResponse.json(results)
+    // 4. File + name + scheme (current approach)
+    const f3 = new FormData()
+    f3.append('file', new Blob([PNG_BYTES], { type: 'image/png' }), 'test.png')
+    f3.append('name', 'api-test')
+    f3.append('scheme', 'image')
+    r['file_name_scheme'] = await post(`/api/v1/album/${upload}/upload`, tok, f3)
+
+    // 5. File + name — but with File object instead of Blob
+    const f4 = new FormData()
+    f4.append('file', new File([PNG_BYTES], 'test.png', { type: 'image/png' }))
+    f4.append('name', 'api-test')
+    r['file_obj_name'] = await post(`/api/v1/album/${upload}/upload`, tok, f4)
+
+    // 6. Try test export album OH03P with file+name
+    const f5 = new FormData()
+    f5.append('file', new Blob([PNG_BYTES], { type: 'image/png' }), 'test.png')
+    f5.append('name', 'api-test')
+    r['test_album_OH03P'] = await post(`/api/v1/album/OH03P/upload`, tok, f5)
+
+    return NextResponse.json(r)
   }
 
   try {
