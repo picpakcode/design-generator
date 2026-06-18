@@ -296,52 +296,58 @@ export async function uploadAsset(
   const settings = await getUploadSettings(token)
 
   // Step 2: POST directly to S3 using pre-signed credentials (NO Authorization header)
-  // The key template has "${filename}" which we substitute with our actual filename
-  const s3Key = settings.key.replace('${filename}', uniqueFilename)
-
-  const form = new FormData()
-  form.append('key', s3Key)
-  form.append('acl', settings.acl)
-
-  if (settings['x-amz-algorithm']) {
-    // V4 signing (EU / CA tenant domains)
-    form.append('Policy',            settings.Policy)
-    form.append('x-amz-algorithm',   settings['x-amz-algorithm'])
-    form.append('x-amz-credential',  settings['x-amz-credential']!)
-    form.append('x-amz-date',        settings['x-amz-date']!)
-    form.append('x-amz-Signature',   settings['x-amz-Signature']!)
-  } else {
-    // V2 signing (standard .canto.com US domain)
-    form.append('AWSAccessKeyId', settings.AWSAccessKeyId!)
-    form.append('Policy',         settings.Policy)
-    form.append('Signature',      settings.Signature!)
+  // The key template has "${filename}" which we substitute with our actual filename.
+  // Retry up to 3 times on transient S3 500/503 errors (AWS recommendation).
+  const fileBlob = new Blob([new Uint8Array(buffer)], { type: mime })
+  const buildForm = (fname: string): FormData => {
+    const s3Key = settings.key.replace('${filename}', fname)
+    const f = new FormData()
+    f.append('key', s3Key)
+    f.append('acl', settings.acl)
+    if (settings['x-amz-algorithm']) {
+      // V4 signing (EU / CA tenant domains)
+      f.append('Policy',            settings.Policy)
+      f.append('x-amz-algorithm',   settings['x-amz-algorithm']!)
+      f.append('x-amz-credential',  settings['x-amz-credential']!)
+      f.append('x-amz-date',        settings['x-amz-date']!)
+      f.append('x-amz-Signature',   settings['x-amz-Signature']!)
+    } else {
+      // V2 signing (standard .canto.com US domain)
+      f.append('AWSAccessKeyId', settings.AWSAccessKeyId!)
+      f.append('Policy',         settings.Policy)
+      f.append('Signature',      settings.Signature!)
+    }
+    f.append('x-amz-meta-file_name', fname)
+    f.append('x-amz-meta-tag',       meta?.tags?.join(',') ?? '')
+    f.append('x-amz-meta-scheme',    '')  // empty = new asset
+    f.append('x-amz-meta-id',        '')  // empty = new asset
+    f.append('x-amz-meta-album_id',  albumId)
+    f.append('file', fileBlob, fname)     // file MUST be last (AWS requirement)
+    return f
   }
 
-  // Canto metadata embedded as S3 user-defined metadata
-  form.append('x-amz-meta-file_name', uniqueFilename)
-  form.append('x-amz-meta-tag',       meta?.tags?.join(',') ?? '')
-  form.append('x-amz-meta-scheme',    '')   // empty = new asset (not an update)
-  form.append('x-amz-meta-id',        '')   // empty = new asset
-  form.append('x-amz-meta-album_id',  albumId)
+  let lastError = ''
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    // Use a fresh timestamp per attempt so retries never collide with the prior attempt's key
+    const fname = attempt === 1 ? uniqueFilename : `${safeName}-${Date.now()}.${ext}`
+    const s3Res = await fetch(settings.url, { method: 'POST', body: buildForm(fname) })
+    const s3Body = await s3Res.text()
+    console.log(`[canto/upload] "${safeName}" → album ${albumId} | S3 ${s3Res.status} | attempt ${attempt} | ${s3Body.slice(0, 200)}`)
 
-  // File MUST be last (AWS pre-signed POST requirement)
-  form.append('file', new Blob([new Uint8Array(buffer)], { type: mime }), uniqueFilename)
+    if (s3Res.status === 204) return { id: fname, name: safeName }
 
-  const s3Res = await fetch(settings.url, { method: 'POST', body: form })
-  const s3Body = await s3Res.text()
-  console.log(`[canto/upload] "${safeName}" → album ${albumId} | S3 ${s3Res.status} | ${s3Body.slice(0, 200)}`)
+    if (s3Res.status === 403) {
+      cachedUploadSettings = null
+      uploadSettingsExpiry = 0
+      throw new Error(`Canto S3 upload forbidden (403) — credentials expired`)
+    }
 
-  if (s3Res.status === 403) {
-    // Pre-signed credentials likely expired — clear cache so next call refreshes
-    cachedUploadSettings = null
-    uploadSettingsExpiry = 0
-    throw new Error(`Canto S3 upload forbidden (403) — credentials expired, retry`)
+    if ((s3Res.status === 500 || s3Res.status === 503) && attempt < 3) {
+      await new Promise(r => setTimeout(r, 1000 * attempt))  // 1s then 2s backoff
+      continue
+    }
+
+    lastError = `Canto S3 upload failed ${s3Res.status}: ${s3Body.slice(0, 400)}`
   }
-
-  // S3 returns 204 No Content on success
-  if (s3Res.status !== 204 && !s3Res.ok) {
-    throw new Error(`Canto S3 upload failed ${s3Res.status}: ${s3Body.slice(0, 400)}`)
-  }
-
-  return { id: uniqueFilename, name: safeName }
+  throw new Error(lastError)
 }
