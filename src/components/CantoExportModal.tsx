@@ -43,7 +43,8 @@ function ChipInput({
   }
 
   return (
-    <div className="flex flex-wrap gap-1 p-2 min-h-[38px] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus-within:ring-1 focus-within:ring-gray-400 dark:focus-within:ring-gray-500 cursor-text"
+    <div
+      className="flex flex-wrap gap-1 p-2 min-h-[34px] rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus-within:ring-1 focus-within:ring-gray-400 dark:focus-within:ring-gray-500 cursor-text"
       onClick={e => (e.currentTarget.querySelector('input') as HTMLInputElement | null)?.focus()}
     >
       {chips.map(chip => (
@@ -82,62 +83,84 @@ function AlbumPicker({
   onSelect: (a: Album) => void
 }) {
   const [search, setSearch] = useState('')
-  // Only show actual albums (scheme === 'album'), or all items if scheme is absent (older API)
   const hasScheme = albums.some(a => a.scheme)
   const uploadable = hasScheme ? albums.filter(a => a.scheme === 'album') : albums
   const filtered = search
     ? uploadable.filter(a => a.namePath.toLowerCase().includes(search.toLowerCase()))
     : uploadable
 
+  const getLastSegment = (p: string) => p.split('/').pop() ?? p
+  const getParentPath  = (p: string) => { const parts = p.split('/'); return parts.length > 1 ? parts.slice(0, -1).join(' / ') : '' }
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="relative">
-        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <div className="rounded border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {/* Search row */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-800/40">
+        <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
         </svg>
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search albums…"
-          className="w-full h-8 pl-8 pr-3 text-[12px] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400"
+          className="flex-1 text-[12px] bg-transparent outline-none text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600"
         />
+        {search ? (
+          <button
+            type="button"
+            onClick={() => setSearch('')}
+            className="text-[14px] leading-none text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-0.5"
+          >×</button>
+        ) : (
+          <span className="text-[10px] text-gray-400 tabular-nums">{uploadable.length}</span>
+        )}
       </div>
-      <div className="h-44 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+
+      {/* Album list */}
+      <div className="max-h-48 overflow-y-auto bg-white dark:bg-gray-900">
         {loading ? (
-          <div className="h-full flex items-center justify-center text-[11px] text-gray-400">
-            <svg className="animate-spin w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24">
+          <div className="flex items-center justify-center gap-2 py-8 text-[11px] text-gray-400">
+            <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
             Loading albums…
           </div>
         ) : filtered.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-[11px] text-gray-400">No albums found</div>
-        ) : (
-          filtered.map(a => (
+          <div className="py-8 text-center text-[11px] text-gray-400">No albums found</div>
+        ) : filtered.map(a => {
+          const name   = getLastSegment(a.namePath)
+          const parent = getParentPath(a.namePath)
+          const isSel  = selected?.id === a.id
+          return (
             <button
               key={a.id}
               type="button"
               onClick={() => onSelect(a)}
-              className={`w-full text-left px-3 py-2 text-[11px] transition-colors ${
-                selected?.id === a.id
-                  ? 'bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 font-semibold'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              className={`w-full text-left px-3 py-2 flex items-center gap-2 transition-colors ${
+                isSel ? 'bg-accent-50 dark:bg-accent-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-800/60'
               }`}
             >
-              <span className="truncate block">{a.namePath}</span>
+              <svg className={`w-3.5 h-3.5 shrink-0 mt-px ${isSel ? 'text-accent-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+              </svg>
+              <span className="flex-1 min-w-0">
+                <span className={`block text-[12px] truncate ${isSel ? 'font-semibold text-accent-700 dark:text-accent-300' : 'text-gray-800 dark:text-gray-200'}`}>
+                  {name}
+                </span>
+                {parent && (
+                  <span className="block text-[10px] text-gray-400 dark:text-gray-600 truncate mt-px">{parent}</span>
+                )}
+              </span>
+              {isSel && (
+                <svg className="w-3.5 h-3.5 text-accent-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
             </button>
-          ))
-        )}
+          )
+        })}
       </div>
-      {selected && (
-        <p className="text-[10px] text-accent-600 dark:text-accent-400 flex items-center gap-1">
-          <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-          {selected.namePath}
-        </p>
-      )}
     </div>
   )
 }
@@ -149,7 +172,7 @@ function FileRow({ filename, state }: { filename: string; state: 'pending' | 'up
     <div className="flex items-center gap-2 py-1 text-[11px]">
       <span className="shrink-0 w-4 flex items-center justify-center">
         {state === 'pending'   && <span className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-gray-600" />}
-        {state === 'uploading' && <svg className="animate-spin w-3.5 h-3.5 text-accent-500" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
+        {state === 'uploading' && <svg className="animate-spin w-3.5 h-3.5 text-[#F5A623]" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
         {state === 'ok'        && <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
         {state === 'error'     && <svg className="w-3.5 h-3.5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>}
       </span>
@@ -179,6 +202,7 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
   const [tags,          setTags]          = useState<string[]>([])
   const [keywords,      setKeywords]      = useState<string[]>([])
   const [description,   setDescription]   = useState('')
+  const [metaOpen,      setMetaOpen]      = useState(false)
 
   // Upload progress
   const [phase,    setPhase]    = useState<Phase>('configure')
@@ -186,12 +210,10 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
   const [results,  setResults]  = useState<FileResult[]>([])
   const abortRef = useRef(false)
 
-  // Mount / unmount animation
   useEffect(() => {
-    if (open) { setMounted(true); setClosing(false); setPhase('configure') }
+    if (open) { setMounted(true); setClosing(false); setPhase('configure'); setMetaOpen(false) }
   }, [open])
 
-  // Escape to close
   useEffect(() => {
     if (!open) return
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && phase !== 'uploading') handleClose() }
@@ -199,7 +221,6 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
     return () => window.removeEventListener('keydown', h)
   }, [open, phase]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load albums once on open
   useEffect(() => {
     if (!open) return
     setAlbumsLoading(true)
@@ -212,7 +233,7 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
 
   function handleClose() {
     setClosing(true)
-    setTimeout(() => { setMounted(false); setClosing(false); onClose() }, 200)
+    setTimeout(() => { setMounted(false); setClosing(false); onClose() }, 180)
   }
 
   const handleUpload = useCallback(async () => {
@@ -228,7 +249,6 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
     for (let i = 0; i < files.length; i++) {
       if (abortRef.current) break
       const { filename, dataUrl } = files[i]
-
       setFileRows(prev => prev.map((r, idx) => idx === i ? { ...r, state: 'uploading' } : r))
 
       try {
@@ -267,53 +287,53 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
 
   const succeeded = results.filter(r => r.ok).length
   const failed    = results.filter(r => !r.ok).length
-  const uploading = phase === 'uploading'
   const done      = fileRows.filter(r => r.state === 'ok' || r.state === 'error').length
   const pct       = files.length > 0 ? Math.round((done / files.length) * 100) : 0
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-200 ${closing ? 'opacity-0' : 'opacity-100'}`}>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-opacity duration-180 ${closing ? 'opacity-0' : 'opacity-100'}`}>
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm"
+        className={`absolute inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-sm transition-opacity duration-180 ${closing ? 'opacity-0' : 'animate-fade-in'}`}
         onClick={phase !== 'uploading' ? handleClose : undefined}
       />
 
-      {/* Panel */}
-      <div className={`relative w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 flex flex-col overflow-hidden transition-all duration-200 ${closing ? 'scale-95' : 'scale-100'}`}>
+      {/* Panel — 4px radius, scale-in on open, scale-out on close */}
+      <div className={`relative w-full max-w-sm bg-white dark:bg-gray-900 rounded shadow-2xl border border-gray-100 dark:border-gray-700 flex flex-col overflow-hidden transition-all duration-180 ${closing ? 'scale-95 opacity-0' : 'animate-scale-in'}`}>
 
         {/* Header */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
-          {/* Canto logo */}
-          <svg className="w-7 h-7 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <div className="flex items-center gap-3 px-5 pt-5 pb-4 shrink-0">
+          <svg className="w-6 h-6 shrink-0" viewBox="0 0 24 24" fill="none">
             <rect width="24" height="24" rx="5" fill="#F5A623" />
             <path d="M16 8.4A5.6 5.6 0 1 0 16 15.6" stroke="white" strokeWidth="2.6" strokeLinecap="round" />
           </svg>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Save to Canto</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-gray-100">Save to Canto</p>
             <p className="text-[10px] text-gray-400 dark:text-gray-500">{files.length} file{files.length !== 1 ? 's' : ''}</p>
           </div>
           {phase !== 'uploading' && (
             <button
               onClick={handleClose}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shrink-0"
+              className="w-7 h-7 flex items-center justify-center rounded text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shrink-0"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           )}
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div className="h-px bg-gray-100 dark:bg-gray-800 shrink-0" />
 
-          {/* ── Configure phase ────────────────────────────────────────── */}
+        {/* Body — keyed on phase so each transition slides in fresh */}
+        <div key={phase} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 animate-slide-in-up">
+
+          {/* ── Configure ──────────────────────────────────────────────── */}
           {phase === 'configure' && (
             <>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
-                  Destination Album <span className="text-red-400">*</span>
+                <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                  Destination album
                 </label>
                 <AlbumPicker
                   albums={albums}
@@ -323,61 +343,72 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
                 />
               </div>
 
+              {/* Optional metadata accordion */}
               <div>
-                <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Tags</label>
-                <ChipInput chips={tags} placeholder="Type and press Enter…" onAdd={v => setTags(p => [...p, v])} onRemove={v => setTags(p => p.filter(x => x !== v))} />
-              </div>
+                <button
+                  type="button"
+                  onClick={() => setMetaOpen(p => !p)}
+                  className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  <svg
+                    className={`w-2.5 h-2.5 transition-transform duration-200 ${metaOpen ? 'rotate-90' : ''}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                  Optional metadata
+                </button>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Keywords</label>
-                <ChipInput chips={keywords} placeholder="Type and press Enter…" onAdd={v => setKeywords(p => [...p, v])} onRemove={v => setKeywords(p => p.filter(x => x !== v))} />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Description</label>
-                <textarea
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  placeholder="Optional description applied to all files…"
-                  rows={2}
-                  className="w-full px-3 py-2 text-[12px] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 placeholder:text-gray-300 dark:placeholder:text-gray-600 resize-none focus:outline-none focus:ring-1 focus:ring-gray-400"
-                />
-              </div>
-
-              {/* File list preview */}
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
-                  Files ({files.length})
-                </label>
-                <div className="rounded-lg border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 px-3 py-2 max-h-28 overflow-y-auto">
-                  {files.slice(0, 6).map(f => (
-                    <p key={f.filename} className="text-[11px] text-gray-500 dark:text-gray-400 truncate py-0.5">{f.filename}</p>
-                  ))}
-                  {files.length > 6 && (
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 pt-0.5">+{files.length - 6} more…</p>
-                  )}
+                {/* CSS grid accordion — animates height without hardcoded max values */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateRows: metaOpen ? '1fr' : '0fr',
+                    transition: 'grid-template-rows 240ms cubic-bezier(0.16,1,0.3,1)',
+                  }}
+                >
+                  <div className="overflow-hidden">
+                    <div className="pt-3 space-y-3">
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Tags</label>
+                        <ChipInput chips={tags} placeholder="Type and press Enter…" onAdd={v => setTags(p => [...p, v])} onRemove={v => setTags(p => p.filter(x => x !== v))} />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Keywords</label>
+                        <ChipInput chips={keywords} placeholder="Type and press Enter…" onAdd={v => setKeywords(p => [...p, v])} onRemove={v => setKeywords(p => p.filter(x => x !== v))} />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Description</label>
+                        <textarea
+                          value={description}
+                          onChange={e => setDescription(e.target.value)}
+                          placeholder="Optional description applied to all files…"
+                          rows={2}
+                          className="w-full px-3 py-2 text-[12px] rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 placeholder:text-gray-300 dark:placeholder:text-gray-600 resize-none focus:outline-none focus:ring-1 focus:ring-gray-400"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </>
           )}
 
-          {/* ── Uploading phase ────────────────────────────────────────── */}
+          {/* ── Uploading ──────────────────────────────────────────────── */}
           {phase === 'uploading' && (
             <div className="space-y-3">
-              {/* Progress bar */}
               <div>
-                <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 mb-1.5">
-                  <span>Uploading to <span className="font-medium text-gray-700 dark:text-gray-300">{selectedAlbum?.name}</span>…</span>
-                  <span className="font-semibold tabular-nums">{done} / {files.length}</span>
+                <div className="flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">
+                  <span>Uploading to <span className="font-semibold text-gray-600 dark:text-gray-300">{selectedAlbum?.name}</span>…</span>
+                  <span className="tabular-nums font-semibold">{done} / {files.length}</span>
                 </div>
-                <div className="h-1.5 w-full rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                <div className="h-1 w-full rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-accent-500 transition-all duration-300"
+                    className="h-full rounded-full bg-[#F5A623] transition-all duration-300"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
               </div>
-              {/* File rows */}
               <div className="max-h-52 overflow-y-auto space-y-0.5">
                 {fileRows.map(r => (
                   <FileRow key={r.filename} filename={r.filename} state={r.state} error={r.error} />
@@ -386,46 +417,54 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
             </div>
           )}
 
-          {/* ── Done phase ─────────────────────────────────────────────── */}
+          {/* ── Done ───────────────────────────────────────────────────── */}
           {phase === 'done' && (
-            <div className="space-y-4">
-              {/* Summary */}
-              <div className={`flex items-start gap-3 p-3 rounded-xl ${failed === 0 ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-amber-50 dark:bg-amber-900/20'}`}>
+            <div className="py-2 flex flex-col items-center gap-4">
+              {/* Icon */}
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center animate-bounce-once ${
+                failed === 0 ? 'bg-emerald-50 dark:bg-emerald-900/30' : 'bg-amber-50 dark:bg-amber-900/30'
+              }`}>
                 {failed === 0 ? (
-                  <svg className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg className="w-7 h-7 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 ) : (
-                  <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  <svg className="w-7 h-7 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9.303 3.376c.866 1.5-.217 3.374-1.948 3.374H4.645c-1.73 0-2.813-1.874-1.948-3.374L10.052 3.378c.866-1.5 3.032-1.5 3.898 0l7.303 12.748zM12 15.75h.007v.008H12v-.008z" />
                   </svg>
                 )}
-                <div>
-                  {failed === 0 ? (
-                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                      {succeeded} file{succeeded !== 1 ? 's' : ''} uploaded successfully
-                    </p>
-                  ) : (
-                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
-                      {succeeded} uploaded, {failed} failed
-                    </p>
-                  )}
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                    → {selectedAlbum?.namePath}
-                    {selectedAlbum?.scheme && selectedAlbum.scheme !== 'album' && (
-                      <span className="ml-1 text-amber-500">(scheme: {selectedAlbum.scheme} — may not accept uploads)</span>
-                    )}
-                  </p>
-                </div>
               </div>
 
-              {/* Error details */}
+              {/* Summary */}
+              <div className="text-center">
+                {failed === 0 ? (
+                  <>
+                    <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                      {succeeded} file{succeeded !== 1 ? 's' : ''} uploaded
+                    </p>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-relaxed">
+                      {selectedAlbum?.namePath}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                      {succeeded} of {files.length} uploaded
+                    </p>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
+                      {failed} failed · {selectedAlbum?.namePath}
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Error list */}
               {failed > 0 && (
-                <div className="max-h-48 overflow-y-auto space-y-2">
+                <div className="w-full max-h-40 overflow-y-auto rounded border border-red-100 dark:border-red-900/40 bg-red-50 dark:bg-red-900/10 p-3 space-y-2">
                   {results.filter(r => !r.ok).map(r => (
                     <div key={r.filename} className="text-[11px]">
-                      <p className="font-medium text-red-500 truncate">{r.filename}</p>
-                      {r.error && <p className="text-red-400 break-words">{r.error}</p>}
+                      <p className="font-semibold text-red-600 dark:text-red-400 truncate">{r.filename}</p>
+                      {r.error && <p className="text-red-400 dark:text-red-500 break-words mt-0.5">{r.error}</p>}
                     </div>
                   ))}
                 </div>
@@ -440,27 +479,27 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
             <>
               <button
                 onClick={handleClose}
-                className="h-8 px-4 rounded-lg text-[12px] font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="h-8 px-4 rounded text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
               >Cancel</button>
               <button
                 onClick={handleUpload}
                 disabled={!selectedAlbum || files.length === 0}
-                className="h-8 px-4 rounded-lg text-[12px] font-bold bg-[#F5A623] text-white hover:bg-[#E09510] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                className="h-8 px-4 rounded text-[11px] font-bold uppercase tracking-widest bg-[#F5A623] text-white hover:bg-[#E09510] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-                Upload {files.length} file{files.length !== 1 ? 's' : ''}
+                Upload {files.length}
               </button>
             </>
           )}
           {phase === 'uploading' && (
-            <span className="text-[11px] text-gray-400 dark:text-gray-500">Please wait…</span>
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-widest">Please wait…</span>
           )}
           {phase === 'done' && (
             <button
               onClick={handleClose}
-              className="h-8 px-5 rounded-lg text-[12px] font-bold bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+              className="h-8 px-5 rounded text-[11px] font-bold uppercase tracking-widest bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
             >Done</button>
           )}
         </div>

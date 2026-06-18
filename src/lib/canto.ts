@@ -291,6 +291,8 @@ export async function uploadAsset(
   const safeName = rawName.replace(/['"]/g, '').replace(/[^\w\s\-().]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80)
   // Canto docs: use unique filenames to avoid S3 conflicts; timestamp ensures uniqueness
   const uniqueFilename = `${safeName}-${Date.now()}.${ext}`
+  // Display name shown in Canto — no timestamp
+  const cleanFilename = `${safeName}.${ext}`
 
   // Step 1: Get upload settings (cached ~5 hours)
   const settings = await getUploadSettings(token)
@@ -317,12 +319,12 @@ export async function uploadAsset(
       f.append('Policy',         settings.Policy)
       f.append('Signature',      settings.Signature!)
     }
-    f.append('x-amz-meta-file_name', fname)
+    f.append('x-amz-meta-file_name', cleanFilename)  // display name in Canto — no timestamp
     f.append('x-amz-meta-tag',       meta?.tags?.join(',') ?? '')
     f.append('x-amz-meta-scheme',    '')  // empty = new asset
     f.append('x-amz-meta-id',        '')  // empty = new asset
     f.append('x-amz-meta-album_id',  albumId)
-    f.append('file', fileBlob, fname)     // file MUST be last (AWS requirement)
+    f.append('file', fileBlob, cleanFilename)  // file MUST be last (AWS requirement)
     return f
   }
 

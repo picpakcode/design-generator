@@ -1702,30 +1702,35 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             {templateExportOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setTemplateExportOpen(false)} />
-                <div className="absolute top-full right-0 mt-2 w-60 bg-white dark:bg-gray-900 rounded shadow-2xl border border-gray-100 dark:border-gray-700 p-3 z-50 animate-slide-down">
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded shadow-2xl border border-gray-100 dark:border-gray-700 p-2.5 z-50 animate-slide-down">
+
+                  {/* ── Primary export ── */}
                   <button
                     onClick={() => { templateExportFnRef.current(); setTemplateExportOpen(false) }}
                     disabled={!templateCanExport || templateRenderingAll}
-                    className="w-full h-9 flex items-center gap-2 px-3 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-full h-9 flex items-center gap-2 px-3 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                     Export All ZIP
                   </button>
+
                   <div className="h-px bg-gray-100 dark:bg-gray-800 my-2" />
+
                   <button
                     onClick={() => { templateExportCurrentFnRef.current(); setTemplateExportOpen(false) }}
                     disabled={!templateCanExportCurrent}
-                    className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     Export Current Product
                   </button>
+
                   {/* ── Slot picker ── */}
                   {slotGroups.length > 0 && (
                     <>
                       <div className="h-px bg-gray-100 dark:bg-gray-800 my-2" />
-                      <div className="px-1 pb-1">
-                        <div className="flex items-center justify-between mb-1.5">
+                      <div className="px-1">
+                        <div className="flex items-center justify-between mb-2">
                           <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Select slots</span>
                           <button
                             onClick={() => setSelectedSlots(
@@ -1733,12 +1738,12 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                                 ? new Set()
                                 : new Set(slotGroups.map(g => g.id))
                             )}
-                            className="text-[10px] text-accent-500 hover:text-accent-600 dark:text-accent-400 font-semibold"
+                            className="text-[10px] font-bold uppercase tracking-widest text-accent-500 hover:text-accent-600 dark:text-accent-400 transition-colors"
                           >
                             {selectedSlots.size === slotGroups.length ? 'None' : 'All'}
                           </button>
                         </div>
-                        <div className="flex flex-wrap gap-1 mb-2">
+                        <div className="grid grid-cols-5 gap-1 mb-2.5">
                           {slotGroups.map(g => {
                             const active = selectedSlots.has(g.id)
                             return (
@@ -1749,7 +1754,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                                   active ? next.delete(g.id) : next.add(g.id)
                                   return next
                                 })}
-                                className={`h-6 px-2 rounded text-[11px] font-bold transition-colors ${
+                                className={`h-7 w-full flex items-center justify-center rounded text-[11px] font-bold transition-all ${
                                   active
                                     ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
                                     : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -1766,7 +1771,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                             await templateExportSelectedFnRef.current(Array.from(selectedSlots))
                           }}
                           disabled={selectedSlots.size === 0}
-                          className="w-full h-8 flex items-center justify-center gap-1.5 px-3 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          className="w-full h-9 flex items-center justify-center gap-1.5 px-3 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         >
                           <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                           {selectedSlots.size === 0 ? 'Pick slots above' : `Export ${selectedSlots.size} slot${selectedSlots.size !== 1 ? 's' : ''}`}
@@ -1774,15 +1779,16 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                       </div>
                     </>
                   )}
+
+                  {/* ── Canto ── */}
                   <div className="h-px bg-gray-100 dark:bg-gray-800 my-2" />
                   {cantoConnected === false ? (
                     <button
                       onClick={() => { setTemplateExportOpen(false); window.location.href = '/api/canto/auth' }}
-                      className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      className="w-full h-9 flex items-center justify-center gap-2.5 px-3 rounded bg-[#F5A623]/15 border border-[#F5A623]/30 text-[#C8820F] dark:text-[#F5A623] text-[11px] font-bold uppercase tracking-widest hover:bg-[#F5A623]/25 hover:border-[#F5A623]/50 transition-colors"
                     >
-                      <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
-                      Connect Canto to Upload
-                      <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 shrink-0">Login</span>
+                      <CantoLogoMark className="h-4 w-4 shrink-0" />
+                      Connect Canto
                     </button>
                   ) : (
                     <>
@@ -1793,9 +1799,9 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           if (files.length > 0) { setCantoFiles(files); setCantoModalOpen(true) }
                         }}
                         disabled={!templateCanExport || templateRenderingAll}
-                        className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-[#F5A623]/10 hover:text-[#C8820F] dark:hover:text-[#F5A623] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
-                        <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
+                        <CantoLogoMark className="h-4 w-4 shrink-0" />
                         Save All to Canto
                       </button>
                       <button
@@ -1805,9 +1811,9 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           if (files.length > 0) { setCantoFiles(files); setCantoModalOpen(true) }
                         }}
                         disabled={!templateCanExportCurrent}
-                        className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-[#F5A623]/10 hover:text-[#C8820F] dark:hover:text-[#F5A623] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
-                        <CantoLogoMark className="h-3.5 w-3.5 shrink-0" />
+                        <CantoLogoMark className="h-4 w-4 shrink-0" />
                         Save Current to Canto
                       </button>
                       <button
