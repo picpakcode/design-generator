@@ -206,7 +206,13 @@ export async function getUserUploadToken(userId: string): Promise<string | null>
   return newToken
 }
 
-// ─── Upload ───────────────────────────────────────────────────────────────────
+// ─── Upload (AWS S3 pre-signed POST flow) ────────────────────────────────────
+//
+// Canto upload is a 2-step process:
+//   1. GET /api/v1/upload/setting  → AWS pre-signed credentials (valid 5h, cache them)
+//   2. POST to the returned S3 URL → no Authorization header, uses pre-signed policy
+//
+// The `key` field returned by /upload/setting contains "${filename}" as a placeholder.
 
 export interface CantoUploadMeta {
   tags?:        string[]
@@ -220,89 +226,122 @@ export interface CantoUploadResult {
   scheme?: string
 }
 
+interface CantoUploadSettings {
+  url:                    string  // S3 bucket URL
+  key:                    string  // S3 key template — contains "${filename}"
+  Policy:                 string
+  acl:                    string
+  // V2 signing (standard .canto.com domains)
+  AWSAccessKeyId?:        string
+  Signature?:             string
+  // V4 signing (EU/CA domains: .de, .ca.canto.com)
+  'x-amz-algorithm'?:    string
+  'x-amz-credential'?:   string
+  'x-amz-date'?:         string
+  'x-amz-Signature'?:    string
+  // Pre-filled metadata (overridden per upload)
+  'x-amz-meta-file_name': string
+  'x-amz-meta-tag':       string
+  'x-amz-meta-scheme':    string
+  'x-amz-meta-id':        string
+  'x-amz-meta-album_id':  string
+}
+
+let cachedUploadSettings: CantoUploadSettings | null = null
+let uploadSettingsExpiry = 0
+
+async function getUploadSettings(token: string): Promise<CantoUploadSettings> {
+  if (cachedUploadSettings && Date.now() < uploadSettingsExpiry) return cachedUploadSettings
+
+  const res = await fetch(`${BASE}/api/v1/upload/setting`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Canto upload/setting ${res.status}: ${text}`)
+  }
+
+  const settings = await res.json() as CantoUploadSettings
+  console.log(`[canto/upload-settings] fetched | S3: ${settings.url?.slice(0, 60)} | signing: ${settings['x-amz-algorithm'] ? 'V4' : 'V2'}`)
+  cachedUploadSettings = settings
+  uploadSettingsExpiry = Date.now() + (4 * 60 + 50) * 60 * 1000  // 4h50m (settings valid 5h)
+  return settings
+}
+
 export async function uploadAsset(
   buffer:   Buffer,
-  filename: string,  // e.g. "widgetpro-a1-desktop.png"
+  filename: string,
   albumId:  string,
   meta?:    CantoUploadMeta,
   userId?:  string,
 ): Promise<CantoUploadResult> {
+  // Token for /upload/setting request (user OAuth preferred for attribution)
   let token: string
   if (userId) {
     const userTok = await getUserUploadToken(userId)
-    if (userTok) {
-      console.log(`[canto/upload] using OAuth user token for ${userId}`)
-      token = userTok
-    } else {
-      console.log(`[canto/upload] no user token found, falling back to client credentials (upload will likely fail)`)
-      token = await getAccessToken()
-    }
+    token = userTok ?? await getAccessToken()
+    console.log(`[canto/upload] token: ${userTok ? 'user OAuth' : 'CC fallback'}`)
   } else {
     token = await getAccessToken()
   }
-  const ext  = filename.split('.').pop()?.toLowerCase() ?? 'png'
-  const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
 
-  // Sanitize: strip special chars Canto dislikes, cap name at 100 chars
+  const ext     = filename.split('.').pop()?.toLowerCase() ?? 'png'
+  const mime    = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
   const rawName = filename.includes('.') ? filename.slice(0, filename.lastIndexOf('.')) : filename
-  const safeName = rawName.replace(/['"]/g, '').replace(/[^\w\s\-().]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100)
-  const safeFilename = `${safeName}.${ext}`
+  const safeName = rawName.replace(/['"]/g, '').replace(/[^\w\s\-().]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80)
+  // Canto docs: use unique filenames to avoid S3 conflicts; timestamp ensures uniqueness
+  const uniqueFilename = `${safeName}-${Date.now()}.${ext}`
 
-  // Build raw multipart instead of using Node.js FormData — avoids serialization quirks
-  const boundary = `----CantoUpload${Math.random().toString(36).slice(2, 10)}`
-  const CRLF = '\r\n'
-  const field = (name: string, value: string) =>
-    Buffer.from(`--${boundary}${CRLF}Content-Disposition: form-data; name="${name}"${CRLF}${CRLF}${value}${CRLF}`)
+  // Step 1: Get upload settings (cached ~5 hours)
+  const settings = await getUploadSettings(token)
 
-  const fileBytes = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-  const filePart = Buffer.concat([
-    Buffer.from(`--${boundary}${CRLF}Content-Disposition: form-data; name="file"; filename="${safeFilename}"${CRLF}Content-Type: ${mime}${CRLF}${CRLF}`),
-    Buffer.from(fileBytes),
-    Buffer.from(CRLF),
-  ])
+  // Step 2: POST directly to S3 using pre-signed credentials (NO Authorization header)
+  // The key template has "${filename}" which we substitute with our actual filename
+  const s3Key = settings.key.replace('${filename}', uniqueFilename)
 
-  const parts: Buffer[] = [
-    filePart,
-    field('name',   safeName),
-    field('scheme', 'image'),
-  ]
-  if (meta?.description)      parts.push(field('description', meta.description))
-  if (meta?.keywords?.length) parts.push(field('keyword',     meta.keywords.join(',')))
-  if (meta?.tags?.length)     parts.push(field('tag',         meta.tags.join(',')))
-  parts.push(Buffer.from(`--${boundary}--${CRLF}`))
+  const form = new FormData()
+  form.append('key', s3Key)
+  form.append('acl', settings.acl)
 
-  const body = Buffer.concat(parts)
-
-  const res = await fetch(`${BASE}/api/v1/album/${albumId}/upload`, {
-    method:   'POST',
-    headers:  {
-      Authorization:  `Bearer ${token}`,
-      'Content-Type': `multipart/form-data; boundary=${boundary}`,
-      'Accept':       'application/json',
-      'Origin':       BASE,
-      'Referer':      `${BASE}/`,
-    },
-    body:     new Uint8Array(body),
-    redirect: 'manual',
-  })
-
-  // Single log line per upload: status + body combined to stay within Vercel's 50-line cap
-  const responseText = await res.text()
-  console.log(`[canto/upload] "${safeName}" → album ${albumId} | status ${res.status} | body: ${responseText.slice(0, 300)}`)
-
-  // 3xx — unexpected redirect
-  if (res.status >= 300 && res.status < 400) {
-    throw new Error(`Canto upload redirected (${res.status}) to ${res.headers.get('location') ?? '?'}.`)
+  if (settings['x-amz-algorithm']) {
+    // V4 signing (EU / CA tenant domains)
+    form.append('Policy',            settings.Policy)
+    form.append('x-amz-algorithm',   settings['x-amz-algorithm'])
+    form.append('x-amz-credential',  settings['x-amz-credential']!)
+    form.append('x-amz-date',        settings['x-amz-date']!)
+    form.append('x-amz-Signature',   settings['x-amz-Signature']!)
+  } else {
+    // V2 signing (standard .canto.com US domain)
+    form.append('AWSAccessKeyId', settings.AWSAccessKeyId!)
+    form.append('Policy',         settings.Policy)
+    form.append('Signature',      settings.Signature!)
   }
 
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
-      throw new Error(`Canto upload permission denied (${res.status}): ${responseText.slice(0, 200)}`)
-    }
-    throw new Error(`Canto upload failed ${res.status}: ${responseText.slice(0, 400)}`)
+  // Canto metadata embedded as S3 user-defined metadata
+  form.append('x-amz-meta-file_name', uniqueFilename)
+  form.append('x-amz-meta-tag',       meta?.tags?.join(',') ?? '')
+  form.append('x-amz-meta-scheme',    '')   // empty = new asset (not an update)
+  form.append('x-amz-meta-id',        '')   // empty = new asset
+  form.append('x-amz-meta-album_id',  albumId)
+
+  // File MUST be last (AWS pre-signed POST requirement)
+  form.append('file', new Blob([new Uint8Array(buffer)], { type: mime }), uniqueFilename)
+
+  const s3Res = await fetch(settings.url, { method: 'POST', body: form })
+  const s3Body = await s3Res.text()
+  console.log(`[canto/upload] "${safeName}" → album ${albumId} | S3 ${s3Res.status} | ${s3Body.slice(0, 200)}`)
+
+  if (s3Res.status === 403) {
+    // Pre-signed credentials likely expired — clear cache so next call refreshes
+    cachedUploadSettings = null
+    uploadSettingsExpiry = 0
+    throw new Error(`Canto S3 upload forbidden (403) — credentials expired, retry`)
   }
 
-  // responseText already read above — parse if JSON
-  try { return JSON.parse(responseText) as CantoUploadResult } catch { /* not JSON */ }
-  return { id: safeName }
+  // S3 returns 204 No Content on success
+  if (s3Res.status !== 204 && !s3Res.ok) {
+    throw new Error(`Canto S3 upload failed ${s3Res.status}: ${s3Body.slice(0, 400)}`)
+  }
+
+  return { id: uniqueFilename, name: safeName }
 }
