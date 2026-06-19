@@ -83,9 +83,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: 'update_product_name',
+      description:
+        'Rename a product — changes the product\'s display name in the product list and in export filenames. This is NOT the same as a slot title. Use this when the user asks to rename a product, change its label, or update what it\'s called in the sidebar.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          project_id: { type: 'string', description: 'Project ID' },
+          sku: { type: 'string', description: 'Product SKU' },
+          name: { type: 'string', description: 'New product name' },
+        },
+        required: ['project_id', 'sku', 'name'],
+      },
+    },
+    {
       name: 'update_product_slot',
       description:
-        'Update text content in a product slot. Provide only the fields you want to change — omitted fields are left as-is. A+ slots use slot_index 0–7 (a1=0, b1=1, …). Gallery slots use slot_index 0–N with is_gallery: true.',
+        'Update the COPY inside a design image slot — the heading text (title) and body copy (desc) that appear on an A+ or gallery image. This is NOT the product name. Use this only when the user wants to change what text is written inside a specific design image (a1, b1, c1… or g1, g2…).',
       inputSchema: {
         type: 'object',
         properties: {
@@ -189,6 +203,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'get_product_slots': {
         const data = await api(`/api/mcp/projects/${a.project_id}/products/${encodeURIComponent(String(a.sku))}`)
+        return ok(JSON.stringify(data, null, 2))
+      }
+
+      case 'update_product_name': {
+        const data = await api(
+          `/api/mcp/projects/${a.project_id}/products/${encodeURIComponent(String(a.sku))}/name`,
+          { method: 'PATCH', body: { name: a.name } },
+        )
         return ok(JSON.stringify(data, null, 2))
       }
 
