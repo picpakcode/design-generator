@@ -42,10 +42,10 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "design-generator": {
       "command": "npx",
-      "args": ["tsx", "/absolute/path/to/design-generator/mcp-server/src/index.ts"],
+      "args": ["tsx", "/Users/artemkireev/Projects/design-generator/mcp-server/src/index.ts"],
       "env": {
-        "DESIGN_GENERATOR_URL": "https://your-app.vercel.app",
-        "MCP_API_KEY": "<your-secret-key>"
+        "DESIGN_GENERATOR_URL": "https://your-deployed-url.vercel.app",
+        "MCP_API_KEY": "fcf8466dc5873b061200952df970242b3d524927e9130848"
       }
     }
   }
