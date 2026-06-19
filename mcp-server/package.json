@@ -1,0 +1,22 @@
+{
+  "name": "design-generator-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for the Design Generator — lets Claude search Canto images, read and edit product slot content, and manage design projects.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --loader ts-node/esm src/index.ts",
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start:built": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5"
+  }
+}
