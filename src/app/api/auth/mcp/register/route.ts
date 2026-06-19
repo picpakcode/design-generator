@@ -18,11 +18,15 @@ export async function POST(req: Request) {
   let body: Record<string, unknown> = {}
   try { body = await req.json() } catch { /* empty body is fine */ }
 
+  const origin = new URL(req.url).origin
   const client_id = crypto.randomUUID()
 
   return Response.json(
     {
       client_id,
+      client_name:              'Design Generator',
+      logo_uri:                 `${origin}/Favicon.png`,
+      client_uri:               origin,
       client_secret_expires_at: 0,
       redirect_uris:            (body.redirect_uris as string[]) ?? [],
       grant_types:              ['authorization_code'],
