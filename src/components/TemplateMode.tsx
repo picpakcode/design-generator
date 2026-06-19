@@ -937,33 +937,42 @@ export default function TemplateMode({
 
   // On first open when sessionStorage is empty: restore full state from Supabase
   useEffect(() => {
-    if (!projectId || parseResult) { setIsLoadingFromDb(false); return }
+    if (!projectId) { setIsLoadingFromDb(false); return }
     const supabase = createClient()
+    // Always load fresh from DB on mount — sessionStorage survives page reloads so
+    // sv.parseResult is truthy even after reload, but external changes (e.g. MCP edits)
+    // only land in template_state, not sessionStorage. Always fetching ensures we pick
+    // up those changes. We only replace parseResult when it isn't already in memory.
     loadTemplateState(supabase, projectId)
       .then(tState => {
         if (!tState?.products?.length) return
-        setParseResult({ products: tState.products, errors: [] })
+        // Always refresh slot content so external edits (MCP) are visible on reload
         setAllSlots((tState.allSlots ?? {}) as Record<string, TemplateSlotState[]>)
         setAllGallerySlots((tState.allGallerySlots ?? {}) as Record<string, TemplateSlotState[]>)
-        if (typeof tState.aplusSlots === 'number') setAplusSlots(tState.aplusSlots)
-        if (typeof tState.galleryCount === 'number') setGalleryCount(tState.galleryCount)
-        if (tState.slotConfigs?.length) setSlotConfigs(tState.slotConfigs as unknown as SlotConfig[])
-        if (tState.galleryConfigs?.length) setGalleryConfigs(tState.galleryConfigs as unknown as GallerySlotConfig[])
-        if (tState.shopifyGalleryConfigs?.length) setShopifyGalleryConfigs(tState.shopifyGalleryConfigs as unknown as GallerySlotConfig[])
-        if (tState.logoAsset) setLogoAsset(tState.logoAsset)
-        if (tState.textureAsset) setTextureAsset(tState.textureAsset)
         if (tState.productNames) setProductNames(tState.productNames)
-        if (typeof tState.includeGallery === 'boolean') setIncludeGallery(tState.includeGallery)
-        // Restore navigation state — fall back to first product if selectedId wasn't saved yet
-        const restoredId = tState.selectedId ?? tState.products[0].id
-        const restoredSlotIdx = typeof tState.activeSlotIdx === 'number' ? tState.activeSlotIdx : 0
-        const restoredIsGallery = typeof tState.activeIsGallery === 'boolean' ? tState.activeIsGallery : false
-        const restoredGalleryIdx = typeof tState.activeGalleryIdx === 'number' ? tState.activeGalleryIdx : 0
-        setSelectedId(restoredId)
-        if (typeof tState.activeSlotIdx === 'number') setActiveSlotIdx(restoredSlotIdx)
-        if (typeof tState.activeIsGallery === 'boolean') setActiveIsGallery(restoredIsGallery)
-        if (typeof tState.activeGalleryIdx === 'number') setActiveGalleryIdx(restoredGalleryIdx)
-        // Seed the hashes so the first save cycle doesn't write back identical data
+        // Only restore products + config when not already in memory (first-ever load)
+        if (!parseResult) {
+          setParseResult({ products: tState.products, errors: [] })
+          if (typeof tState.aplusSlots === 'number') setAplusSlots(tState.aplusSlots)
+          if (typeof tState.galleryCount === 'number') setGalleryCount(tState.galleryCount)
+          if (tState.slotConfigs?.length) setSlotConfigs(tState.slotConfigs as unknown as SlotConfig[])
+          if (tState.galleryConfigs?.length) setGalleryConfigs(tState.galleryConfigs as unknown as GallerySlotConfig[])
+          if (tState.shopifyGalleryConfigs?.length) setShopifyGalleryConfigs(tState.shopifyGalleryConfigs as unknown as GallerySlotConfig[])
+          if (tState.logoAsset) setLogoAsset(tState.logoAsset)
+          if (tState.textureAsset) setTextureAsset(tState.textureAsset)
+          if (typeof tState.includeGallery === 'boolean') setIncludeGallery(tState.includeGallery)
+          // Restore navigation state — fall back to first product if selectedId wasn't saved yet
+          const restoredId = tState.selectedId ?? tState.products[0].id
+          const restoredSlotIdx = typeof tState.activeSlotIdx === 'number' ? tState.activeSlotIdx : 0
+          const restoredIsGallery = typeof tState.activeIsGallery === 'boolean' ? tState.activeIsGallery : false
+          const restoredGalleryIdx = typeof tState.activeGalleryIdx === 'number' ? tState.activeGalleryIdx : 0
+          setSelectedId(restoredId)
+          if (typeof tState.activeSlotIdx === 'number') setActiveSlotIdx(restoredSlotIdx)
+          if (typeof tState.activeIsGallery === 'boolean') setActiveIsGallery(restoredIsGallery)
+          if (typeof tState.activeGalleryIdx === 'number') setActiveGalleryIdx(restoredGalleryIdx)
+          lastSavedNavHashRef.current = buildNavHash(restoredId, restoredSlotIdx, restoredIsGallery, restoredGalleryIdx)
+        }
+        // Seed the content hash from DB so the first auto-save cycle doesn't echo back
         const restoredNames = tState.productNames ?? {}
         const restoredIncludeGallery = typeof tState.includeGallery === 'boolean' ? tState.includeGallery : true
         lastSavedContentHashRef.current = buildContentHash(
@@ -978,7 +987,6 @@ export default function TemplateMode({
           tState.textureAsset?.id,
           restoredNames,
         )
-        lastSavedNavHashRef.current = buildNavHash(restoredId, restoredSlotIdx, restoredIsGallery, restoredGalleryIdx)
       })
       .catch(() => {})
       .finally(() => setIsLoadingFromDb(false))
