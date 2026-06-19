@@ -13,11 +13,59 @@ const CORS = {
 // ─── Tool manifest ────────────────────────────────────────────────────────────
 
 const TOOLS = [
+  // ── Projects ────────────────────────────────────────────────────────────────
   {
     name: 'list_projects',
     description: 'List all design projects. Returns id, name, type (amazon/shopify), and last updated time. Call this first to get a project_id for other tools.',
     inputSchema: { type: 'object', properties: {}, required: [] },
   },
+  {
+    name: 'rename_project',
+    description: 'Rename a design project.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_id: { type: 'string' },
+        name:       { type: 'string', description: 'New project name' },
+      },
+      required: ['project_id', 'name'],
+    },
+  },
+  {
+    name: 'delete_project',
+    description: 'Permanently delete a design project. Irreversible — confirm with the user before calling.',
+    inputSchema: {
+      type: 'object',
+      properties: { project_id: { type: 'string' } },
+      required: ['project_id'],
+    },
+  },
+  {
+    name: 'get_project_settings',
+    description: 'Get project-level settings: number of A+ slots, gallery count, slot template configs, and any assigned logo or texture asset.',
+    inputSchema: {
+      type: 'object',
+      properties: { project_id: { type: 'string' } },
+      required: ['project_id'],
+    },
+  },
+  {
+    name: 'set_project_asset',
+    description: 'Assign a Canto image as the project-wide logo or background texture. Run search_canto first to get asset details.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_id:       { type: 'string' },
+        asset_type:       { type: 'string', enum: ['logo', 'texture'], description: '"logo" or "texture"' },
+        canto_asset_id:   { type: 'string' },
+        canto_asset_name: { type: 'string' },
+        canto_asset_url:  { type: 'string', description: 'full_url from search_canto' },
+      },
+      required: ['project_id', 'asset_type', 'canto_asset_id', 'canto_asset_name', 'canto_asset_url'],
+    },
+  },
+
+  // ── Products ────────────────────────────────────────────────────────────────
   {
     name: 'list_products',
     description: 'List products in a project that has Template Mode data (CSV uploaded). Returns each product\'s SKU, name, and slot count.',
@@ -25,6 +73,31 @@ const TOOLS = [
       type: 'object',
       properties: { project_id: { type: 'string', description: 'Project ID from list_projects' } },
       required: ['project_id'],
+    },
+  },
+  {
+    name: 'add_product',
+    description: 'Add a new product to an existing template project. Creates empty slots matching the project\'s current A+ and gallery slot counts. The project must already have template data (CSV uploaded).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_id:   { type: 'string' },
+        sku:          { type: 'string', description: 'Unique product SKU' },
+        product_name: { type: 'string', description: 'Display name for the product' },
+      },
+      required: ['project_id', 'sku', 'product_name'],
+    },
+  },
+  {
+    name: 'remove_product',
+    description: 'Remove a product and all its slot content from a project. Irreversible — confirm with user before calling.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_id: { type: 'string' },
+        sku:        { type: 'string' },
+      },
+      required: ['project_id', 'sku'],
     },
   },
   {
@@ -52,9 +125,11 @@ const TOOLS = [
       required: ['project_id', 'sku', 'name'],
     },
   },
+
+  // ── Slots ────────────────────────────────────────────────────────────────────
   {
     name: 'update_product_slot',
-    description: 'Update the COPY inside a design image slot — the heading text (title) and body copy (desc) that appear on an A+ or gallery image. This is NOT the product name. Use this only when the user wants to change what text is written inside a specific design image (a1, b1, c1… or g1, g2…).',
+    description: 'Update the COPY inside a single design image slot — the heading text (title) and body copy (desc) that appear on an A+ or gallery image. This is NOT the product name. Use this only when the user wants to change what text is written inside a specific design image (a1, b1, c1… or g1, g2…).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -67,6 +142,70 @@ const TOOLS = [
         icon_callouts: { type: 'array', items: { type: 'string' }, maxItems: 4 },
       },
       required: ['project_id', 'sku', 'slot_index'],
+    },
+  },
+  {
+    name: 'bulk_update_slots',
+    description: 'Update the same slot position across ALL products in a project in one call. Much faster than calling update_product_slot for each product individually. Optionally limit to specific SKUs with the skus array.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_id:    { type: 'string' },
+        slot_index:    { type: 'number', description: '0-based slot index' },
+        is_gallery:    { type: 'boolean', description: 'true for gallery slots, false for A+ slots' },
+        title:         { type: 'string' },
+        desc:          { type: 'string' },
+        icon_callouts: { type: 'array', items: { type: 'string' }, maxItems: 4 },
+        skus:          { type: 'array', items: { type: 'string' }, description: 'If provided, only update these SKUs. Omit to update all products.' },
+      },
+      required: ['project_id', 'slot_index'],
+    },
+  },
+  {
+    name: 'clear_slot',
+    description: 'Wipe all content from a slot — title, description, icon callouts, and assigned photo — leaving it blank.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_id:  { type: 'string' },
+        sku:         { type: 'string' },
+        slot_index:  { type: 'number' },
+        is_gallery:  { type: 'boolean' },
+      },
+      required: ['project_id', 'sku', 'slot_index'],
+    },
+  },
+  {
+    name: 'set_slot_config',
+    description: 'Change the template/layout type for a slot (e.g. "icons-text", "5050", "split"). Use get_project_settings first to see current configs and available slot indices.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_id:  { type: 'string' },
+        slot_index:  { type: 'number' },
+        is_gallery:  { type: 'boolean' },
+        template:    { type: 'string', description: 'Template key, e.g. "icons-text", "5050", "split"' },
+      },
+      required: ['project_id', 'slot_index', 'template'],
+    },
+  },
+
+  // ── Photos / Canto ──────────────────────────────────────────────────────────
+  {
+    name: 'assign_photo',
+    description: 'Assign a Canto image to a product slot as its photo. Run search_canto first to get the asset details.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_id:       { type: 'string' },
+        sku:              { type: 'string' },
+        slot_index:       { type: 'number', default: 0 },
+        is_gallery:       { type: 'boolean' },
+        canto_asset_id:   { type: 'string' },
+        canto_asset_name: { type: 'string' },
+        canto_asset_url:  { type: 'string', description: 'full_url from search_canto' },
+      },
+      required: ['project_id', 'sku', 'canto_asset_id', 'canto_asset_name', 'canto_asset_url'],
     },
   },
   {
@@ -85,23 +224,6 @@ const TOOLS = [
     name: 'list_canto_albums',
     description: 'List all Canto albums and folders. Use to find the right album ID when exporting.',
     inputSchema: { type: 'object', properties: {}, required: [] },
-  },
-  {
-    name: 'assign_photo',
-    description: 'Assign a Canto image to a product slot as its photo. Run search_canto first to get the asset details.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        project_id:       { type: 'string' },
-        sku:              { type: 'string' },
-        slot_index:       { type: 'number', default: 0 },
-        is_gallery:       { type: 'boolean' },
-        canto_asset_id:   { type: 'string' },
-        canto_asset_name: { type: 'string' },
-        canto_asset_url:  { type: 'string', description: 'full_url from search_canto' },
-      },
-      required: ['project_id', 'sku', 'canto_asset_id', 'canto_asset_name', 'canto_asset_url'],
-    },
   },
 ]
 
