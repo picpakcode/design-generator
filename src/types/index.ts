@@ -149,4 +149,6 @@ export interface TemplateShareState {
   activeSlotIdx?: number
   activeIsGallery?: boolean
   activeGalleryIdx?: number
+  exportAlbumId?: string
+  exportAlbumName?: string
 }

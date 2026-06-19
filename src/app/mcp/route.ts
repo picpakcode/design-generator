@@ -20,6 +20,31 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: {}, required: [] },
   },
   {
+    name: 'create_project',
+    description: 'Create a new empty design project. Returns the new project_id. Pair with import_csv to fully set it up.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name:         { type: 'string', description: 'Project name' },
+        project_type: { type: 'string', enum: ['amazon', 'shopify'], description: '"amazon" (A+ content) or "shopify" (gallery only)' },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'import_csv',
+    description: 'Parse a CSV and initialize a project\'s Template Mode data — products, slot content, and auto-detected templates. Replaces any existing template data in the project. The user should paste the CSV text directly. Preserves any existing logo, texture, and export album settings.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_id:   { type: 'string', description: 'Project to populate (use create_project first if needed)' },
+        csv_text:     { type: 'string', description: 'Full CSV content as a string' },
+        project_type: { type: 'string', enum: ['amazon', 'shopify'], description: '"amazon" or "shopify". Determines slot structure.' },
+      },
+      required: ['project_id', 'csv_text'],
+    },
+  },
+  {
     name: 'rename_project',
     description: 'Rename a design project.',
     inputSchema: {
@@ -47,6 +72,19 @@ const TOOLS = [
       type: 'object',
       properties: { project_id: { type: 'string' } },
       required: ['project_id'],
+    },
+  },
+  {
+    name: 'set_export_album',
+    description: 'Save a Canto album as the preferred export destination for this project. Use list_canto_albums to browse available albums, then call this to record the choice. The saved album will be shown when the user exports from the app.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project_id:  { type: 'string' },
+        album_id:    { type: 'string', description: 'Canto album/folder ID from list_canto_albums' },
+        album_name:  { type: 'string', description: 'Human-readable album name (for display)' },
+      },
+      required: ['project_id', 'album_id', 'album_name'],
     },
   },
   {

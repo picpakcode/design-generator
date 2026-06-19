@@ -5,11 +5,15 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { searchAssets, getFolders } from '@/lib/canto'
 import { loadTemplateState, saveTemplateState } from '@/lib/db'
+import { parseCSV } from '@/lib/csv'
 import type {
   TemplateShareState,
+  TemplateShareSlotConfig,
+  TemplateShareGalleryConfig,
   TemplateShareSlotState,
   UploadedAsset,
 } from '@/types'
+import type { BulkProduct } from '@/lib/csv'
 
 export interface ToolResult {
   content: Array<{ type: 'text'; text: string }>
@@ -402,6 +406,161 @@ export async function toolAssignPhoto(
   return ok({ ok: true, assigned_to: label, photo: { id: assetId, name: assetName } })
 }
 
+// ─── CSV → TemplateShareState (mirrors TemplateMode.tsx initialization) ───────
+
+function buildTemplateStateFromProducts(
+  products: BulkProduct[],
+  projectType: 'amazon' | 'shopify',
+): TemplateShareState {
+  const isShopify = projectType === 'shopify'
+  const first      = products[0]
+
+  const aplusSlots   = isShopify ? 0 : Math.max(1, first?.slots.length ?? 5)
+  const galleryCount = Math.max(isShopify ? 1 : 0, first?.gallerySlots?.length ?? (isShopify ? 3 : 0))
+
+  const allSlots: Record<string, TemplateShareSlotState[]> = {}
+  for (const product of products) {
+    allSlots[product.id] = Array.from({ length: aplusSlots }, (_, j) => {
+      const s        = product.slots[j]
+      const callouts = (s?.iconCallouts ?? ['', '', '', '']) as [string, string, string, string]
+      const filled   = callouts.filter(Boolean).length
+      return {
+        title:      s?.title ? `<p>${s.title}</p>` : '',
+        desc:       s?.desc  ? `<p>${s.desc}</p>`  : '',
+        iconLabels: callouts,
+        iconCount:  (Math.min(Math.max(filled, 2), 4)) as 2 | 3 | 4,
+        photoAsset: undefined,
+        iconAssets: [],
+      }
+    })
+  }
+
+  const allGallerySlots: Record<string, TemplateShareSlotState[]> = {}
+  for (const product of products) {
+    allGallerySlots[product.id] = Array.from({ length: galleryCount }, (_, g) => {
+      const s        = product.gallerySlots?.[g]
+      const callouts = (s?.iconCallouts ?? ['', '', '', '']) as [string, string, string, string]
+      const filled   = callouts.filter(Boolean).length
+      return {
+        title:      s?.title ? `<p>${s.title}</p>` : '',
+        desc:       s?.desc  ? `<p>${s.desc}</p>`  : '',
+        iconLabels: callouts,
+        iconCount:  (Math.min(Math.max(filled, 2), 4)) as 2 | 3 | 4,
+        photoAsset: undefined,
+        iconAssets: [],
+      }
+    })
+  }
+
+  // Auto-detect slot template from first product's content
+  const slotConfigs: TemplateShareSlotConfig[] = Array.from({ length: aplusSlots }, (_, j) => {
+    const s        = first?.slots[j]
+    const hasIcons = s?.iconCallouts.some(Boolean) ?? false
+    const hasDesc  = Boolean(s?.desc)
+    let template: string
+    if (hasIcons && hasDesc)  template = 'icons-text'
+    else if (hasIcons)        template = 'icons'
+    else if (j % 2 === 0)    template = '5050-right'
+    else                      template = '5050-left'
+    return { template }
+  })
+
+  const galleryConfigs: TemplateShareGalleryConfig[] = Array.from({ length: galleryCount }, (_, g) => {
+    const s        = first?.gallerySlots?.[g]
+    const hasIcons = s?.iconCallouts.some(Boolean) ?? false
+    const hasDesc  = Boolean(s?.desc)
+    let template: string
+    if (hasIcons && hasDesc) template = 'gallery-icons-text'
+    else if (hasIcons)       template = 'gallery-icons'
+    else                     template = 'gallery-hero'
+    return { template }
+  })
+
+  return {
+    products,
+    allSlots,
+    allGallerySlots,
+    slotConfigs,
+    galleryConfigs,
+    aplusSlots,
+    galleryCount,
+    logoAsset:    null,
+    textureAsset: null,
+    productNames: {},
+  }
+}
+
+export async function toolCreateProject(
+  userId: string, name: string, projectType: 'amazon' | 'shopify',
+): Promise<ToolResult> {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .from('projects')
+    .insert({ user_id: userId, name, project_type: projectType, state: null })
+    .select('id')
+    .single()
+  if (error || !data) return fail(error?.message ?? 'Failed to create project')
+  return ok({ ok: true, project_id: data.id, name, type: projectType })
+}
+
+export async function toolImportCsv(
+  projectId: string, userId: string, csvText: string, projectType: 'amazon' | 'shopify',
+): Promise<ToolResult> {
+  const admin = createAdminClient()
+
+  // Verify project ownership
+  const { data: proj, error: projErr } = await admin
+    .from('projects')
+    .select('id, name')
+    .eq('id', projectId)
+    .eq('user_id', userId)
+    .single()
+  if (projErr || !proj) return fail('Project not found or access denied')
+
+  const isShopify = projectType === 'shopify'
+  const result    = parseCSV(csvText, { requireSku: false, shopify: isShopify })
+
+  if (result.errors.length > 0) return fail(`CSV errors: ${result.errors.join(', ')}`)
+  if (!result.products.length)  return fail('No products found in CSV')
+
+  // Preserve any existing project-level assets and export settings
+  const existing  = await loadTemplateState(admin, projectId, userId)
+  const newTs     = buildTemplateStateFromProducts(result.products, projectType)
+  const merged: TemplateShareState = {
+    ...newTs,
+    logoAsset:       existing?.logoAsset    ?? null,
+    textureAsset:    existing?.textureAsset ?? null,
+    exportAlbumId:   existing?.exportAlbumId,
+    exportAlbumName: existing?.exportAlbumName,
+  }
+
+  await saveTemplateState(admin, projectId, merged, userId)
+
+  const warnings = result.products.flatMap(p => p.warnings.map(w => `${p.sku}: ${w}`))
+  return ok({
+    ok:           true,
+    project_name: proj.name,
+    products:     result.products.length,
+    aplus_slots:  newTs.aplusSlots,
+    gallery_slots: newTs.galleryCount,
+    slot_configs:  newTs.slotConfigs,
+    gallery_configs: newTs.galleryConfigs,
+    skus:         result.products.map(p => p.sku),
+    ...(warnings.length ? { warnings } : {}),
+  })
+}
+
+export async function toolSetExportAlbum(
+  projectId: string, userId: string, albumId: string, albumName: string,
+): Promise<ToolResult> {
+  const admin = createAdminClient()
+  const ts = await loadTemplateState(admin, projectId, userId)
+  if (!ts) return fail('Project not found or no template state')
+
+  await saveTemplateState(admin, projectId, { ...ts, exportAlbumId: albumId, exportAlbumName: albumName }, userId)
+  return ok({ ok: true, album_id: albumId, album_name: albumName, note: 'Album saved. When you export from the app, select this album in the export dialog.' })
+}
+
 export async function toolSearchCanto(query: string, limit: number): Promise<ToolResult> {
   const assets = await searchAssets(query, limit * 2)
   const images = assets.filter(a => a.scheme === 'image')
@@ -434,6 +593,15 @@ export async function handleTool(
       case 'list_projects':
         return await toolListProjects(userId)
 
+      case 'create_project':
+        return await toolCreateProject(userId, String(args.name), (args.project_type as 'amazon' | 'shopify') ?? 'amazon')
+
+      case 'import_csv':
+        return await toolImportCsv(
+          String(args.project_id), userId, String(args.csv_text),
+          (args.project_type as 'amazon' | 'shopify') ?? 'amazon',
+        )
+
       case 'rename_project':
         return await toolRenameProject(String(args.project_id), userId, String(args.name))
 
@@ -442,6 +610,11 @@ export async function handleTool(
 
       case 'get_project_settings':
         return await toolGetProjectSettings(String(args.project_id), userId)
+
+      case 'set_export_album':
+        return await toolSetExportAlbum(
+          String(args.project_id), userId, String(args.album_id), String(args.album_name),
+        )
 
       case 'set_project_asset':
         return await toolSetProjectAsset(
