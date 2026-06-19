@@ -137,19 +137,16 @@ export async function saveProject(db: Client, id: string, state: DesignState): P
     .eq('id', id)
 }
 
-export async function saveTemplateState(db: Client, id: string, state: TemplateShareState): Promise<void> {
-  await db
-    .from('projects')
-    .update({ template_state: state, updated_at: new Date().toISOString() })
-    .eq('id', id)
+export async function saveTemplateState(db: Client, id: string, state: TemplateShareState, userId?: string): Promise<void> {
+  let q = db.from('projects').update({ template_state: state, updated_at: new Date().toISOString() }).eq('id', id)
+  if (userId) q = q.eq('user_id', userId)
+  await q
 }
 
-export async function loadTemplateState(db: Client, id: string): Promise<TemplateShareState | null> {
-  const { data } = await db
-    .from('projects')
-    .select('template_state')
-    .eq('id', id)
-    .single()
+export async function loadTemplateState(db: Client, id: string, userId?: string): Promise<TemplateShareState | null> {
+  let q = db.from('projects').select('template_state').eq('id', id)
+  if (userId) q = q.eq('user_id', userId)
+  const { data } = await q.single()
   if (!data?.template_state) return null
   return data.template_state as TemplateShareState
 }
