@@ -144,9 +144,10 @@ export async function OPTIONS() {
   return new Response(null, { headers: CORS })
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const origin = new URL(req.url).origin
   return Response.json(
-    { name: 'design-generator', version: '1.0.0', protocol: 'MCP/1.0' },
+    { name: 'design-generator', version: '1.0.0', protocol: 'MCP/1.0', logo_uri: `${origin}/Favicon.png` },
     { headers: CORS },
   )
 }
