@@ -20,6 +20,11 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: {}, required: [] },
   },
   {
+    name: 'get_csv_template',
+    description: 'Returns the CSV column format, rules, an example, and a download URL for the template file. Call this before import_csv to explain the format to the user or to validate their CSV.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
     name: 'create_project',
     description: 'Create a new empty design project. Returns the new project_id. Pair with import_csv to fully set it up.',
     inputSchema: {
@@ -33,7 +38,7 @@ const TOOLS = [
   },
   {
     name: 'import_csv',
-    description: 'Parse a CSV and initialize a project\'s Template Mode data — products, slot content, and auto-detected templates. Replaces any existing template data in the project. The user should paste the CSV text directly. Preserves any existing logo, texture, and export album settings.',
+    description: 'Parse a CSV and initialize a project\'s Template Mode data — products, slot content, and auto-detected templates. Replaces any existing template data in the project. Call get_csv_template first if the user is unsure of the format or needs a template to fill in. Preserves any existing logo, texture, and export album settings.',
     inputSchema: {
       type: 'object',
       properties: {

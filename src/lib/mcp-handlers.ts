@@ -490,6 +490,39 @@ function buildTemplateStateFromProducts(
   }
 }
 
+export async function toolGetCsvTemplate(): Promise<ToolResult> {
+  return ok({
+    description: 'CSV format for importing products into Design Generator Template Mode',
+    download_url: 'https://design-generator-liart.vercel.app/template-sample.csv',
+    columns: {
+      product_name: 'Required. Display name of the product.',
+      sku:          'Optional. Unique product identifier. If omitted, rows are named row-1, row-2…',
+      aplus_slots:  'a1_title, a1_desc, a1_icon1–4, b1_title, b1_desc, b1_icon1–4, … up to h1. Stops at first missing title.',
+      gallery_slots: 'g1_title, g1_desc, g1_icon1–4, g2_title, … up to g20. Stops at first missing title.',
+      photos:       'photo_1 … photo_5 — optional Canto tags or IDs for auto-fetching product photos.',
+    },
+    rules: [
+      'A+ slots stop at the first missing *_title (e.g. if c1_title is blank, c1 and later are ignored for ALL products)',
+      'Gallery slots stop at the first missing g#_title',
+      'For Shopify projects: only gallery slots are used (g1_title etc); a1_title is ignored',
+      'Icon callouts are optional — include only the ones needed; any subset of icon1–4 works',
+      'title and desc text is stored as-is; the app wraps it in paragraph tags automatically',
+      'Slot template (5050, icons-text, split…) is auto-detected from the first product row',
+    ],
+    example_csv: [
+      'product_name,sku,a1_title,a1_desc,b1_title,b1_icon1,b1_icon2,b1_icon3,b1_icon4,g1_title,g1_desc',
+      '"Hub Assembly 2011-2019","SKU-001","Precision-Engineered Fit","Designed for the Duramax platform.","Why It Lasts","e-coat","sealed bearing","corrosion resistant","direct fit","Gallery Slide 1","Lifestyle photo here."',
+      '"Diesel Detail Kit","SKU-002","Pro-Level Clean","Everything in one kit.","What\'s Inside","wash","degrease","polish","protect","Gallery Slide 1","Studio shot here."',
+    ].join('\n'),
+    workflow: [
+      '1. User provides CSV text (paste or upload to Claude)',
+      '2. Claude calls create_project(name, project_type) to make a new project',
+      '3. Claude calls import_csv(project_id, csv_text, project_type) to populate it',
+      '4. Claude can then call update_product_slot, assign_photo, etc. to refine content',
+    ],
+  })
+}
+
 export async function toolCreateProject(
   userId: string, name: string, projectType: 'amazon' | 'shopify',
 ): Promise<ToolResult> {
@@ -689,6 +722,9 @@ export async function handleTool(
 
       case 'list_canto_albums':
         return await toolListCantoAlbums()
+
+      case 'get_csv_template':
+        return await toolGetCsvTemplate()
 
       default:
         return fail(`Unknown tool: ${name}`)
