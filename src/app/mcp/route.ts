@@ -171,12 +171,15 @@ export async function POST(req: Request) {
   const { method, params = {}, id } = body
 
   switch (method) {
-    case 'initialize':
+    case 'initialize': {
+      const origin = new URL(req.url).origin
       return rpcResult(id, {
         protocolVersion: '2024-11-05',
         capabilities:    { tools: {} },
         serverInfo:      { name: 'design-generator', version: '1.0.0' },
+        icons: [{ url: `${origin}/Favicon.png`, type: 'image/png' }],
       })
+    }
 
     case 'notifications/initialized':
       return new Response(null, { status: 204, headers: CORS })
