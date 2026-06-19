@@ -7,6 +7,7 @@ import {
 
 const APP_URL = (process.env.DESIGN_GENERATOR_URL ?? 'http://localhost:3000').replace(/\/$/, '')
 const API_KEY = process.env.MCP_API_KEY ?? ''
+const USER_ID = process.env.USER_ID ?? ''
 
 // ─── HTTP helper ──────────────────────────────────────────────────────────────
 
@@ -19,6 +20,7 @@ async function api<T = unknown>(
     headers: {
       Authorization: `Bearer ${API_KEY}`,
       'Content-Type': 'application/json',
+      'X-User-Id': USER_ID,
     },
     ...(opts?.body !== undefined ? { body: JSON.stringify(opts.body) } : {}),
   })

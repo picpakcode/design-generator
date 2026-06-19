@@ -7,6 +7,11 @@ export function checkMcpAuth(req: Request): boolean {
   return auth === `Bearer ${key}`
 }
 
-export function unauthorized() {
-  return Response.json({ error: 'Unauthorized' }, { status: 401 })
+// Extract the user ID passed from the MCP server via X-User-Id header.
+export function getMcpUserId(req: Request): string | null {
+  return req.headers.get('x-user-id') ?? null
+}
+
+export function unauthorized(msg = 'Unauthorized') {
+  return Response.json({ error: msg }, { status: 401 })
 }

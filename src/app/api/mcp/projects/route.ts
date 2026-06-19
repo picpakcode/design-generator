@@ -1,13 +1,16 @@
-import { checkMcpAuth, unauthorized } from '../_auth'
+import { checkMcpAuth, getMcpUserId, unauthorized } from '../_auth'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(req: Request) {
   if (!checkMcpAuth(req)) return unauthorized()
+  const userId = getMcpUserId(req)
+  if (!userId) return unauthorized('X-User-Id header is required')
 
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('projects')
     .select('id, name, project_type, updated_at')
+    .eq('user_id', userId)
     .order('updated_at', { ascending: false })
 
   if (error) return Response.json({ error: error.message }, { status: 500 })
