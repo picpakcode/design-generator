@@ -236,19 +236,19 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
     setTimeout(() => { setMounted(false); setClosing(false); onClose() }, 180)
   }
 
-  const handleUpload = useCallback(async () => {
+  const runUpload = useCallback(async (filesToUpload: CantoExportFile[]) => {
     if (!selectedAlbum) return
     abortRef.current = false
     setPhase('uploading')
 
-    const rows = files.map(f => ({ filename: f.filename, state: 'pending' as const }))
+    const rows = filesToUpload.map(f => ({ filename: f.filename, state: 'pending' as const }))
     setFileRows(rows)
 
     const out: FileResult[] = []
 
-    for (let i = 0; i < files.length; i++) {
+    for (let i = 0; i < filesToUpload.length; i++) {
       if (abortRef.current) break
-      const { filename, dataUrl } = files[i]
+      const { filename, dataUrl } = filesToUpload[i]
       setFileRows(prev => prev.map((r, idx) => idx === i ? { ...r, state: 'uploading' } : r))
 
       try {
@@ -281,7 +281,16 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
 
     setResults(out)
     setPhase('done')
-  }, [files, selectedAlbum, tags, keywords, description])
+  }, [selectedAlbum, tags, keywords, description])
+
+  const handleUpload = useCallback(() => runUpload(files), [runUpload, files])
+
+  const handleRetry = useCallback(() => {
+    const failedNames = new Set(results.filter(r => !r.ok).map(r => r.filename))
+    const failedFiles = files.filter(f => failedNames.has(f.filename))
+    if (failedFiles.length === 0) return
+    runUpload(failedFiles)
+  }, [results, files, runUpload])
 
   if (!mounted) return null
 
@@ -497,10 +506,18 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
             <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-widest">Please wait…</span>
           )}
           {phase === 'done' && (
-            <button
-              onClick={handleClose}
-              className="h-8 px-5 rounded text-[11px] font-bold uppercase tracking-widest bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
-            >Done</button>
+            <>
+              {failed > 0 && (
+                <button
+                  onClick={handleRetry}
+                  className="h-8 px-4 rounded text-[11px] font-bold uppercase tracking-widest border border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                >Retry {failed} failed</button>
+              )}
+              <button
+                onClick={handleClose}
+                className="h-8 px-5 rounded text-[11px] font-bold uppercase tracking-widest bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+              >Done</button>
+            </>
           )}
         </div>
       </div>

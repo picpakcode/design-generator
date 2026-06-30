@@ -283,6 +283,7 @@ async function captureToDataUrl(
   width: number,
   height: number,
   format: 'png' | 'jpeg',
+  onBrokenImage?: () => void,
 ): Promise<string | null> {
   const wrapper = document.createElement('div')
   wrapper.style.cssText = `position:fixed;top:-${height + 100}px;left:0;pointer-events:none;`
@@ -293,13 +294,19 @@ async function captureToDataUrl(
   const root = createRoot(div)
   flushSync(() => root.render(element))
   const imgs = Array.from(div.querySelectorAll('img'))
-  await Promise.all(imgs.map(img =>
-    img.complete ? Promise.resolve()
-      : new Promise<void>(r => { img.onload = () => r(); img.onerror = () => r() })
-  ))
+  await Promise.all(imgs.map(img => {
+    if (img.complete) {
+      if (img.naturalWidth === 0 && img.src) onBrokenImage?.()
+      return Promise.resolve()
+    }
+    return new Promise<void>(r => {
+      img.onload = () => r()
+      img.onerror = () => { onBrokenImage?.(); r() }
+    })
+  }))
   try {
     const { toPng, toJpeg } = await import('html-to-image')
-    const opts = { includeQueryParams: true, cacheBust: true, onImageErrorHandler: () => {} }
+    const opts = { includeQueryParams: true, cacheBust: true, onImageErrorHandler: () => { onBrokenImage?.() } }
     return format === 'jpeg'
       ? await toJpeg(div, { quality: 0.95, backgroundColor: '#ffffff', ...opts })
       : await toPng(div, opts)
@@ -720,7 +727,12 @@ export default function TemplateMode({
   const [shopifyDragIdx,  setShopifyDragIdx]  = useState<number | null>(null)
   const [shopifyDragOver, setShopifyDragOver] = useState<number | null>(null)
 
+  // CSV warnings (from parse)
+  const [csvWarnings, setCsvWarnings] = useState<string[]>([])
+  const [csvWarningsDismissed, setCsvWarningsDismissed] = useState(false)
+
   // Render / export
+  const [renderBrokenCount, setRenderBrokenCount] = useState(0)
   const [renderingAll, setRenderingAll] = useState(false)
   const capturedRef   = useRef<Map<string, string>>(new Map())
   const cancelRef     = useRef(false)
@@ -1130,6 +1142,9 @@ export default function TemplateMode({
       setProductNames({})
       setAplusSlots(newAplusSlots)
       setGalleryCount(newGalleryCount)
+      const allWarnings = result.products.flatMap(p => p.warnings)
+      setCsvWarnings(allWarnings)
+      setCsvWarningsDismissed(false)
 
       const initSlots:   Record<string, TemplateSlotState[]> = {}
       const initGallery: Record<string, TemplateSlotState[]> = {}
@@ -1214,6 +1229,8 @@ export default function TemplateMode({
     setAplusSlots(5); setSlotConfigs(defaultSlotConfigs(5))
     setGalleryCount(2); setGalleryConfigs(defaultGalleryConfigs(2))
     capturedRef.current.clear(); setCaptureVersion(0)
+    setCsvWarnings([]); setCsvWarningsDismissed(false)
+    setRenderBrokenCount(0)
     onCanExportChange(false); onCanExportCurrentChange(false); onStatsChange(0, 0)
     if (fileInputRef.current) fileInputRef.current.value = ''
     try { sessionStorage.removeItem(storageKeyRef.current) } catch { /* ignore */ }
@@ -1457,68 +1474,77 @@ export default function TemplateMode({
     setStatuses(prev => ({ ...prev, [product.id]: 'rendering' }))
     Array.from(capturedRef.current.keys()).filter(k => k.startsWith(`${product.id}/`)).forEach(k => capturedRef.current.delete(k))
 
-    // A+ slots: desktop + mobile
-    for (let j = 0; j < aplusSlots; j++) {
-      if (cancelRef.current) break
-      const cfg  = slotConfigs[j] ?? { template: '5050-right' }
-      const flip = cfg.template === '5050-left' || cfg.template === 'split-left'
-      const isIcons = cfg.template === 'icons' || cfg.template === 'icons-text'
-      const isSplit = cfg.template === 'split-right' || cfg.template === 'split-left'
-      const sd  = buildSlotDesign(product.id, j)
-      const lbl = slotLabel(j).toLowerCase()
+    try {
+      let brokenImages = 0
+      const onBrokenImage = () => { brokenImages++ }
 
-      const d = await captureToDataUrl(
-        isIcons
-          ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
-          : isSplit
-            ? <CanvasContentSplit design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
-            : <CanvasContent     design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />,
-        1464, 600, outputFormat)
-      if (d) capturedRef.current.set(`${product.id}/${lbl}-desktop`, d)
+      // A+ slots: desktop + mobile
+      for (let j = 0; j < aplusSlots; j++) {
+        if (cancelRef.current) break
+        const cfg  = slotConfigs[j] ?? { template: '5050-right' }
+        const flip = cfg.template === '5050-left' || cfg.template === 'split-left'
+        const isIcons = cfg.template === 'icons' || cfg.template === 'icons-text'
+        const isSplit = cfg.template === 'split-right' || cfg.template === 'split-left'
+        const sd  = buildSlotDesign(product.id, j)
+        const lbl = slotLabel(j).toLowerCase()
 
-      const m = await captureToDataUrl(
-        isIcons
-          ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
-          : isSplit
-            ? <CanvasContentSplit design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
-            : <CanvasContent     design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />,
-        600, 450, outputFormat)
-      if (m) capturedRef.current.set(`${product.id}/${lbl}-mobile`, m)
-    }
+        const d = await captureToDataUrl(
+          isIcons
+            ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+            : isSplit
+              ? <CanvasContentSplit design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
+              : <CanvasContent     design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />,
+          1464, 600, outputFormat, onBrokenImage)
+        if (d) capturedRef.current.set(`${product.id}/${lbl}-desktop`, d)
 
-    // Amazon Gallery slides (always rendered for Amazon; or gallery slides for Shopify project)
-    for (let g = 0; g < galleryCount; g++) {
-      if (cancelRef.current) break
-      const cfg      = galleryConfigs[g] ?? { template: 'gallery-hero' }
-      const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
-      const gd       = buildGallerySlotDesign(product.id, g)
-      const gi = await captureToDataUrl(
-        isGIcons
-          ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
-          : <CanvasContentGallery      design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />,
-        1500, 1500, outputFormat)
-      if (gi) capturedRef.current.set(`${product.id}/g${g + 1}-gallery`, gi)
-    }
+        const m = await captureToDataUrl(
+          isIcons
+            ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
+            : isSplit
+              ? <CanvasContentSplit design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
+              : <CanvasContent     design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />,
+          600, 450, outputFormat, onBrokenImage)
+        if (m) capturedRef.current.set(`${product.id}/${lbl}-mobile`, m)
+      }
 
-    // Shopify Gallery slides (Amazon + includeGallery only; mirrors Amazon Gallery content)
-    if (!isShopify && includeGallery) {
+      // Amazon Gallery slides (always rendered for Amazon; or gallery slides for Shopify project)
       for (let g = 0; g < galleryCount; g++) {
         if (cancelRef.current) break
         const cfg      = galleryConfigs[g] ?? { template: 'gallery-hero' }
         const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
-        const gd       = buildShopifyGallerySlotDesign(product.id, g)
+        const gd       = buildGallerySlotDesign(product.id, g)
         const gi = await captureToDataUrl(
           isGIcons
             ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
             : <CanvasContentGallery      design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />,
-          1500, 1500, outputFormat)
-        if (gi) capturedRef.current.set(`${product.id}/sg${g + 1}`, gi)
+          1500, 1500, outputFormat, onBrokenImage)
+        if (gi) capturedRef.current.set(`${product.id}/g${g + 1}-gallery`, gi)
       }
-    }
 
-    const ok = !cancelRef.current
-    setStatuses(prev => ({ ...prev, [product.id]: ok ? 'done' : 'draft' }))
-    setCaptureVersion(v => v + 1)
+      // Shopify Gallery slides (Amazon + includeGallery only; mirrors Amazon Gallery content)
+      if (!isShopify && includeGallery) {
+        for (let g = 0; g < galleryCount; g++) {
+          if (cancelRef.current) break
+          const cfg      = galleryConfigs[g] ?? { template: 'gallery-hero' }
+          const isGIcons = cfg.template === 'gallery-icons' || cfg.template === 'gallery-icons-text'
+          const gd       = buildShopifyGallerySlotDesign(product.id, g)
+          const gi = await captureToDataUrl(
+            isGIcons
+              ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
+              : <CanvasContentGallery      design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />,
+            1500, 1500, outputFormat, onBrokenImage)
+          if (gi) capturedRef.current.set(`${product.id}/sg${g + 1}`, gi)
+        }
+      }
+
+      if (brokenImages > 0) setRenderBrokenCount(prev => prev + brokenImages)
+      const ok = !cancelRef.current
+      setStatuses(prev => ({ ...prev, [product.id]: ok ? 'done' : 'draft' }))
+      setCaptureVersion(v => v + 1)
+    } catch {
+      setStatuses(prev => ({ ...prev, [product.id]: 'error' }))
+      setCaptureVersion(v => v + 1)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aplusSlots, slotConfigs, galleryCount, galleryConfigs, shopifyGalleryConfigs, includeGallery, outputFormat, designState, textureAsset, logoAsset, allSlots, allGallerySlots])
 
@@ -1526,6 +1552,7 @@ export default function TemplateMode({
     if (renderingAll) { cancelRef.current = true; return }
     if ((parseResult?.products ?? []).length === 0) return
     cancelRef.current = false
+    setRenderBrokenCount(0)
     setRenderingAll(true)
     for (const p of parseResult!.products) {
       if (cancelRef.current) break
@@ -1967,6 +1994,50 @@ export default function TemplateMode({
             </div>
           )}
         </div>
+
+        {/* CSV parse warnings */}
+        {csvWarnings.length > 0 && !csvWarningsDismissed && (
+          <div className="shrink-0 mx-4 my-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+            <div className="flex items-start gap-2">
+              <svg className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9.303 3.376c.866 1.5-.217 3.374-1.948 3.374H4.645c-1.73 0-2.813-1.874-1.948-3.374L10.052 3.378c.866-1.5 3.032-1.5 3.898 0l7.303 12.748zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">{csvWarnings.length} import warning{csvWarnings.length !== 1 ? 's' : ''}</p>
+                <ul className="mt-1 space-y-0.5 max-h-20 overflow-y-auto">
+                  {csvWarnings.map((w, i) => (
+                    <li key={i} className="text-[10px] text-amber-600 dark:text-amber-500 leading-snug">{w}</li>
+                  ))}
+                </ul>
+              </div>
+              <button onClick={() => setCsvWarningsDismissed(true)} className="text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 shrink-0 leading-none">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Proxy image load warnings */}
+        {renderBrokenCount > 0 && (
+          <div className="shrink-0 mx-4 my-2 rounded border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 px-3 py-2">
+            <div className="flex items-start gap-2">
+              <svg className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-semibold text-orange-700 dark:text-orange-400">{renderBrokenCount} image{renderBrokenCount !== 1 ? 's' : ''} failed to load</p>
+                <p className="text-[10px] text-orange-600 dark:text-orange-500 mt-0.5">Some renders may have blank photo areas. Re-render after checking photo assignments.</p>
+              </div>
+              <button onClick={() => setRenderBrokenCount(0)} className="text-orange-400 hover:text-orange-600 dark:hover:text-orange-300 shrink-0 leading-none">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Slot tabs — A+ and Gallery */}
         <div className="shrink-0 px-4 py-3 border-b border-gray-100 dark:border-gray-700 space-y-2.5">
