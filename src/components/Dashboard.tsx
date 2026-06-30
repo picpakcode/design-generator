@@ -82,13 +82,14 @@ interface ProjectCardProps {
   onRenameKeyDown: (e: React.KeyboardEvent<HTMLInputElement>, id: string) => void
   onSetRenameValue: (value: string) => void
   onDelete: (id: string) => void
+  onDuplicate: (id: string) => void
 }
 
 const ProjectCard = React.memo(function ProjectCard({
   project, isSelected, isSelectMode, isMenuOpen, isRenaming, renameValue,
   renameInputRef, animationDelay,
   onToggleSelect, onToggleMenu, onCloseMenu,
-  onStartRename, onCommitRename, onRenameKeyDown, onSetRenameValue, onDelete,
+  onStartRename, onCommitRename, onRenameKeyDown, onSetRenameValue, onDelete, onDuplicate,
 }: ProjectCardProps) {
   const timeStr = useMemo(() => timeAgo(project.updated_at), [project.updated_at])
 
@@ -192,6 +193,10 @@ const ProjectCard = React.memo(function ProjectCard({
                     onClick={e => { e.stopPropagation(); onStartRename(project) }}
                     className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                   >Rename</button>
+                  <button
+                    onClick={e => { e.stopPropagation(); onDuplicate(project.id) }}
+                    className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >Duplicate</button>
                   <button
                     onClick={e => { e.stopPropagation(); onDelete(project.id) }}
                     className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
@@ -537,6 +542,17 @@ export default function Dashboard() {
     setMenuOpenId(null)
     setDeleteTarget([id])
   }, [])
+
+  const handleDuplicate = useCallback(async (id: string) => {
+    setMenuOpenId(null)
+    const res = await fetch(`/api/projects/${id}/duplicate`, { method: 'POST' })
+    if (!res.ok) return
+    const { id: newId } = await res.json()
+    if (!newId || !user) return
+    listProjects(supabase, user.id)
+      .then(setProjects)
+      .catch(console.error)
+  }, [supabase, user])
 
   const handleDeleteSelected = () => {
     setDeleteTarget(Array.from(selectedIds))
@@ -1005,6 +1021,7 @@ export default function Dashboard() {
                   onRenameKeyDown={handleRenameKeyDown}
                   onSetRenameValue={setRenameValue}
                   onDelete={handleDeleteProject}
+                  onDuplicate={handleDuplicate}
                 />
               ))}
             </div>

@@ -42,6 +42,17 @@ interface TemplateSlotState {
 
 type ProductStatus = 'draft' | 'rendering' | 'done' | 'error'
 
+type HistorySnap = {
+  allSlots: Record<string, TemplateSlotState[]>
+  allGallerySlots: Record<string, TemplateSlotState[]>
+  productNames: Record<string, string>
+  slotConfigs: SlotConfig[]
+  galleryConfigs: GallerySlotConfig[]
+  shopifyGalleryConfigs: GallerySlotConfig[]
+  logoAsset: UploadedAsset | null
+  textureAsset: UploadedAsset | null
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STORAGE_KEY        = 'template-mode-v2'
@@ -731,6 +742,22 @@ export default function TemplateMode({
   const [csvWarnings, setCsvWarnings] = useState<string[]>([])
   const [csvWarningsDismissed, setCsvWarningsDismissed] = useState(false)
 
+  // Save indicator
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>('saved')
+
+  // Multi-tab conflict warning
+  const [remoteConflict, setRemoteConflict] = useState(false)
+  const hasLocalUnsavedRef = useRef(false)
+
+  // Undo / redo history
+  const histRef     = useRef<HistorySnap[]>([])
+  const histIdxRef  = useRef(-1)
+  const skipHistRef = useRef(false)
+  const [histVersion, setHistVersion] = useState(0)
+  // histVersion is read here to make canUndo/canRedo re-evaluate on each history mutation
+  const canUndo = histVersion >= 0 && histIdxRef.current > 0
+  const canRedo = histVersion >= 0 && histIdxRef.current < histRef.current.length - 1
+
   // Render / export
   const [renderBrokenCount, setRenderBrokenCount] = useState(0)
   const [renderingAll, setRenderingAll] = useState(false)
@@ -845,6 +872,68 @@ export default function TemplateMode({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (selectedId && canvasEl) fitView() }, [selectedId])
 
+  // ── Undo / Redo ───────────────────────────────────────────────────────────────
+
+  // Push to history — debounced 500 ms, skipped during undo/redo
+  useEffect(() => {
+    if (skipHistRef.current) { skipHistRef.current = false; return }
+    const snap: HistorySnap = { allSlots, allGallerySlots, productNames, slotConfigs, galleryConfigs, shopifyGalleryConfigs, logoAsset, textureAsset }
+    const timer = setTimeout(() => {
+      const trimmed = histRef.current.slice(0, histIdxRef.current + 1)
+      trimmed.push(snap)
+      if (trimmed.length > 51) trimmed.shift()
+      histRef.current = trimmed
+      histIdxRef.current = trimmed.length - 1
+      setHistVersion(v => v + 1)
+    }, 500)
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allSlots, allGallerySlots, productNames, slotConfigs, galleryConfigs, shopifyGalleryConfigs, logoAsset, textureAsset])
+
+  const undo = useCallback(() => {
+    if (histIdxRef.current <= 0) return
+    histIdxRef.current--
+    const snap = histRef.current[histIdxRef.current]
+    if (!snap) return
+    skipHistRef.current = true
+    setAllSlots(snap.allSlots)
+    setAllGallerySlots(snap.allGallerySlots)
+    setProductNames(snap.productNames)
+    setSlotConfigs(snap.slotConfigs)
+    setGalleryConfigs(snap.galleryConfigs)
+    setShopifyGalleryConfigs(snap.shopifyGalleryConfigs)
+    setLogoAsset(snap.logoAsset)
+    setTextureAsset(snap.textureAsset)
+    setHistVersion(v => v + 1)
+  }, [])
+
+  const redo = useCallback(() => {
+    if (histIdxRef.current >= histRef.current.length - 1) return
+    histIdxRef.current++
+    const snap = histRef.current[histIdxRef.current]
+    if (!snap) return
+    skipHistRef.current = true
+    setAllSlots(snap.allSlots)
+    setAllGallerySlots(snap.allGallerySlots)
+    setProductNames(snap.productNames)
+    setSlotConfigs(snap.slotConfigs)
+    setGalleryConfigs(snap.galleryConfigs)
+    setShopifyGalleryConfigs(snap.shopifyGalleryConfigs)
+    setLogoAsset(snap.logoAsset)
+    setTextureAsset(snap.textureAsset)
+    setHistVersion(v => v + 1)
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
+      if ((e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); redo() }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [undo, redo])
+
   // ── Init ──────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -887,14 +976,20 @@ export default function TemplateMode({
   // Auto-save template state to Supabase for sharing (debounced 4s)
   useEffect(() => {
     if (!projectId || !parseResult?.products.length) return
+    // Mark unsaved immediately so the indicator updates before the timer fires
+    setSaveState('unsaved')
     const timer = setTimeout(async () => {
       try {
         // Skip save if content and nav are unchanged — prevents echo saves after receiving
         // a remote update (another session's write would otherwise bounce back forever)
         const contentH = buildContentHash(allSlots, allGallerySlots, slotConfigs, galleryConfigs, aplusSlots, galleryCount, includeGallery, logoAsset?.id, textureAsset?.id, productNames)
         const navH     = buildNavHash(selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx)
-        if (contentH === lastSavedContentHashRef.current && navH === lastSavedNavHashRef.current) return
+        if (contentH === lastSavedContentHashRef.current && navH === lastSavedNavHashRef.current) {
+          setSaveState('saved')
+          return
+        }
 
+        setSaveState('saving')
         const supabase = createClient()
         const raw: TemplateShareState = {
           products: parseResult.products,
@@ -907,6 +1002,8 @@ export default function TemplateMode({
         await saveTemplateState(supabase, projectId, stripped)
         lastSavedContentHashRef.current = contentH
         lastSavedNavHashRef.current     = navH
+        setSaveState('saved')
+        setRemoteConflict(false)
         // Include state in broadcast so preview tabs apply it directly (no HTTP round-trip).
         // Skip state payload if it's near Supabase's 1 MB broadcast limit.
         const stateJson = JSON.stringify(stripped)
@@ -917,11 +1014,18 @@ export default function TemplateMode({
             ...(stateJson.length < 900_000 ? { templateState: stripped } : {}),
           },
         })
-      } catch { /* silent */ }
+      } catch {
+        setSaveState('unsaved')
+      }
     }, 4000)
     return () => clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, parseResult, allSlots, allGallerySlots, slotConfigs, galleryConfigs, shopifyGalleryConfigs, aplusSlots, galleryCount, includeGallery, logoAsset, textureAsset, productNames, selectedId, activeSlotIdx, activeIsGallery, activeGalleryIdx])
+
+  // Keep hasLocalUnsavedRef in sync so the realtime handler (created once) can read it
+  useEffect(() => {
+    hasLocalUnsavedRef.current = saveState === 'unsaved'
+  }, [saveState])
 
   useEffect(() => {
     setSlotConfigs(prev => defaultSlotConfigs(aplusSlots).map((d, i) => prev[i] ?? d))
@@ -1035,6 +1139,8 @@ export default function TemplateMode({
               tState.productNames ?? {},
             )
             if (incomingContentH === lastSavedContentHashRef.current) return
+            // Warn if this tab has unsaved local changes about to be overwritten
+            if (hasLocalUnsavedRef.current) setRemoteConflict(true)
             // Apply content — keep each session's own navigation position
             lastSavedContentHashRef.current = incomingContentH
             setParseResult({ products: tState.products, errors: [] })
@@ -1979,6 +2085,27 @@ export default function TemplateMode({
             >
               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
             </button>
+            <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 shrink-0" />
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              title="Undo (⌘Z)"
+              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+            </button>
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              title="Redo (⌘⇧Z)"
+              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6" />
+              </svg>
+            </button>
           </div>
           {/* Editable export name — overrides CSV productName in export file/folder naming */}
           {selected && (
@@ -1994,6 +2121,48 @@ export default function TemplateMode({
             </div>
           )}
         </div>
+
+        {/* Save indicator */}
+        {projectId && (
+          <div className="shrink-0 px-4 pt-2 pb-0 flex items-center gap-1.5">
+            {saveState === 'saving' ? (
+              <>
+                <svg className="w-2.5 h-2.5 text-gray-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                </svg>
+                <span className="text-[10px] text-gray-400">Saving…</span>
+              </>
+            ) : saveState === 'unsaved' ? (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-gray-600 shrink-0"/>
+                <span className="text-[10px] text-gray-400">Unsaved changes</span>
+              </>
+            ) : (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0"/>
+                <span className="text-[10px] text-gray-400">Saved</span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Remote conflict warning */}
+        {remoteConflict && (
+          <div className="shrink-0 mx-4 my-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+            <div className="flex items-start gap-2">
+              <svg className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9.303 3.376c.866 1.5-.217 3.374-1.948 3.374H4.645c-1.73 0-2.813-1.874-1.948-3.374L10.052 3.378c.866-1.5 3.032-1.5 3.898 0l7.303 12.748zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+              <p className="flex-1 text-[10px] text-amber-700 dark:text-amber-400 leading-snug">Another tab saved changes to this project. Your edits may have been overwritten.</p>
+              <button onClick={() => setRemoteConflict(false)} className="text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 shrink-0 leading-none">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* CSV parse warnings */}
         {csvWarnings.length > 0 && !csvWarningsDismissed && (

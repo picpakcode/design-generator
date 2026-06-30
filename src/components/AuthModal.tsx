@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-type Mode = 'signin' | 'signup' | 'magic'
+type Mode = 'signin' | 'signup' | 'magic' | 'reset'
 
 interface Props {
   open: boolean
@@ -41,6 +41,14 @@ export default function AuthModal({ open, onClose }: Props) {
     e.preventDefault()
     setError(null); setInfo(null); setBusy(true)
     try {
+      if (mode === 'reset') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+        })
+        if (error) throw error
+        setInfo('Check your email for a reset link.')
+        return
+      }
       if (mode === 'magic') {
         const { error } = await supabase.auth.signInWithOtp({
           email,
@@ -97,24 +105,33 @@ export default function AuthModal({ open, onClose }: Props) {
             </button>
           </div>
 
-          {/* Mode tabs */}
-          <div className="px-5 mb-4">
-            <div className="flex bg-gray-100 dark:bg-gray-800 rounded p-0.5 gap-0.5">
-              {(['signin', 'signup'] as const).map(m => (
-                <button
-                  key={m}
-                  onClick={() => switchMode(m)}
-                  className={`flex-1 h-7 rounded-sm text-[11px] font-bold transition-all ${
-                    mode === m
-                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                  }`}
-                >
-                  {m === 'signin' ? 'Sign in' : 'Create account'}
-                </button>
-              ))}
+          {/* Mode tabs — hidden in reset mode */}
+          {mode !== 'reset' && (
+            <div className="px-5 mb-4">
+              <div className="flex bg-gray-100 dark:bg-gray-800 rounded p-0.5 gap-0.5">
+                {(['signin', 'signup'] as const).map(m => (
+                  <button
+                    key={m}
+                    onClick={() => switchMode(m)}
+                    className={`flex-1 h-7 rounded-sm text-[11px] font-bold transition-all ${
+                      mode === m
+                        ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    {m === 'signin' ? 'Sign in' : 'Create account'}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Reset mode heading */}
+          {mode === 'reset' && (
+            <div className="px-5 mb-4">
+              <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">Reset your password</p>
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="px-5 pb-5 space-y-3">
@@ -134,7 +151,7 @@ export default function AuthModal({ open, onClose }: Props) {
               />
             </div>
 
-            {mode !== 'magic' && (
+            {mode !== 'magic' && mode !== 'reset' && (
               <div>
                 <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
                   Password
@@ -175,15 +192,39 @@ export default function AuthModal({ open, onClose }: Props) {
             >
               {busy
                 ? 'Please wait…'
-                : mode === 'magic'
-                  ? 'Send magic link'
-                  : mode === 'signup'
-                    ? 'Create account'
-                    : 'Sign in'}
+                : mode === 'reset'
+                  ? 'Send reset link'
+                  : mode === 'magic'
+                    ? 'Send magic link'
+                    : mode === 'signup'
+                      ? 'Create account'
+                      : 'Sign in'}
             </button>
 
-            <div className="pt-0.5 text-center">
-              {mode !== 'magic' ? (
+            <div className="pt-0.5 text-center space-y-1.5">
+              {mode === 'signin' && (
+                <>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => switchMode('reset')}
+                      className="text-[11px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => switchMode('magic')}
+                      className="text-[11px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    >
+                      Send a magic link instead →
+                    </button>
+                  </div>
+                </>
+              )}
+              {mode === 'signup' && (
                 <button
                   type="button"
                   onClick={() => switchMode('magic')}
@@ -191,7 +232,8 @@ export default function AuthModal({ open, onClose }: Props) {
                 >
                   Send a magic link instead →
                 </button>
-              ) : (
+              )}
+              {(mode === 'magic' || mode === 'reset') && (
                 <button
                   type="button"
                   onClick={() => switchMode('signin')}
