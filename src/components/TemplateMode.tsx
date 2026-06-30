@@ -322,7 +322,8 @@ interface PreviewProps {
 function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns, shopifyGalleryDesigns, showShopifyGallery, designState }: PreviewProps) {
   const { settings } = useAppSettings()
   const isDark = settings.theme === 'dark'
-  const [tab, setTab]       = useState<'desktop' | 'mobile' | 'gallery'>('desktop')
+  const isGalleryOnly = aplusDesigns.length === 0
+  const [tab, setTab]       = useState<'desktop' | 'mobile' | 'gallery'>(isGalleryOnly ? 'gallery' : 'desktop')
   const [mounted, setMounted] = useState(false)
   const [closing, setClosing] = useState(false)
 
@@ -409,7 +410,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
               </span>
             </div>
             <div className="flex items-stretch gap-0 h-full">
-              {(['desktop', 'mobile', 'gallery'] as const).map(t => (
+              {(['desktop', 'mobile', 'gallery'] as const).filter(t => !isGalleryOnly || t === 'gallery').map(t => (
                 <button key={t} onClick={() => setTab(t)}
                   className={`px-4 h-full text-[11px] font-bold tracking-widest uppercase transition-all ${tab === t ? tabActive : tabInactive}`}>
                   {t}
