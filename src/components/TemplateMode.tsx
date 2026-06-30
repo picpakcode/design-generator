@@ -232,6 +232,11 @@ function emptySlotState(): TemplateSlotState {
   return { title: '', desc: '', iconLabels: ['', '', '', ''], iconCount: 4, iconAssets: [undefined, undefined, undefined, undefined] }
 }
 
+function slotHasFill(s: TemplateSlotState | undefined): boolean {
+  if (!s) return false
+  return !!(s.title || s.desc || s.photoAsset || s.iconLabels.some(l => l))
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<\/?(p|br|li|ul|ol|h[1-6])[^>]*>/gi, ' ')
@@ -271,7 +276,7 @@ function Section({ title, children, defaultOpen = true }: { title: string; child
     <div className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left sticky top-0 z-10 bg-white dark:bg-gray-900"
       >
         <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400">{title}</span>
         <svg className={`w-3 h-3 text-gray-300 dark:text-gray-600 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -761,6 +766,9 @@ export default function TemplateMode({
   // Render / export
   const [renderBrokenCount, setRenderBrokenCount] = useState(0)
   const [renderingAll, setRenderingAll] = useState(false)
+  const [productSearch, setProductSearch] = useState('')
+  const [productListOpen, setProductListOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const capturedRef   = useRef<Map<string, string>>(new Map())
   const cancelRef     = useRef(false)
   const [captureVersion, setCaptureVersion] = useState(0)  // bumped on any capture mutation
@@ -2050,10 +2058,10 @@ export default function TemplateMode({
     <div className="flex flex-1 min-h-0 overflow-hidden animate-fade-in">
 
       {/* ══ LEFT SIDEBAR ══════════════════════════════════════════════════════════ */}
-      <aside className="w-72 shrink-0 flex flex-col border-r border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm z-10" onKeyDown={e => e.stopPropagation()}>
+      <aside className={`shrink-0 flex flex-col border-r border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm z-10 transition-all duration-200 ${sidebarOpen ? 'w-72' : 'w-0 overflow-hidden border-r-0'}`} onKeyDown={e => e.stopPropagation()}>
 
         {/* Product navigator */}
-        <div className="shrink-0 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+        <div className="shrink-0 px-4 py-2 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setSelectedId(products[selectedIdx - 1]?.id ?? null); setActiveSlotIdx(0); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
@@ -2068,11 +2076,23 @@ export default function TemplateMode({
                   <p className="text-[12px] font-semibold text-gray-800 dark:text-gray-200 truncate leading-tight">
                     {selected.productName || `Product ${selectedIdx + 1}`}
                   </p>
-                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-                    {selectedIdx + 1} of {products.length}
-                    {selectedStatus === 'done'      && ' · Rendered'}
-                    {selectedStatus === 'rendering' && ' · Rendering…'}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                      {selectedIdx + 1} of {products.length}
+                      {selectedStatus === 'done'      && ' · Rendered'}
+                      {selectedStatus === 'rendering' && ' · Rendering…'}
+                    </span>
+                    {projectId && (saveState === 'saving' ? (
+                      <svg className="w-2 h-2 text-gray-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                      </svg>
+                    ) : saveState === 'unsaved' ? (
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-gray-600 shrink-0" title="Unsaved changes" />
+                    ) : (
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" title="Saved" />
+                    ))}
+                  </div>
                 </>
               ) : (
                 <p className="text-[11px] text-gray-400">No product selected</p>
@@ -2086,66 +2106,84 @@ export default function TemplateMode({
               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
             </button>
             <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 shrink-0" />
-            <button
-              onClick={undo}
-              disabled={!canUndo}
-              title="Undo (⌘Z)"
-              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
+            <button onClick={undo} disabled={!canUndo} title="Undo (⌘Z)"
+              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
               </svg>
             </button>
-            <button
-              onClick={redo}
-              disabled={!canRedo}
-              title="Redo (⌘⇧Z)"
-              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
+            <button onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)"
+              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6" />
               </svg>
             </button>
           </div>
-          {/* Editable export name — overrides CSV productName in export file/folder naming */}
-          {selected && (
-            <div className="mt-2">
-              <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 block mb-1">Export Name</label>
+          {/* Product search */}
+          {products.length > 0 && (
+            <div className="relative mt-1.5">
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
               <input
                 type="text"
-                value={productNames[selected.id] !== undefined ? productNames[selected.id] : (selected.productName || '')}
-                onChange={e => setProductNames(prev => ({ ...prev, [selected.id]: e.target.value }))}
-                placeholder={selected.sku || 'export-folder-name'}
-                className="w-full px-2.5 py-1.5 text-[11px] border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                value={productSearch}
+                onChange={e => setProductSearch(e.target.value)}
+                placeholder={`Search ${products.length} products…`}
+                className="w-full pl-7 pr-7 py-1.5 text-[11px] border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
               />
+              {productSearch && (
+                <button onClick={() => setProductSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              )}
+              {productSearch && (() => {
+                const q = productSearch.toLowerCase()
+                const matches = products.filter(p => (p.productName || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q))
+                return (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-lg max-h-52 overflow-y-auto">
+                    {matches.length === 0 ? (
+                      <p className="text-[10px] text-gray-400 text-center py-3">No matches</p>
+                    ) : matches.map(p => {
+                      const isSel = p.id === selectedId
+                      return (
+                        <button key={p.id} onClick={() => { setSelectedId(p.id); setActiveSlotIdx(0); setActiveIsGallery(false); setActiveIsShopifyGallery(false); setProductSearch('') }}
+                          className={`w-full flex items-center gap-2 px-3 py-1.5 text-left transition-colors ${isSel ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}>
+                          <StatusDot status={statuses[p.id] ?? 'draft'} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-gray-800 dark:text-gray-200 truncate leading-tight">{p.productName || `Product ${products.indexOf(p) + 1}`}</p>
+                            {p.sku && <p className="text-[9px] text-gray-400 dark:text-gray-500 truncate">{p.sku}</p>}
+                          </div>
+                          {isSel && <svg className="w-3 h-3 text-accent-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
             </div>
           )}
+          {/* Export name — no label, placeholder describes the field */}
+          {selected && (
+            <input
+              type="text"
+              value={productNames[selected.id] !== undefined ? productNames[selected.id] : (selected.productName || '')}
+              onChange={e => setProductNames(prev => ({ ...prev, [selected.id]: e.target.value }))}
+              placeholder={`Export name${selected.sku ? ` · ${selected.sku}` : '…'}`}
+              className="mt-1.5 w-full px-2.5 py-1 text-[11px] border border-dashed border-gray-200 dark:border-gray-700 rounded bg-transparent text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-gray-600 focus:border-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+            />
+          )}
+          {/* Progress bar — only the bar; count shown inline in subtext */}
+          {products.length > 0 && (() => {
+            const renderedCount = products.filter(p => statuses[p.id] === 'done').length
+            const pct = Math.round((renderedCount / products.length) * 100)
+            return (pct > 0 || renderingAll) ? (
+              <div className="mt-2 h-0.5 w-full rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                <div className="h-full rounded-full bg-accent-500 transition-all duration-300" style={{ width: `${pct}%` }} />
+              </div>
+            ) : null
+          })()}
         </div>
-
-        {/* Save indicator */}
-        {projectId && (
-          <div className="shrink-0 px-4 pt-2 pb-0 flex items-center gap-1.5">
-            {saveState === 'saving' ? (
-              <>
-                <svg className="w-2.5 h-2.5 text-gray-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                </svg>
-                <span className="text-[10px] text-gray-400">Saving…</span>
-              </>
-            ) : saveState === 'unsaved' ? (
-              <>
-                <span className="w-1.5 h-1.5 rounded-full bg-gray-300 dark:bg-gray-600 shrink-0"/>
-                <span className="text-[10px] text-gray-400">Unsaved changes</span>
-              </>
-            ) : (
-              <>
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0"/>
-                <span className="text-[10px] text-gray-400">Saved</span>
-              </>
-            )}
-          </div>
-        )}
 
         {/* Remote conflict warning */}
         {remoteConflict && (
@@ -2208,69 +2246,104 @@ export default function TemplateMode({
           </div>
         )}
 
-        {/* Slot tabs — A+ and Gallery */}
-        <div className="shrink-0 px-4 py-3 border-b border-gray-100 dark:border-gray-700 space-y-2.5">
-          {/* A+ slots — Amazon only */}
-          {!isShopify && <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">A+ Slots</p>
-            <div className="flex gap-1 flex-wrap">
-              {slotConfigs.slice(0, aplusSlots).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="relative group"
-                  draggable
-                  onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setAplusDragIdx(idx) }}
-                  onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setAplusDragOver(idx) }}
-                  onDrop={e => { e.preventDefault(); if (aplusDragIdx !== null) reorderAplusSlots(aplusDragIdx, idx); setAplusDragIdx(null); setAplusDragOver(null) }}
-                  onDragEnd={() => { setAplusDragIdx(null); setAplusDragOver(null) }}
-                  style={{ opacity: aplusDragIdx === idx ? 0.35 : 1 }}
-                >
-                  <button
-                    onClick={() => { setActiveSlotIdx(idx); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
-                    className={`flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all cursor-grab active:cursor-grabbing ${
-                      !activeIsGallery && idx === activeSlotIdx
-                        ? 'bg-accent-600 text-white'
-                        : aplusDragOver === idx && aplusDragIdx !== idx
-                        ? 'bg-accent-100 dark:bg-accent-900/50 text-accent-700 dark:text-accent-300 ring-1 ring-accent-400 dark:ring-accent-600'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    {slotLabel(idx)}
-                  </button>
-                  {aplusSlots > 1 && (
-                    <button
-                      onClick={e => { e.stopPropagation(); deleteAplusSlot(idx) }}
-                      title="Remove slot"
-                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors"
-                    >
-                      <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
+        {/* Persistent product list */}
+        {products.length > 0 && (
+          <div className="shrink-0 border-b border-gray-100 dark:border-gray-700">
+            <button
+              onClick={() => setProductListOpen(o => !o)}
+              className="w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+            >
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Products</span>
+                <span className="text-[9px] text-gray-300 dark:text-gray-600 tabular-nums">{products.length}</span>
+              </div>
+              <svg className={`w-3 h-3 text-gray-300 dark:text-gray-600 transition-transform duration-150 ${productListOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div style={{ display: 'grid', gridTemplateRows: productListOpen ? '1fr' : '0fr', transition: 'grid-template-rows 200ms ease' }}>
+              <div style={{ overflow: 'hidden' }}>
+                <div className="max-h-[200px] overflow-y-auto">
+                  {products.map((p, i) => {
+                    const status = statuses[p.id] ?? 'draft'
+                    const isActive = p.id === selectedId
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => { setSelectedId(p.id); setActiveSlotIdx(0); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
+                        className={`w-full flex items-center gap-2 px-4 py-1.5 text-left transition-colors ${isActive ? 'bg-accent-50 dark:bg-accent-950/30' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
+                      >
+                        <StatusDot status={status} />
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-[11px] truncate leading-tight ${isActive ? 'font-semibold text-accent-700 dark:text-accent-400' : 'text-gray-700 dark:text-gray-300'}`}>
+                            {p.productName || `Product ${i + 1}`}
+                          </p>
+                          {p.sku && <p className="text-[9px] text-gray-400 dark:text-gray-500 truncate">{p.sku}</p>}
+                        </div>
+                        {isActive && (
+                          <div className="w-1 h-4 rounded-full bg-accent-500 shrink-0" />
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
-              ))}
-              {aplusSlots < 10 && (
-                <button
-                  onClick={() => setAplusSlots(n => Math.min(10, n + 1))}
-                  title="Add A+ slot"
-                  className="flex items-center justify-center px-2 py-1 rounded text-[11px] font-bold bg-accent-50 dark:bg-accent-950/40 text-accent-600 dark:text-accent-400 hover:bg-accent-100 dark:hover:bg-accent-900/40 border border-accent-200 dark:border-accent-800 transition-all"
-                >
-                  +
-                </button>
-              )}
+              </div>
             </div>
-          </div>}
-          {/* Gallery tabs — Amazon Gallery (always shown for Amazon) or Shopify project gallery */}
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">
-              {!isShopify ? 'Amazon Gallery' : 'Gallery'}
-            </p>
-            <div className="flex gap-1 flex-wrap">
+          </div>
+        )}
+
+        {/* Slot tabs — compact inline rows */}
+        <div className="shrink-0 px-3 py-2 border-b border-gray-100 dark:border-gray-700 space-y-1">
+          {/* A+ slots */}
+          {!isShopify && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 w-5 shrink-0">A+</span>
+              <div className="flex gap-1 overflow-x-auto flex-1 pt-1 pb-0.5" style={{ scrollbarWidth: 'none' }}>
+                {slotConfigs.slice(0, aplusSlots).map((_, idx) => (
+                  <div key={idx} className="relative group shrink-0"
+                    draggable
+                    onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setAplusDragIdx(idx) }}
+                    onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setAplusDragOver(idx) }}
+                    onDrop={e => { e.preventDefault(); if (aplusDragIdx !== null) reorderAplusSlots(aplusDragIdx, idx); setAplusDragIdx(null); setAplusDragOver(null) }}
+                    onDragEnd={() => { setAplusDragIdx(null); setAplusDragOver(null) }}
+                    style={{ opacity: aplusDragIdx === idx ? 0.35 : 1 }}
+                  >
+                    <button onClick={() => { setActiveSlotIdx(idx); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
+                      className={`relative flex items-center justify-center w-8 h-6 rounded text-[10px] font-bold transition-all cursor-grab active:cursor-grabbing ${
+                        !activeIsGallery && idx === activeSlotIdx ? 'bg-accent-600 text-white'
+                        : aplusDragOver === idx && aplusDragIdx !== idx ? 'bg-accent-100 dark:bg-accent-900/50 text-accent-700 ring-1 ring-accent-400'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                      {slotLabel(idx)}
+                      {selected && slotHasFill(allSlots[selected.id]?.[idx]) && (
+                        <span className={`absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full ${!activeIsGallery && idx === activeSlotIdx ? 'bg-white/60' : 'bg-accent-400'}`} />
+                      )}
+                    </button>
+                    {aplusSlots > 1 && (
+                      <button onClick={e => { e.stopPropagation(); deleteAplusSlot(idx) }} title="Remove slot"
+                        className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors">
+                        <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {aplusSlots < 10 && (
+                  <button onClick={() => setAplusSlots(n => Math.min(10, n + 1))} title="Add A+ slot"
+                    className="shrink-0 flex items-center justify-center w-6 h-6 rounded text-[11px] font-bold bg-accent-50 dark:bg-accent-950/40 text-accent-600 dark:text-accent-400 hover:bg-accent-100 border border-accent-200 dark:border-accent-800 transition-all">+</button>
+                )}
+              </div>
+              {selected && (() => {
+                const filled = slotConfigs.slice(0, aplusSlots).filter((_, i) => slotHasFill(allSlots[selected.id]?.[i])).length
+                return filled > 0 ? <span className="text-[9px] text-gray-300 dark:text-gray-600 tabular-nums shrink-0">{filled}/{aplusSlots}</span> : null
+              })()}
+            </div>
+          )}
+
+          {/* Gallery slots */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 w-5 shrink-0">{isShopify ? 'G' : 'AG'}</span>
+            <div className="flex gap-1 overflow-x-auto flex-1 pt-1 pb-0.5" style={{ scrollbarWidth: 'none' }}>
               {galleryConfigs.slice(0, galleryCount).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="relative group"
+                <div key={idx} className="relative group shrink-0"
                   draggable
                   onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setGalleryDragIdx(idx) }}
                   onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setGalleryDragOver(idx) }}
@@ -2278,76 +2351,58 @@ export default function TemplateMode({
                   onDragEnd={() => { setGalleryDragIdx(null); setGalleryDragOver(null) }}
                   style={{ opacity: galleryDragIdx === idx ? 0.35 : 1 }}
                 >
-                  <button
-                    onClick={() => { setActiveGalleryIdx(idx); setActiveIsGallery(true); setActiveIsShopifyGallery(false) }}
-                    className={`flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all cursor-grab active:cursor-grabbing ${
-                      activeIsGallery && idx === activeGalleryIdx
-                        ? 'bg-accent-600 text-white'
-                        : galleryDragOver === idx && galleryDragIdx !== idx
-                        ? 'bg-accent-100 dark:bg-accent-900/50 text-accent-700 dark:text-accent-300 ring-1 ring-accent-400 dark:ring-accent-600'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                    }`}
-                  >
+                  <button onClick={() => { setActiveGalleryIdx(idx); setActiveIsGallery(true); setActiveIsShopifyGallery(false) }}
+                    className={`relative flex items-center justify-center w-8 h-6 rounded text-[10px] font-bold transition-all cursor-grab active:cursor-grabbing ${
+                      activeIsGallery && idx === activeGalleryIdx ? 'bg-accent-600 text-white'
+                      : galleryDragOver === idx && galleryDragIdx !== idx ? 'bg-accent-100 dark:bg-accent-900/50 text-accent-700 ring-1 ring-accent-400'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
                     {galleryLabel(idx)}
+                    {selected && slotHasFill(allGallerySlots[selected.id]?.[idx]) && (
+                      <span className={`absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full ${activeIsGallery && idx === activeGalleryIdx ? 'bg-white/60' : 'bg-accent-400'}`} />
+                    )}
                   </button>
                   {galleryCount > 1 && (
-                    <button
-                      onClick={e => { e.stopPropagation(); deleteGallerySlot(idx) }}
-                      title="Remove slide"
-                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors"
-                    >
-                      <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                    <button onClick={e => { e.stopPropagation(); deleteGallerySlot(idx) }} title="Remove slide"
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors">
+                      <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   )}
                 </div>
               ))}
               {galleryCount < 10 && (
-                <button
-                  onClick={() => setGalleryCount(n => Math.min(10, n + 1))}
-                  title="Add gallery slide"
-                  className="flex items-center justify-center px-2 py-1 rounded text-[11px] font-bold bg-accent-50 dark:bg-accent-950/40 text-accent-600 dark:text-accent-400 hover:bg-accent-100 dark:hover:bg-accent-900/40 border border-accent-200 dark:border-accent-800 transition-all"
-                >
-                  +
-                </button>
+                <button onClick={() => setGalleryCount(n => Math.min(10, n + 1))} title="Add gallery slide"
+                  className="shrink-0 flex items-center justify-center w-6 h-6 rounded text-[11px] font-bold bg-accent-50 dark:bg-accent-950/40 text-accent-600 dark:text-accent-400 hover:bg-accent-100 border border-accent-200 dark:border-accent-800 transition-all">+</button>
               )}
             </div>
+            {selected && (() => {
+              const filled = galleryConfigs.slice(0, galleryCount).filter((_, i) => slotHasFill(allGallerySlots[selected.id]?.[i])).length
+              return filled > 0 ? <span className="text-[9px] text-gray-300 dark:text-gray-600 tabular-nums shrink-0">{filled}/{galleryCount}</span> : null
+            })()}
           </div>
 
-          {/* Shopify Gallery tabs — Amazon only, toggle-controlled */}
+          {/* Shopify Gallery slots */}
           {showShopifyGallery && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-                <p className="text-[9px] font-bold uppercase tracking-widest text-green-600 dark:text-green-500">Shopify Gallery</p>
-              </div>
-              <div className="flex gap-1 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] font-bold text-green-500 dark:text-green-600 w-5 shrink-0">SG</span>
+              <div className="flex gap-1 overflow-x-auto flex-1 pt-1 pb-0.5" style={{ scrollbarWidth: 'none' }}>
                 {galleryConfigs.slice(0, galleryCount).map((_, idx) => (
-                    <div
-                      key={idx}
-                      className="relative group"
-                      draggable
-                      onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setShopifyDragIdx(idx) }}
-                      onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setShopifyDragOver(idx) }}
-                      onDrop={e => { e.preventDefault(); if (shopifyDragIdx !== null) { /* reorder if needed */ } setShopifyDragIdx(null); setShopifyDragOver(null) }}
-                      onDragEnd={() => { setShopifyDragIdx(null); setShopifyDragOver(null) }}
-                      style={{ opacity: shopifyDragIdx === idx ? 0.35 : 1 }}
-                    >
-                      <button
-                        onClick={() => { setActiveShopifyGalleryIdx(idx); setActiveIsShopifyGallery(true); setActiveIsGallery(false) }}
-                        className={`relative flex items-center justify-center w-9 h-7 rounded text-[11px] font-bold transition-all cursor-pointer ${
-                          activeIsShopifyGallery && idx === activeShopifyGalleryIdx
-                            ? 'bg-green-600 text-white'
-                            : shopifyDragOver === idx && shopifyDragIdx !== idx
-                            ? 'bg-green-100 dark:bg-green-900/50 text-green-700 ring-1 ring-green-400'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        {shopifyGalleryLabel(idx)}
-                      </button>
-                    </div>
-                  ))}
+                  <div key={idx} className="relative group shrink-0"
+                    draggable
+                    onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setShopifyDragIdx(idx) }}
+                    onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setShopifyDragOver(idx) }}
+                    onDrop={e => { e.preventDefault(); if (shopifyDragIdx !== null) { } setShopifyDragIdx(null); setShopifyDragOver(null) }}
+                    onDragEnd={() => { setShopifyDragIdx(null); setShopifyDragOver(null) }}
+                    style={{ opacity: shopifyDragIdx === idx ? 0.35 : 1 }}
+                  >
+                    <button onClick={() => { setActiveShopifyGalleryIdx(idx); setActiveIsShopifyGallery(true); setActiveIsGallery(false) }}
+                      className={`relative flex items-center justify-center w-8 h-6 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                        activeIsShopifyGallery && idx === activeShopifyGalleryIdx ? 'bg-green-600 text-white'
+                        : shopifyDragOver === idx && shopifyDragIdx !== idx ? 'bg-green-100 dark:bg-green-900/50 text-green-700 ring-1 ring-green-400'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                      {shopifyGalleryLabel(idx)}
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -2654,7 +2709,18 @@ export default function TemplateMode({
       </aside>
 
       {/* ══ MAIN CANVAS AREA ════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-50 dark:bg-gray-950">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-gray-50 dark:bg-gray-950 relative">
+
+        {/* Sidebar toggle — floats on left edge of canvas */}
+        <button
+          onClick={() => setSidebarOpen(o => !o)}
+          title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-4 h-10 flex items-center justify-center bg-white dark:bg-gray-900 border border-l-0 border-gray-200 dark:border-gray-700 rounded-r shadow-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        >
+          <svg className={`w-2.5 h-2.5 transition-transform duration-200 ${sidebarOpen ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
 
         {/* ── Canvas viewport ── */}
         <main

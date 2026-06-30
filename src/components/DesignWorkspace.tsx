@@ -1680,7 +1680,6 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 Share
               </Btn>
             ) : null}
-            <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
             <div className="relative">
             <Btn variant="primary" onClick={() => {
               setTemplateExportOpen(o => {

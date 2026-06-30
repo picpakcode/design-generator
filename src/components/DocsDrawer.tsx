@@ -10,6 +10,8 @@ const SECTIONS = [
   { id: 'd-template', label: 'Template Mode' },
   { id: 'd-bulk',     label: 'Bulk Mode' },
   { id: 'd-export',   label: 'Export' },
+  { id: 'd-canto',    label: 'Canto Integration' },
+  { id: 'd-projects', label: 'Projects' },
   { id: 'd-share',    label: 'Share & Collaborate' },
   { id: 'd-feedback', label: 'Feedback' },
 ]
@@ -379,28 +381,41 @@ SB-002,Recovery Snatch Block,Maximum Pull,Rated for 8000 lb working load,High st
 
             {/* ── Template Mode ──────────────────────────────────── */}
             <H id="d-template">Template Mode</H>
-            <P>Configure the appearance and content of each design block before generating at scale.</P>
+            <P>Configure the appearance and content of each design block, then generate at scale from a CSV. Template Mode is the primary workflow for batch production.</P>
+
+            <Sub>Slot groups</Sub>
+            <P>Each design block is a <em>slot group</em> — a named set of desktop + mobile frames that render together. Slot groups correspond to your CSV columns: A1 is the first A+ slide, B1 the second, G1 the first gallery slide, and so on. The Export dropdown's slot picker lets you select exactly which groups to render or upload.</P>
+            <DataTable
+              headers={['Prefix', 'Type', 'Format']}
+              rows={[
+                ['A1 – G1…', 'A+ Content slide', '1464 × 600 (desktop) + 600 × 450 (mobile)'],
+                ['G1 – G20', 'Gallery hero / icon slide', '1500 × 1500 (desktop) + 600 × 600 (mobile)'],
+                ['SG1 –',    'Square gallery variant', 'Same as gallery, alternate layout'],
+              ]}
+            />
 
             <Sub>Asset slots</Sub>
-            <P>Asset slots are placeholders that get filled with real content during bulk generation. In Template Mode, assign a default asset (e.g. a Canto photo) to each slot. During generation, slot values are overridden per-row from the CSV where available.</P>
+            <P>Asset slots are placeholders filled with real content during generation. Assign defaults in Template Mode — they apply to every product unless overridden by Canto's per-SKU photo fetch.</P>
             <DataTable
-              headers={['Slot', 'What to assign']}
+              headers={['Slot', 'What to assign', 'Source']}
               rows={[
-                ['Product Photo', 'Main product image. Auto-fetched from Canto by SKU if left empty.'],
-                ['Background Texture', 'Optional texture overlay for the slide background.'],
-                ['Brand Logo', 'Pre-configured from Canto. Override per-block if needed.'],
-                ['Icon 1 – 4', 'Feature icons from the Canto icon library. Labels come from CSV.'],
+                ['Product Photo',      'Main product image.',                        'Auto-fetched from Canto by SKU, or upload manually.'],
+                ['Background Texture', 'Optional texture overlay.',                  'Upload from disk or pick from Canto.'],
+                ['Brand Logo',         'DocsDiesel logo, pre-configured.',            'Loaded from Canto automatically. Override per-block.'],
+                ['Icon 1 – 4',         'Feature icons with callout labels.',          'Canto icon library picker. Labels come from CSV.'],
               ]}
             />
 
             <Sub>Per-block settings</Sub>
-            <P>Click any block on the canvas to select it. The sidebar shows all configuration options for that block. Changes are independent per block — editing one does not affect others.</P>
+            <P>Click any block on the canvas to select it. The sidebar shows all configuration for that block. Changes are independent per block — editing one does not affect others.</P>
             <div className="grid grid-cols-2 gap-2 mb-3">
               {[
                 { icon: '🎨', t: 'Colors', d: 'Background, text, accent, overlay opacity' },
                 { icon: '🅰️', t: 'Typography', d: 'Title/subtitle text, weight, size multiplier' },
-                { icon: '↔️', t: 'Image composition', d: 'Scale, horizontal and vertical pan' },
-                { icon: '📐', t: 'Spacing', d: 'Padding and gap controls' },
+                { icon: '↔️', t: 'Composition', d: 'Product photo scale, horizontal and vertical pan' },
+                { icon: '📐', t: 'Spacing', d: 'Padding, gap, and logo placement controls' },
+                { icon: '🔁', t: 'Flip layout', d: 'Mirror image-left / text-right arrangement' },
+                { icon: '📝', t: 'Text edit', d: 'Edit title and body copy directly in the sidebar' },
               ].map(c => (
                 <div key={c.t} className="rounded border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900/60 px-3 py-2.5 flex gap-2">
                   <span className="text-sm shrink-0">{c.icon}</span>
@@ -412,7 +427,11 @@ SB-002,Recovery Snatch Block,Maximum Pull,Rated for 8000 lb working load,High st
               ))}
             </div>
 
-            <Note>Directly uploaded files (drag-and-drop from disk) are temporary and will not appear on share links or other devices. Use Canto for images that need to persist.</Note>
+            <Sub>Rendering</Sub>
+            <P>Designs render in the background when you navigate between products. The Export button shows a spinner while rendering is in progress. Wait for rendering to finish before exporting — the button disables automatically while busy.</P>
+            <Tip>Use "Export Current Product" to quickly check a single product before committing to a full batch export.</Tip>
+
+            <Note>Directly uploaded files (drag-and-drop from disk) are session-only and won't appear on share links or other devices. Use Canto for assets that need to persist across sessions.</Note>
 
             <Hr />
 
@@ -432,7 +451,23 @@ SB-002,Recovery Snatch Block,Maximum Pull,Rated for 8000 lb working load,High st
 
             {/* ── Export ─────────────────────────────────────────── */}
             <H id="d-export">Export</H>
-            <P>Download finished designs as high-resolution PNG files, individually or as a batch ZIP.</P>
+            <P>Download finished designs as high-resolution PNG files, or upload them directly to Canto. All options are in the Export dropdown in the toolbar.</P>
+
+            <Sub>Export options</Sub>
+            <DataTable
+              headers={['Option', 'What it does']}
+              rows={[
+                ['Export All ZIP', 'Renders every product × every slot at full resolution and bundles them into a ZIP. Files are named by product and slot.'],
+                ['Export Current Product', 'Renders only the currently selected product — all its slots — as a ZIP.'],
+                ['Select Slots → Export N', 'Choose specific slot groups (A1, B1, SG1 …) using the chip picker, then export only those slots across all products.'],
+                ['Save All to Canto', 'Renders all products × all slots and uploads them directly to a Canto album you choose. Requires Canto to be connected.'],
+                ['Save Current to Canto', 'Renders the current product\'s slots and uploads them to Canto.'],
+              ]}
+            />
+
+            <Sub>Slot selection</Sub>
+            <P>The <strong>Select Slots</strong> picker appears in the Export dropdown when Template Mode has slot groups. Click individual chips to toggle them, or use <strong>All / None</strong> to select everything at once. The export button shows how many slots are selected.</P>
+            <Tip>Slot labels match the CSV columns: A1 = first A+ slide, B1 = second A+ slide, G1 = first gallery slide, SG1 = first gallery slide at square format, and so on.</Tip>
 
             <Sub>Dimensions reference</Sub>
             <DataTable
@@ -443,6 +478,61 @@ SB-002,Recovery Snatch Block,Maximum Pull,Rated for 8000 lb working load,High st
               ]}
             />
             <Tip>Mobile variants are generated automatically alongside every desktop block — you do not need to create them separately.</Tip>
+
+            <Note>Export renders designs at their native resolution regardless of the canvas zoom level. What you see is what you get.</Note>
+
+            <Hr />
+
+            {/* ── Canto Integration ──────────────────────────────── */}
+            <H id="d-canto">Canto Integration</H>
+            <P>Doc's Design Generator connects directly to the Canto DAM. Once linked, Canto powers product photo fetching, icon and background asset pickers, and one-click upload of finished designs.</P>
+
+            <Sub>Connecting your account</Sub>
+            <Steps items={[
+              { title: 'Open the Export dropdown', body: 'Click the Export button in the top-right toolbar.' },
+              { title: 'Click "Connect Canto"', body: 'The button appears at the bottom of the dropdown when no account is linked.' },
+              { title: 'Sign in via Canto OAuth', body: 'A Canto login page opens. Sign in with your Canto account and approve access. You are redirected back automatically.' },
+              { title: 'Connected', body: 'The button is replaced by "Save All to Canto" and "Save Current to Canto". Your session stays active — you won\'t need to log in again unless you disconnect.' },
+            ]} />
+            <Tip>Click "Disconnect Canto" at the bottom of the Export dropdown at any time to unlink your account.</Tip>
+
+            <Sub>Product photos</Sub>
+            <P>When Template Mode loads a product row from the CSV, it automatically searches Canto for an asset matching the row's <C>sku</C> value. The first match becomes the product photo for that slot. No photo columns are needed in the CSV.</P>
+            <Note>Photo fetching requires a Canto Client Credentials token configured in the environment. This is separate from the per-user OAuth login used for uploads — contact your admin if photos are not auto-loading.</Note>
+
+            <Sub>Icon library</Sub>
+            <P>Icon slots (1–4 per slide) can be filled from the Canto icon library. Click any icon slot placeholder on the canvas or in the sidebar to open the Canto Icon Picker. Search by name or browse, then click an icon to assign it. Icons are stored per-slot and persist across products.</P>
+
+            <Sub>Background photos</Sub>
+            <P>The background photo slot on any slide can also be sourced from Canto. Click the background slot in the sidebar to open the Canto Photo Picker and search your library.</P>
+
+            <Sub>Save to Canto</Sub>
+            <P>After designs are rendered you can upload them directly to Canto instead of (or in addition to) downloading a ZIP.</P>
+            <Steps items={[
+              { title: 'Choose an export scope', body: 'Use "Save All to Canto" (all products) or "Save Current to Canto" (current product only) from the Export dropdown.' },
+              { title: 'Select a destination album', body: 'A dialog opens. Search your Canto albums by name — each album shows its name and parent folder path. Click one to select it.' },
+              { title: 'Optional metadata', body: 'Expand "Optional metadata" to add Tags, Keywords, or a Description applied to all uploaded files.' },
+              { title: 'Upload', body: 'Click Upload. Files transfer one at a time with a live progress indicator. Files are named exactly as they appear in the export (product name + slot).' },
+            ]} />
+            <Tip>You can also use the Slot picker in the Export dropdown to select specific slots, then "Save All to Canto" — only the selected slots will be uploaded.</Tip>
+
+            <Hr />
+
+            {/* ── Projects ───────────────────────────────────────── */}
+            <H id="d-projects">Projects</H>
+            <P>Each project stores an independent set of template settings, uploaded assets, and CSV content. Use projects to keep different brands, campaigns, or product lines separate.</P>
+
+            <Sub>Managing projects</Sub>
+            <DataTable
+              headers={['Action', 'How']}
+              rows={[
+                ['Create a project', 'Click the Doc\'s logo in the top-left to open the Dashboard, then "New project".'],
+                ['Switch projects',  'Open the Dashboard and click any project card.'],
+                ['Rename a project', 'Click the project name at the top of the workspace to edit it inline.'],
+                ['Thumbnails',       'A thumbnail is auto-generated when you navigate away or after a short idle period.'],
+              ]}
+            />
+            <Note>Projects auto-save continuously while you work. There is no manual Save button — changes are persisted within seconds.</Note>
 
             <Hr />
 
