@@ -4,6 +4,18 @@ module.exports = {
   content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
   theme: {
     extend: {
+      // ── Design system: border radius ────────────────────────────────────────
+      // controls → rounded (4px), menus → rounded-menu (6px), modals → rounded-lg (8px)
+      borderRadius: {
+        menu: '6px',
+      },
+      // ── Design system: box shadows ───────────────────────────────────────────
+      // floating (dropdowns/popovers): shadow-floating
+      // modal: shadow-modal (use with ring-1 ring-black/5)
+      boxShadow: {
+        floating: '0 4px 16px -2px rgba(0,0,0,0.10), 0 2px 4px -1px rgba(0,0,0,0.06)',
+        modal:    '0 16px 48px -8px rgba(0,0,0,0.20), 0 4px 12px -2px rgba(0,0,0,0.10)',
+      },
       backgroundColor: {
         canvas: '#f5f5f5',
       },
