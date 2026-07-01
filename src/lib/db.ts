@@ -99,12 +99,13 @@ export interface DbProject {
   thumbnail_url: string | null
   created_at: string
   updated_at: string
+  template_state?: { products?: { id: string }[] } | null
 }
 
 export async function listProjects(db: Client, userId: string): Promise<Omit<DbProject, 'state'>[]> {
   const { data } = await db
     .from('projects')
-    .select('id, user_id, name, project_type, thumbnail_url, created_at, updated_at')
+    .select('id, user_id, name, project_type, thumbnail_url, created_at, updated_at, template_state')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
   return (data ?? []) as Omit<DbProject, 'state'>[]
