@@ -27,6 +27,7 @@ import AuthModal from './AuthModal'
 import PreviewModal from './PreviewModal'
 import GalleryPreviewModal from './GalleryPreviewModal'
 import CantoExportModal, { type CantoExportFile } from './CantoExportModal'
+import { ShortcutsModal } from './ShortcutsModal'
 
 const RichTextEditor = dynamic(() => import('./RichTextEditor'), { ssr: false })
 
@@ -318,6 +319,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const [projectNameDraft, setProjectNameDraft] = useState('')
   const projectNameInputRef = useRef<HTMLInputElement>(null)
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [galleryPreviewOpen, setGalleryPreviewOpen] = useState(false)
   const [albums, setAlbums] = useState<{ id: string; namePath: string; name: string }[]>([])
@@ -922,6 +924,19 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     setPan({ x: px, y: py })
   }, [isGallery, design.blocks.length])
 
+  const adjustZoom = useCallback((factor: number) => {
+    const el = wrapperRef.current
+    if (!el) return
+    const cx = el.clientWidth / 2
+    const cy = el.clientHeight / 2
+    const prevZ = zoomRef.current
+    const newZ = Math.max(0.05, Math.min(4, prevZ * factor))
+    const ratio = newZ / prevZ
+    zoomRef.current = newZ
+    setZoom(newZ)
+    setPan(p => ({ x: cx - (cx - p.x) * ratio, y: cy - (cy - p.y) * ratio }))
+  }, [])
+
   // Re-fit when the canvas element actually mounts (canvasEl) OR template mode changes.
   // canvasEl as dep is critical: the canvas is hidden behind an auth gate on first render,
   // so the wheel handler and fit must re-run when it appears — not just on initial mount.
@@ -961,26 +976,24 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     return () => el.removeEventListener('wheel', onWheel)
   }, [canvasEl]) // re-registers when the canvas element mounts/unmounts
 
-  // Spacebar → pan mode (like Figma)
+  // Spacebar → pan mode; F → fit; =/- → zoom; 0 → reset (like Figma)
   useEffect(() => {
+    const notEditing = (e: KeyboardEvent) =>
+      !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)
     const onDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.repeat &&
-          !(e.target instanceof HTMLInputElement) &&
-          !(e.target instanceof HTMLTextAreaElement)) {
-        e.preventDefault()
-        setSpaceDown(true)
-      }
-      if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey &&
-          !(e.target instanceof HTMLInputElement) &&
-          !(e.target instanceof HTMLTextAreaElement)) {
-        fitView()
+      if (e.code === 'Space' && !e.repeat && notEditing(e)) { e.preventDefault(); setSpaceDown(true); return }
+      if (!e.metaKey && !e.ctrlKey && notEditing(e)) {
+        if (e.key === 'f' || e.key === 'F') { fitView(); return }
+        if (e.key === '=' || e.key === '+') { adjustZoom(1.15); return }
+        if (e.key === '-') { adjustZoom(1 / 1.15); return }
+        if (e.key === '0') { fitView(); return }
       }
     }
     const onUp = (e: KeyboardEvent) => { if (e.code === 'Space') setSpaceDown(false) }
     window.addEventListener('keydown', onDown)
     window.addEventListener('keyup', onUp)
     return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp) }
-  }, [fitView])
+  }, [fitView, adjustZoom])
 
   // Canto OAuth connection status + callback result
   useEffect(() => {
@@ -1222,18 +1235,34 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     setIsPanDragging(false)
   }
 
-  const adjustZoom = (factor: number) => {
-    const el = wrapperRef.current
-    if (!el) return
-    const cx = el.clientWidth / 2
-    const cy = el.clientHeight / 2
-    const prevZ = zoomRef.current
-    const newZ = Math.max(0.05, Math.min(4, prevZ * factor))
-    const ratio = newZ / prevZ
-    zoomRef.current = newZ
-    setZoom(newZ)
-    setPan(p => ({ x: cx - (cx - p.x) * ratio, y: cy - (cy - p.y) * ratio }))
-  }
+  // ⌘/ (shortcuts), P (preview), ⌘⇧L (theme) — capture phase so they work even inside ProseMirror
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => {
+      // ⌘/ works from anywhere
+      if ((e.metaKey || e.ctrlKey) && e.key === '/') { e.preventDefault(); e.stopPropagation(); setShortcutsOpen(o => !o); return }
+
+      const inEditing =
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        !!(e.target as Element)?.closest?.('[contenteditable]')
+      if (inEditing) return
+
+      if (e.key === 'Escape') { setShortcutsOpen(false); return }
+
+      if ((e.key === 'p' || e.key === 'P') && !e.metaKey && !e.ctrlKey) {
+        if (isGallery) setGalleryPreviewOpen(o => !o)
+        else setPreviewOpen(o => !o)
+        return
+      }
+
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'l' || e.key === 'L')) {
+        e.preventDefault()
+        updateAppSettings({ theme: appSettings.theme === 'light' ? 'dark' : 'light' })
+      }
+    }
+    window.addEventListener('keydown', onDown, { capture: true })
+    return () => window.removeEventListener('keydown', onDown, { capture: true })
+  }, [isGallery, appSettings.theme, updateAppSettings])
 
   const computePhotoScreenRect = (): { left: number; top: number; width: number; height: number } | null => {
     if (!frameContainerRef.current) return null
@@ -1970,6 +1999,15 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
             {/* Settings menu */}
             {settingsGearEl}
+
+            {/* Shortcuts guide */}
+            <button
+              onClick={() => setShortcutsOpen(true)}
+              title="Keyboard shortcuts (⌘/)"
+              className="w-8 h-8 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-mono text-[13px] font-semibold"
+            >
+              ?
+            </button>
 
             <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1.5" />
 
@@ -3221,6 +3259,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
         onClose={() => setCantoModalOpen(false)}
         files={cantoFiles}
       />
+
+      <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   )
 }

@@ -34,7 +34,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useAppSettings } from '@/hooks/useAppSettings'
 import { createClient } from '@/lib/supabase/client'
+import { ShortcutsModal } from './ShortcutsModal'
 import {
   listProjects,
   createProject,
@@ -74,6 +76,8 @@ interface ProjectCardProps {
   renameValue: string | undefined
   renameInputRef: React.RefObject<HTMLInputElement>
   animationDelay: number
+  viewMode: 'grid' | 'list'
+  productCount?: number
   onToggleSelect: (id: string) => void
   onToggleMenu: (id: string) => void
   onCloseMenu: () => void
@@ -87,18 +91,170 @@ interface ProjectCardProps {
 
 const ProjectCard = React.memo(function ProjectCard({
   project, isSelected, isSelectMode, isMenuOpen, isRenaming, renameValue,
-  renameInputRef, animationDelay,
+  renameInputRef, animationDelay, viewMode, productCount = 0,
   onToggleSelect, onToggleMenu, onCloseMenu,
   onStartRename, onCommitRename, onRenameKeyDown, onSetRenameValue, onDelete, onDuplicate,
 }: ProjectCardProps) {
   const timeStr = useMemo(() => timeAgo(project.updated_at), [project.updated_at])
 
+  const platformBadge = (
+    <div className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest shrink-0 ${
+      project.project_type === 'shopify'
+        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+        : 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400'
+    }`}>
+      {project.project_type === 'shopify' ? 'Shopify' : 'Amazon'}
+    </div>
+  )
+
+  const thumbnailPlaceholder = (isMini: boolean) => (
+    <div className={`w-full h-full flex flex-col items-center justify-center gap-1.5 ${
+      project.project_type === 'amazon'
+        ? 'bg-orange-50 dark:bg-orange-950/30'
+        : 'bg-green-50 dark:bg-green-950/30'
+    }`}>
+      {project.project_type === 'amazon' ? (
+        <svg className={isMini ? 'w-5 h-5' : 'w-8 h-8'} viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="#FF9900" opacity="0.2"/>
+          <path d="M6.5 12.5c0 0 1.2 2.5 5.5 2.5s5.5-2.5 5.5-2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M15.5 11l2 1.5-2 1.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M8 7.5h8M12 7.5v2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      ) : (
+        <svg className={isMini ? 'w-5 h-5' : 'w-8 h-8'} viewBox="0 0 24 24" fill="none">
+          <path d="M16 7c-.5-1.5-2-2.5-3.5-2.5-1 0-2 .5-2.5 1.5C9.5 7 9 7 9 7L7.5 17.5l9 1.5L18 9c0 0-1.5-.5-2-2z" fill="#96BF48" opacity="0.2"/>
+          <path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="9" cy="20" r="1.2" fill="#5A8A3C"/>
+          <circle cx="15" cy="20" r="1.2" fill="#5A8A3C"/>
+        </svg>
+      )}
+      {!isMini && (
+        <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 truncate px-2 max-w-full">
+          {project.name || 'Untitled'}
+        </p>
+      )}
+    </div>
+  )
+
+  const dotMenu = (
+    <div className="relative shrink-0">
+      <button
+        onClick={e => { e.stopPropagation(); onToggleMenu(project.id) }}
+        className="w-7 h-7 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+        title="Project options"
+      >
+        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+          <circle cx="5" cy="12" r="1.5" />
+          <circle cx="12" cy="12" r="1.5" />
+          <circle cx="19" cy="12" r="1.5" />
+        </svg>
+      </button>
+      {isMenuOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={onCloseMenu} />
+          <div className="absolute bottom-full right-0 mb-1 w-36 bg-white dark:bg-gray-900 rounded shadow-lg border border-gray-100 dark:border-gray-700 py-1.5 z-50 animate-slide-down" style={{ transformOrigin: 'bottom right' }}>
+            <button
+              onClick={e => { e.stopPropagation(); onStartRename(project) }}
+              className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >Rename</button>
+            <button
+              onClick={e => { e.stopPropagation(); onDuplicate(project.id) }}
+              className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >Duplicate</button>
+            <button
+              onClick={e => { e.stopPropagation(); onDelete(project.id) }}
+              className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+            >Delete</button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+
+  if (viewMode === 'list') {
+    return (
+      <div
+        className={`group relative flex items-center gap-3 bg-white dark:bg-gray-900 border-b last:border-b-0 px-3 py-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50 animate-fade-in ${
+          isSelected
+            ? 'border-accent-200 dark:border-accent-900 bg-accent-50/30 dark:bg-accent-950/20'
+            : 'border-gray-200 dark:border-gray-700'
+        }`}
+        style={{ animationDelay: `${animationDelay}ms` }}
+      >
+        {/* Checkbox */}
+        <button
+          onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleSelect(project.id) }}
+          className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+            isSelected
+              ? 'bg-accent-600 border-accent-600 opacity-100'
+              : 'bg-white/90 dark:bg-gray-900/90 border-gray-300 dark:border-gray-500 opacity-0 group-hover:opacity-100'
+          } ${isSelectMode ? 'opacity-100' : ''}`}
+          title={isSelected ? 'Deselect' : 'Select'}
+        >
+          {isSelected && (
+            <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+        </button>
+
+        {/* Mini thumbnail */}
+        <a
+          href={isSelectMode ? undefined : `/project/${project.id}`}
+          onClick={isSelectMode ? e => { e.preventDefault(); onToggleSelect(project.id) } : undefined}
+          className="shrink-0 w-20 h-12 rounded overflow-hidden bg-gray-100 dark:bg-gray-800 block"
+        >
+          {project.thumbnail_url ? (
+            <img src={project.thumbnail_url} alt={project.name || 'Untitled'} className="w-full h-full object-cover" />
+          ) : (
+            thumbnailPlaceholder(true)
+          )}
+        </a>
+
+        {/* Middle: name + time */}
+        <a
+          href={isSelectMode ? undefined : `/project/${project.id}`}
+          onClick={isSelectMode ? e => { e.preventDefault(); onToggleSelect(project.id) } : undefined}
+          className="flex-1 min-w-0 block"
+        >
+          {isRenaming ? (
+            <input
+              ref={renameInputRef}
+              type="text"
+              value={renameValue ?? ''}
+              onChange={e => onSetRenameValue(e.target.value)}
+              onBlur={() => onCommitRename(project.id)}
+              onKeyDown={e => onRenameKeyDown(e, project.id)}
+              className="w-full text-sm font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              onClick={e => e.stopPropagation()}
+            />
+          ) : (
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+              {project.name || 'Untitled'}
+            </p>
+          )}
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Updated {timeStr}</p>
+        </a>
+
+        {/* Right: badge + product count + menu */}
+        <div className="flex items-center gap-2 shrink-0">
+          {platformBadge}
+          {productCount > 0 && (
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">{productCount} products</span>
+          )}
+          {!isSelectMode && dotMenu}
+        </div>
+      </div>
+    )
+  }
+
+  // Grid mode
   return (
     <div
       className={`group relative flex flex-col bg-white dark:bg-gray-900 rounded border transition-all overflow-hidden animate-fade-in ${
         isSelected
-          ? 'border-accent-400 dark:border-accent-500 ring-2 ring-accent-200 dark:ring-accent-900 shadow-sm'
-          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-[0_8px_24px_rgba(0,0,0,0.08)] hover:-translate-y-px'
+          ? 'border-accent-400 dark:border-accent-500 ring-2 ring-accent-200 dark:ring-accent-900 shadow-md'
+          : 'border-gray-100 dark:border-gray-700/70 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-gray-200 dark:hover:border-gray-600'
       }`}
       style={{ animationDelay: `${animationDelay}ms` }}
     >
@@ -123,7 +279,7 @@ const ProjectCard = React.memo(function ProjectCard({
       <a
         href={isSelectMode ? undefined : `/project/${project.id}`}
         onClick={isSelectMode ? e => { e.preventDefault(); onToggleSelect(project.id) } : undefined}
-        className="relative block aspect-video bg-gray-100 dark:bg-gray-800 overflow-hidden"
+        className="relative block aspect-video overflow-hidden bg-gray-100 dark:bg-gray-800"
         tabIndex={0}
       >
         {project.thumbnail_url ? (
@@ -133,23 +289,12 @@ const ProjectCard = React.memo(function ProjectCard({
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-            <div className="w-10 h-10 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-              <span className="text-lg font-bold text-gray-400 dark:text-gray-500">
-                {(project.name || 'U')[0].toUpperCase()}
-              </span>
-            </div>
-          </div>
+          thumbnailPlaceholder(false)
         )}
-        <div className={`absolute bottom-2 right-2 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest ${
-          project.project_type === 'shopify' ? 'bg-green-600 text-white' : 'bg-orange-500 text-white'
-        }`}>
-          {project.project_type === 'shopify' ? 'Shopify' : 'Amazon'}
-        </div>
       </a>
 
       {/* Footer */}
-      <div className="px-3 py-2.5 flex items-start justify-between gap-2">
+      <div className="px-3 py-3 flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           {isRenaming ? (
             <input
@@ -163,49 +308,19 @@ const ProjectCard = React.memo(function ProjectCard({
               onClick={e => e.stopPropagation()}
             />
           ) : (
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate leading-snug">
               {project.name || 'Untitled'}
             </p>
           )}
-          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-            Updated {timeStr}
-          </p>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            {platformBadge}
+            <p className="text-[10px] text-gray-400 dark:text-gray-500">
+              {timeStr}{productCount > 0 ? ` · ${productCount} products` : ''}
+            </p>
+          </div>
         </div>
 
-        {!isSelectMode && (
-          <div className="relative shrink-0">
-            <button
-              onClick={e => { e.stopPropagation(); onToggleMenu(project.id) }}
-              className="w-7 h-7 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-              title="Project options"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <circle cx="5" cy="12" r="1.5" />
-                <circle cx="12" cy="12" r="1.5" />
-                <circle cx="19" cy="12" r="1.5" />
-              </svg>
-            </button>
-            {isMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={onCloseMenu} />
-                <div className="absolute bottom-full right-0 mb-1 w-36 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 py-1.5 z-50 animate-slide-down" style={{ transformOrigin: 'bottom right' }}>
-                  <button
-                    onClick={e => { e.stopPropagation(); onStartRename(project) }}
-                    className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                  >Rename</button>
-                  <button
-                    onClick={e => { e.stopPropagation(); onDuplicate(project.id) }}
-                    className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                  >Duplicate</button>
-                  <button
-                    onClick={e => { e.stopPropagation(); onDelete(project.id) }}
-                    className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-                  >Delete</button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+        {!isSelectMode && dotMenu}
       </div>
     </div>
   )
@@ -254,7 +369,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b bg-gray-50 dark:bg-gray-900/80 border-gray-200 dark:border-white/8">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-accent-100 dark:bg-accent-900/50">
+            <div className="w-8 h-8 rounded flex items-center justify-center bg-accent-100 dark:bg-accent-900/50">
               <svg className="w-4 h-4 text-accent-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -266,7 +381,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] hidden sm:block text-gray-400 dark:text-gray-500">Esc to close</span>
-            <button onClick={onClose} className="ml-1 w-8 h-8 flex items-center justify-center rounded-lg transition-colors text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-white dark:hover:bg-white/10">
+            <button onClick={onClose} className="ml-1 w-8 h-8 flex items-center justify-center rounded transition-colors text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-white dark:hover:bg-white/10">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -287,7 +402,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
                 { icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', title: '4-second debounce', body: 'State is written to Supabase 4 seconds after your last change. Switching projects or closing mid-edit may miss the final state if you move too fast.' },
               ] as const).map(s => (
                 <div key={s.title} className="flex gap-4">
-                  <div className="w-7 h-7 rounded-full bg-accent-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-7 h-7 rounded bg-accent-500 text-white flex items-center justify-center shrink-0 mt-0.5">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg>
                   </div>
                   <div>
@@ -309,7 +424,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
                 { icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', title: 'Polling updates', body: 'Reviewer pages re-fetch the full project state every 30 seconds and comments every 10 seconds — so photo and text changes appear without a manual refresh.' },
               ] as const).map(s => (
                 <div key={s.title} className="flex gap-4">
-                  <div className="w-7 h-7 rounded-full bg-accent-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-7 h-7 rounded bg-accent-500 text-white flex items-center justify-center shrink-0 mt-0.5">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg>
                   </div>
                   <div>
@@ -331,7 +446,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
                 { label: 'Emoji reactions', desc: 'React to any comment with 👍 ❤️ 😄 👀 🎉 — shown inline with counts.' },
                 { label: 'Approve / Changes', desc: 'Each reviewer votes per block. Latest vote per person wins. Owner sees live status badges on the canvas.' },
               ] as const).map(s => (
-                <div key={s.label} className="rounded-xl border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900 px-4 py-3">
+                <div key={s.label} className="rounded border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900 px-4 py-3">
                   <p className="text-[11px] font-bold mb-1 text-gray-900 dark:text-white">{s.label}</p>
                   <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">{s.desc}</p>
                 </div>
@@ -342,7 +457,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
           {/* What's stored */}
           <section>
             <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-accent-600 dark:text-accent-400 border-accent-100 dark:border-accent-900/40">What Gets Stored</h3>
-            <div className="rounded-xl border border-gray-100 dark:border-white/8 overflow-hidden">
+            <div className="rounded border border-gray-100 dark:border-white/8 overflow-hidden">
               {stored.map((r, i) => (
                 <div key={r.label} className={`flex items-center gap-3 px-4 py-3 ${i < stored.length - 1 ? 'border-b border-gray-100 dark:border-white/8' : ''}`}>
                   <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-white text-[10px] font-bold ${r.yes ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'}`}>
@@ -363,7 +478,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
         <div className="shrink-0 flex items-center justify-end px-6 py-3.5 border-t bg-gray-50 dark:bg-gray-900/80 border-gray-200 dark:border-white/8">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-colors bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-white/15"
+            className="px-4 py-1.5 rounded text-[12px] font-semibold transition-colors bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-white/15"
           >
             Close
           </button>
@@ -392,7 +507,7 @@ function DeleteConfirmModal({
       <div className="relative w-full max-w-sm bg-white dark:bg-gray-900 rounded border border-gray-100 dark:border-gray-700 overflow-hidden shadow-2xl animate-scale-in">
         <div className="px-6 pt-6 pb-5 flex flex-col items-center text-center gap-4">
           {/* Icon */}
-          <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-950/40 flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded bg-red-50 dark:bg-red-950/40 flex items-center justify-center shrink-0">
             <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -442,6 +557,165 @@ function DeleteConfirmModal({
   )
 }
 
+// ─── New Project card (shared between grid and empty state) ───────────────────
+
+interface NewProjectCardProps {
+  creating: boolean
+  user: { id: string } | null
+  onNewProject: (platform: 'amazon' | 'shopify') => void
+}
+
+function NewProjectCard({ creating, user, onNewProject }: NewProjectCardProps) {
+  const [hovered, setHovered] = useState(false)
+  const [hoveredPlatform, setHoveredPlatform] = useState<'amazon' | 'shopify' | null>(null)
+
+  return (
+    <div
+      onMouseEnter={() => { if (!creating && user) setHovered(true) }}
+      onMouseLeave={() => { setHovered(false); setHoveredPlatform(null) }}
+      className="relative flex flex-col rounded overflow-hidden select-none"
+      style={{
+        border: `2px ${hovered ? 'solid' : 'dashed'} ${hovered ? '#94A3B8' : '#E5E7EB'}`,
+        background: 'white',
+        transform: hovered ? 'scale(1.02) translateY(-2px)' : 'scale(1) translateY(0)',
+        boxShadow: hovered ? '0 8px 24px rgba(0,0,0,0.10)' : '0 1px 3px rgba(0,0,0,0.05)',
+        transition: 'transform 240ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 240ms ease, border-color 180ms ease',
+        opacity: (!user) ? 0.5 : 1,
+        cursor: creating ? 'default' : 'pointer',
+      }}
+    >
+      {/* Content area — same aspect ratio as project tile thumbnails */}
+      <div className="relative aspect-video bg-gray-100">
+
+        {/* Platform half-fills — shown on hover */}
+        <div style={{
+          position: 'absolute', left: 0, top: 0, bottom: 0, width: '50%',
+          background: '#FFF3E0',
+          opacity: hoveredPlatform === 'amazon' ? 1 : 0,
+          transition: 'opacity 140ms ease',
+          pointerEvents: 'none', zIndex: 0,
+        }}/>
+        <div style={{
+          position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%',
+          background: '#F0FDF4',
+          opacity: hoveredPlatform === 'shopify' ? 1 : 0,
+          transition: 'opacity 140ms ease',
+          pointerEvents: 'none', zIndex: 0,
+        }}/>
+
+        {/* Creating spinner */}
+        {creating && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+            <svg className="animate-spin w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+          </div>
+        )}
+
+        {/* Default: + icon */}
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 1,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+          color: '#9CA3AF',
+          opacity: hovered ? 0 : 1,
+          transform: hovered ? 'scale(0.75) rotate(45deg)' : 'scale(1) rotate(0deg)',
+          transition: 'opacity 180ms ease, transform 220ms cubic-bezier(0.4,0,0.2,1)',
+          pointerEvents: 'none',
+        }}>
+          <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
+          </svg>
+        </div>
+
+        {/* Hover: platform options */}
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 1,
+          display: 'flex',
+          pointerEvents: hovered ? 'auto' : 'none',
+        }}>
+          {/* Amazon */}
+          <button
+            onClick={() => onNewProject('amazon')}
+            onMouseEnter={() => setHoveredPlatform('amazon')}
+            onMouseLeave={() => setHoveredPlatform(null)}
+            className="flex-1 flex flex-col items-center justify-center gap-1.5 border-none outline-none"
+            style={{
+              background: 'transparent', cursor: 'pointer',
+              opacity: hovered ? 1 : 0,
+              transform: hovered ? 'translateY(0px)' : 'translateY(14px)',
+              transition: 'opacity 240ms cubic-bezier(0.34,1.56,0.64,1) 30ms, transform 300ms cubic-bezier(0.34,1.56,0.64,1) 30ms',
+            }}
+          >
+            <div className="w-9 h-9 rounded flex items-center justify-center transition-transform"
+              style={{
+                background: hoveredPlatform === 'amazon' ? '#FFE0B2' : '#FFF3E0',
+                transform: hoveredPlatform === 'amazon' ? 'scale(1.12)' : 'scale(1)',
+                transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), background 140ms ease',
+              }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="#FF9900" opacity="0.2"/>
+                <path d="M6.5 12.5c0 0 1.2 2.5 5.5 2.5s5.5-2.5 5.5-2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
+                <path d="M15.5 11l2 1.5-2 1.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 7.5h8M12 7.5v2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#1F2937', letterSpacing: '-0.01em' }}>Amazon</span>
+            <span style={{ fontSize: 9.5, color: '#9CA3AF', fontWeight: 500 }}>A+ &amp; Gallery</span>
+          </button>
+
+          {/* Divider */}
+          <div style={{
+            width: 1, alignSelf: 'stretch', margin: '10px 0',
+            background: '#E5E7EB',
+            opacity: hovered ? 1 : 0,
+            transition: 'opacity 200ms ease 80ms',
+          }}/>
+
+          {/* Shopify */}
+          <button
+            onClick={() => onNewProject('shopify')}
+            onMouseEnter={() => setHoveredPlatform('shopify')}
+            onMouseLeave={() => setHoveredPlatform(null)}
+            className="flex-1 flex flex-col items-center justify-center gap-1.5 border-none outline-none"
+            style={{
+              background: 'transparent', cursor: 'pointer',
+              opacity: hovered ? 1 : 0,
+              transform: hovered ? 'translateY(0px)' : 'translateY(14px)',
+              transition: 'opacity 240ms cubic-bezier(0.34,1.56,0.64,1) 100ms, transform 300ms cubic-bezier(0.34,1.56,0.64,1) 100ms',
+            }}
+          >
+            <div className="w-9 h-9 rounded flex items-center justify-center"
+              style={{
+                background: hoveredPlatform === 'shopify' ? '#BBDFC8' : '#F0FDF4',
+                transform: hoveredPlatform === 'shopify' ? 'scale(1.12)' : 'scale(1)',
+                transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), background 140ms ease',
+              }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M16 7c-.5-1.5-2-2.5-3.5-2.5-1 0-2 .5-2.5 1.5C9.5 7 9 7 9 7L7.5 17.5l9 1.5L18 9c0 0-1.5-.5-2-2z" fill="#96BF48" opacity="0.2"/>
+                <path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="9" cy="20" r="1.2" fill="#5A8A3C"/>
+                <circle cx="15" cy="20" r="1.2" fill="#5A8A3C"/>
+              </svg>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#1F2937', letterSpacing: '-0.01em' }}>Shopify</span>
+            <span style={{ fontSize: 9.5, color: '#9CA3AF', fontWeight: 500 }}>Gallery only</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Footer — mirrors the two-line structure of regular project tile footers */}
+      <div className="px-3 py-2.5">
+        <p className="text-sm font-semibold truncate" style={{
+          color: hovered ? '#111827' : '#9CA3AF',
+          transition: 'color 180ms ease',
+        }}>New project</p>
+        <p className="text-[10px] text-gray-400 mt-0.5">Amazon · Shopify</p>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -469,11 +743,12 @@ export default function Dashboard() {
   const [deleteTarget, setDeleteTarget] = useState<string[] | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  // Platform picker
-  const [platformPickerOpen, setPlatformPickerOpen] = useState(false)
-  const platformPickerRef = useRef<HTMLDivElement>(null)
-  const [newProjectHovered, setNewProjectHovered] = useState(false)
-  const [hoveredPlatform, setHoveredPlatform] = useState<'amazon' | 'shopify' | null>(null)
+  // Search / filter / sort / view
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'updated' | 'name' | 'type'>('updated')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'amazon' | 'shopify'>('all')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const supabase = createClient()
 
@@ -493,14 +768,21 @@ export default function Dashboard() {
     }
   }, [renamingId])
 
-  useEffect(() => {
-    if (!platformPickerOpen) return
-    const handler = (e: MouseEvent) => {
-      if (!platformPickerRef.current?.contains(e.target as Node)) setPlatformPickerOpen(false)
+  // ── Derived: filtered + sorted projects ───────────────────────────────────
+
+  const filteredProjects = useMemo(() => {
+    let result = [...projects]
+    if (typeFilter !== 'all') result = result.filter(p => p.project_type === typeFilter)
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      result = result.filter(p => (p.name || '').toLowerCase().includes(q))
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [platformPickerOpen])
+    if (sortBy === 'name') result.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    else if (sortBy === 'type') result.sort((a, b) => a.project_type.localeCompare(b.project_type))
+    return result
+  }, [projects, typeFilter, searchQuery, sortBy])
+
+  const isLoading = authLoading || loading
 
   // ── Selection helpers ──────────────────────────────────────────────────────
 
@@ -520,7 +802,6 @@ export default function Dashboard() {
 
   const handleNewProject = async (platform: 'amazon' | 'shopify') => {
     if (!user || creating) return
-    setPlatformPickerOpen(false)
     setCreating(true)
     setCreateError(null)
     try {
@@ -606,26 +887,167 @@ export default function Dashboard() {
 
   const handleCloseMenu = useCallback(() => setMenuOpenId(null), [])
 
-  const isLoading = authLoading || loading
+  // ── Counts for filter pills ───────────────────────────────────────────────
+  const amazonCount = projects.filter(p => p.project_type === 'amazon').length
+  const shopifyCount = projects.filter(p => p.project_type === 'shopify').length
+
+  // ── User menu ────────────────────────────────────────────────────────────
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!userMenuOpen) return
+    const handler = (e: MouseEvent) => {
+      if (!userMenuRef.current?.contains(e.target as Node)) setUserMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [userMenuOpen])
+
+  // ── App settings ──────────────────────────────────────────────────────────
+  const { settings: appSettings, update: updateAppSettings } = useAppSettings()
+
+  // ── New Project picker ────────────────────────────────────────────────────
+  const [platformPickerOpen, setPlatformPickerOpen] = useState(false)
+  const platformPickerRef = useRef<HTMLDivElement>(null)
+  const platformPickerOpenRef = useRef(false)
+  platformPickerOpenRef.current = platformPickerOpen
+
+  // ── Shortcuts modal ───────────────────────────────────────────────────────
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const handleNewProjectRef = useRef(handleNewProject)
+  handleNewProjectRef.current = handleNewProject
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const inInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
+
+      // ⌘/ works from anywhere — move before inInput guard
+      if ((e.metaKey || e.ctrlKey) && e.key === '/') { e.preventDefault(); setShortcutsOpen(o => !o); return }
+
+      if (e.key === 'Escape') {
+        setShortcutsOpen(false)
+        setPlatformPickerOpen(false)
+        setUserMenuOpen(false)
+        if (inInput) { setSearchQuery(''); (e.target as HTMLInputElement).blur() }
+        return
+      }
+      if (inInput) return
+
+      if (e.key === '/') { e.preventDefault(); searchInputRef.current?.focus(); return }
+
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault()
+        if (user) setPlatformPickerOpen(o => !o)
+        return
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      // When picker is open: A = Amazon, S = Shopify (read via ref — no stale closure)
+      if (platformPickerOpenRef.current) {
+        if (e.key === 'a' || e.key === 'A') { e.preventDefault(); setPlatformPickerOpen(false); handleNewProjectRef.current('amazon'); return }
+        if (e.key === 's' || e.key === 'S') { e.preventDefault(); setPlatformPickerOpen(false); handleNewProjectRef.current('shopify'); return }
+      }
+
+      switch (e.key) {
+        case 'n': case 'N': if (user) setPlatformPickerOpen(o => !o); break
+        case 'g': case 'G': setViewMode('grid'); break
+        case 'l': case 'L': setViewMode('list'); break
+        case '1': setTypeFilter('all'); break
+        case '2': setTypeFilter('amazon'); break
+        case '3': setTypeFilter('shopify'); break
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [user])
+
+  useEffect(() => {
+    if (!platformPickerOpen) return
+    const handler = (e: MouseEvent) => {
+      if (!platformPickerRef.current?.contains(e.target as Node)) setPlatformPickerOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [platformPickerOpen])
+
+  const handleNewProjectFromHeader = async (platform: 'amazon' | 'shopify') => {
+    setPlatformPickerOpen(false)
+    await handleNewProject(platform)
+  }
+
+  // ── Shared sidebar ────────────────────────────────────────────────────────
+  const platformPickerDropdown = platformPickerOpen && (
+    <div className="absolute left-0 top-full mt-1 z-50 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-lg overflow-hidden animate-scale-in">
+      <div className="px-2 pt-2 pb-1.5 space-y-0.5">
+        <button
+          onClick={() => handleNewProjectFromHeader('amazon')}
+          className="w-full flex items-center gap-2.5 px-2 py-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group text-left"
+        >
+          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ background: '#FFF3E0' }}>
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="#FF9900" opacity="0.15"/>
+              <path d="M7 12h10M12 7l5 5-5 5" stroke="#FF9900" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-semibold text-gray-900 dark:text-white">Amazon</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500">A+ Content &amp; Gallery</p>
+          </div>
+          <kbd className="inline-flex items-center justify-center w-[18px] h-[18px] rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-400 font-mono text-[10px] font-semibold leading-none shrink-0">A</kbd>
+        </button>
+        <button
+          onClick={() => handleNewProjectFromHeader('shopify')}
+          className="w-full flex items-center gap-2.5 px-2 py-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group text-left"
+        >
+          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ background: '#F0F9EE' }}>
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+              <path d="M16 7c-.5-1.5-2-2.5-3.5-2.5-1 0-2 .5-2.5 1.5C9.5 7 9 7 9 7L7.5 17.5l9 1.5L18 9c0 0-1.5-.5-2-2z" fill="#96BF48" opacity="0.15"/>
+              <path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="9" cy="20" r="1.5" fill="#5A8A3C"/>
+              <circle cx="15" cy="20" r="1.5" fill="#5A8A3C"/>
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-semibold text-gray-900 dark:text-white">Shopify</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500">Gallery images only</p>
+          </div>
+          <kbd className="inline-flex items-center justify-center w-[18px] h-[18px] rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-400 font-mono text-[10px] font-semibold leading-none shrink-0">S</kbd>
+        </button>
+        <div className="w-full flex items-center gap-2.5 px-2 py-2 rounded opacity-40 cursor-not-allowed">
+          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-gray-100 dark:bg-gray-800">
+            <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none">
+              <path d="M3 12c0-2 1.5-3.5 3.5-3.5S10 10 10 12s-1.5 3.5-3.5 3.5S3 14 3 12zM10 12h11M17 8l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-semibold text-gray-500 dark:text-gray-400">eBay</p>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500">Coming soon</p>
+          </div>
+        </div>
+      </div>
+      <div className="h-1" />
+    </div>
+  )
 
   // ── Not signed in ──────────────────────────────────────────────────────────
   if (!authLoading && !user) {
     return (
-      <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
-        <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3">
-          <img src="/Favicon.png" alt="Doc's Design Generator" className="w-7 h-7 rounded object-contain shrink-0" />
-          <span className="font-bold text-gray-900 dark:text-white text-base tracking-tight">Doc&rsquo;s Design Generator</span>
-          <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700">Beta</span>
-          <div className="ml-auto flex items-center gap-2">
-            <Link
-              href="/docs"
-              className="h-7 px-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-1.5"
-            >
-              <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
+        <aside className="w-72 shrink-0 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
+          <div className="px-4 h-12 flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 shrink-0">
+            <img src="/Favicon.png" alt="" className="w-5 h-5 rounded object-contain shrink-0" />
+            <span className="font-bold text-gray-900 dark:text-white text-sm tracking-tight truncate">Doc&rsquo;s Design Generator</span>
+          </div>
+          <div className="flex-1" />
+          <div className="px-3 py-3 border-t border-gray-100 dark:border-gray-800">
+            <Link href="/docs" className="flex items-center gap-2 px-2 py-1.5 rounded text-[12px] font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
               Docs
             </Link>
           </div>
-        </header>
+        </aside>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Sign in to manage your projects.</p>
@@ -644,136 +1066,276 @@ export default function Dashboard() {
 
   // ── Main dashboard ─────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Navbar */}
-      <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3">
-        <img src="/Favicon.png" alt="Doc's Design Generator" className="w-7 h-7 rounded object-contain shrink-0" />
-        <span className="font-bold text-gray-900 dark:text-white text-base tracking-tight">Doc&rsquo;s Design Generator</span>
-        <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700">Beta</span>
-        <Link
-          href="/docs"
-          className="h-7 px-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all flex items-center gap-1.5"
-        >
-          <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-          Docs
-        </Link>
-        <div className="ml-auto flex items-center gap-3">
-          {user && (
-            <>
-              <div className="text-right hidden sm:block">
-                <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-none">{user.user_metadata?.full_name ?? user.email}</p>
-                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{user.email}</p>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-white text-[11px] font-bold shrink-0">
-                {(user.email ?? '?')[0].toUpperCase()}
-              </div>
-              <button
-                onClick={signOut}
-                className="h-7 px-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-600 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"
-              >
-                Sign out
-              </button>
-            </>
-          )}
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
+
+      {/* ── Sidebar ── */}
+      <aside className="w-72 shrink-0 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
+
+        {/* Brand */}
+        <div className="px-4 h-12 flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 shrink-0">
+          <img src="/Favicon.png" alt="" className="w-5 h-5 rounded object-contain shrink-0" />
+          <span className="font-bold text-gray-900 dark:text-white text-sm tracking-tight truncate">Doc&rsquo;s Design Generator</span>
         </div>
-      </header>
 
-      {/* Page body */}
-      <div className="flex-1 overflow-y-auto px-6 py-8">
-        <div className="max-w-6xl mx-auto">
-
-          {/* Title row */}
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Projects</h1>
-            <div ref={platformPickerRef} className="relative">
-              <button
-                onClick={() => setPlatformPickerOpen(o => !o)}
-                disabled={creating || !user}
-                className="flex items-center gap-1.5 h-9 px-4 rounded bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {creating ? (
-                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                )}
-                New Project
-              </button>
-
-              {/* Platform picker dropdown */}
-              {platformPickerOpen && (
-                <div className="absolute right-0 top-full mt-2 z-50 w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden animate-scale-in">
-                  <div className="px-3 pt-3 pb-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-2.5">Choose platform</p>
-                    <div className="space-y-1.5">
-
-                      {/* Amazon */}
-                      <button
-                        onClick={() => handleNewProject('amazon')}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group text-left"
-                      >
-                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#FFF3E0' }}>
-                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                            <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="#FF9900" opacity="0.15"/>
-                            <path d="M7 12h10M12 7l5 5-5 5" stroke="#FF9900" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-bold text-gray-900 dark:text-white">Amazon</p>
-                          <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">A+ Content &amp; Gallery images</p>
-                        </div>
-                        <svg className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-
-                      {/* Shopify */}
-                      <button
-                        onClick={() => handleNewProject('shopify')}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group text-left"
-                      >
-                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#F0F9EE' }}>
-                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                            <path d="M16 7c-.5-1.5-2-2.5-3.5-2.5-1 0-2 .5-2.5 1.5C9.5 7 9 7 9 7L7.5 17.5l9 1.5L18 9c0 0-1.5-.5-2-2z" fill="#96BF48" opacity="0.15"/>
-                            <path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <circle cx="9" cy="20" r="1.5" fill="#5A8A3C"/>
-                            <circle cx="15" cy="20" r="1.5" fill="#5A8A3C"/>
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-bold text-gray-900 dark:text-white">Shopify</p>
-                          <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">Gallery images only</p>
-                        </div>
-                        <svg className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-
-                      {/* eBay — disabled */}
-                      <div className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg opacity-40 cursor-not-allowed">
-                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-gray-100 dark:bg-gray-800">
-                          <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none">
-                            <path d="M3 12c0-2 1.5-3.5 3.5-3.5S10 10 10 12s-1.5 3.5-3.5 3.5S3 14 3 12zM10 12h11M17 8l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-bold text-gray-500 dark:text-gray-400">eBay</p>
-                          <p className="text-[11px] text-gray-400 dark:text-gray-500">Coming soon</p>
-                        </div>
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-300 dark:text-gray-600 px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 shrink-0">Soon</span>
-                      </div>
-
-                    </div>
-                  </div>
-                  <div className="h-2" />
-                </div>
+        {/* New Project */}
+        <div className="px-3 pt-3 pb-1 shrink-0">
+          <div ref={platformPickerRef} className="relative">
+            <button
+              onClick={() => setPlatformPickerOpen(o => !o)}
+              disabled={creating || !user}
+              className="w-full flex items-center justify-center gap-1.5 h-8 rounded bg-gray-900 dark:bg-gray-700 text-white text-[12px] font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {creating ? (
+                <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
               )}
+              New Project
+            </button>
+            {platformPickerDropdown}
+          </div>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+
+          {/* Search */}
+          <div className="relative">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search…"
+              className="w-full h-7 pl-7 pr-6 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 text-[11px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600 transition-colors"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Filter */}
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2 mb-1.5">Projects</p>
+            {([
+              { key: 'all' as const, label: 'All', count: projects.length },
+              { key: 'amazon' as const, label: 'Amazon', count: amazonCount },
+              { key: 'shopify' as const, label: 'Shopify', count: shopifyCount },
+            ] as const).map(({ key, label, count }) => (
+              <button
+                key={key}
+                onClick={() => setTypeFilter(key)}
+                className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[12px] transition-colors mb-0.5 ${
+                  typeFilter === key
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-semibold'
+                    : 'font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <span>{label}</span>
+                {!isLoading && <span className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">{count}</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Sort */}
+          {!isLoading && projects.length > 0 && (
+            <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2 mb-1.5">Sort by</p>
+              {([
+                { value: 'updated' as const, label: 'Last modified' },
+                { value: 'name' as const, label: 'Name A–Z' },
+                { value: 'type' as const, label: 'Platform' },
+              ] as const).map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSortBy(opt.value)}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[12px] transition-colors mb-0.5 ${
+                    sortBy === opt.value
+                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-semibold'
+                      : 'font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  <span className={`w-0.5 h-3 rounded-sm shrink-0 transition-colors ${sortBy === opt.value ? 'bg-accent-500' : 'bg-transparent'}`} />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* View */}
+          <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2 mb-1.5">View</p>
+            <div className="flex items-center gap-1 px-2">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`flex items-center gap-1.5 flex-1 justify-center h-7 rounded text-[11px] font-medium transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
+                }`}
+                title="Grid view"
+              >
+                <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                  <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                </svg>
+                Grid
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1.5 flex-1 justify-center h-7 rounded text-[11px] font-medium transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
+                }`}
+                title="List view"
+              >
+                <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                List
+              </button>
             </div>
           </div>
+
+          {/* Settings — collapsible */}
+          <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+            <button
+              onClick={() => setSettingsOpen(o => !o)}
+              className="w-full flex items-center justify-between px-2 py-1 rounded hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors text-left group mb-1"
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">Settings</span>
+              </div>
+              <svg
+                className={`w-3 h-3 text-gray-300 dark:text-gray-600 transition-transform duration-200 ${settingsOpen ? 'rotate-180' : ''}`}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <div style={{ display: 'grid', gridTemplateRows: settingsOpen ? '1fr' : '0fr', transition: 'grid-template-rows 200ms ease' }}>
+              <div style={{ overflow: 'hidden' }}>
+                <div className="px-2 pt-1 pb-2 space-y-3">
+
+                  <div>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Theme</p>
+                    <div className="flex items-center gap-1">
+                      {(['light', 'dark'] as const).map(t => (
+                        <button
+                          key={t}
+                          onClick={() => updateAppSettings({ theme: t })}
+                          className={`flex items-center gap-1.5 flex-1 justify-center h-7 rounded text-[11px] font-medium transition-colors ${
+                            appSettings.theme === t
+                              ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
+                          }`}
+                        >
+                          {t === 'light'
+                            ? <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="4"/><path strokeLinecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                            : <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                          }
+                          {t === 'light' ? 'Light' : 'Dark'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Export format</p>
+                    <div className="flex items-center gap-1">
+                      {(['png', 'jpeg'] as const).map(f => (
+                        <button
+                          key={f}
+                          onClick={() => updateAppSettings({ exportFormat: f })}
+                          className={`flex-1 h-7 rounded text-[11px] font-medium transition-colors uppercase ${
+                            appSettings.exportFormat === f
+                              ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
+                          }`}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Docs + Shortcuts */}
+          <div className="pt-3 border-t border-gray-100 dark:border-gray-800 space-y-0.5">
+            <Link
+              href="/docs"
+              className="flex items-center gap-2 px-2 py-1.5 rounded text-[12px] font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+              Docs
+            </Link>
+            <button
+              onClick={() => setShortcutsOpen(true)}
+              className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-[12px] font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                Shortcuts
+              </span>
+              <div className="flex items-center gap-0.5">
+                <kbd className="inline-flex items-center justify-center px-1 h-[18px] rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-mono text-[10px] font-semibold text-gray-400 dark:text-gray-500 leading-none">⌘</kbd>
+                <kbd className="inline-flex items-center justify-center px-1 h-[18px] rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-mono text-[10px] font-semibold text-gray-400 dark:text-gray-500 leading-none">/</kbd>
+              </div>
+            </button>
+          </div>
+        </nav>
+
+        {/* User */}
+        <div className="shrink-0 px-3 py-3 border-t border-gray-100 dark:border-gray-800">
+          <div ref={userMenuRef} className="relative">
+            <button
+              onClick={() => setUserMenuOpen(o => !o)}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left group"
+            >
+              <div className="w-5 h-5 rounded-full bg-gray-800 dark:bg-gray-600 flex items-center justify-center text-white text-[9px] font-bold shrink-0">
+                {(user?.email ?? '?')[0].toUpperCase()}
+              </div>
+              <span className="text-[11px] text-gray-600 dark:text-gray-400 truncate flex-1">{user?.email}</span>
+              <svg className="w-3 h-3 text-gray-300 dark:text-gray-600 shrink-0 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+              </svg>
+            </button>
+            {userMenuOpen && (
+              <div className="absolute left-0 bottom-full mb-1 z-50 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-lg overflow-hidden animate-scale-in">
+                <button
+                  onClick={() => { setUserMenuOpen(false); signOut() }}
+                  className="w-full text-left px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+
+      {/* ── Main ── */}
+      <div className="flex-1 min-w-0 overflow-y-auto px-6 py-6">
+          <div className="max-w-5xl mx-auto">
 
           {/* Selection toolbar */}
           <div
@@ -850,184 +1412,112 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Grid */}
+          {/* Content */}
           {!isLoading && (
-            <div className={projects.length === 0
-              ? 'max-w-[220px] mx-auto'
-              : 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6'
-            }>
-              {/* New project card */}
-              <div
-                onMouseEnter={() => { if (!creating && user) setNewProjectHovered(true) }}
-                onMouseLeave={() => { setNewProjectHovered(false); setHoveredPlatform(null) }}
-                className="relative flex flex-col rounded overflow-hidden select-none"
-                style={{
-                  border: `2px ${newProjectHovered ? 'solid' : 'dashed'} ${newProjectHovered ? '#94A3B8' : '#D1D5DB'}`,
-                  background: 'white',
-                  transform: newProjectHovered ? 'scale(1.02) translateY(-2px)' : 'scale(1) translateY(0)',
-                  boxShadow: newProjectHovered ? '0 8px 24px rgba(0,0,0,0.10)' : 'none',
-                  transition: 'transform 240ms cubic-bezier(0.34,1.56,0.64,1), box-shadow 240ms ease, border-color 180ms ease',
-                  opacity: (!user) ? 0.5 : 1,
-                  cursor: creating ? 'default' : 'pointer',
-                }}
-              >
-                {/* Content area — same aspect ratio as project tile thumbnails */}
-                <div className="relative aspect-video bg-gray-100">
-
-                  {/* Platform half-fills — shown on hover */}
-                  <div style={{
-                    position: 'absolute', left: 0, top: 0, bottom: 0, width: '50%',
-                    background: '#FFF3E0',
-                    opacity: hoveredPlatform === 'amazon' ? 1 : 0,
-                    transition: 'opacity 140ms ease',
-                    pointerEvents: 'none', zIndex: 0,
-                  }}/>
-                  <div style={{
-                    position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%',
-                    background: '#F0FDF4',
-                    opacity: hoveredPlatform === 'shopify' ? 1 : 0,
-                    transition: 'opacity 140ms ease',
-                    pointerEvents: 'none', zIndex: 0,
-                  }}/>
-
-                  {/* Creating spinner */}
-                  {creating && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
-                      <svg className="animate-spin w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                      </svg>
-                    </div>
-                  )}
-
-                  {/* Default: + icon */}
-                  <div style={{
-                    position: 'absolute', inset: 0, zIndex: 1,
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    color: '#9CA3AF',
-                    opacity: newProjectHovered ? 0 : 1,
-                    transform: newProjectHovered ? 'scale(0.75) rotate(45deg)' : 'scale(1) rotate(0deg)',
-                    transition: 'opacity 180ms ease, transform 220ms cubic-bezier(0.4,0,0.2,1)',
-                    pointerEvents: 'none',
-                  }}>
-                    <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
-                    </svg>
+            <>
+              {/* Empty state — no projects at all */}
+              {projects.length === 0 && (
+                <div className="flex flex-col items-center max-w-xs mx-auto pt-10">
+                  <div className="max-w-[180px] mx-auto w-full">
+                    <NewProjectCard creating={creating} user={user} onNewProject={handleNewProject} />
                   </div>
-
-                  {/* Hover: platform options */}
-                  <div style={{
-                    position: 'absolute', inset: 0, zIndex: 1,
-                    display: 'flex',
-                    pointerEvents: newProjectHovered ? 'auto' : 'none',
-                  }}>
-                    {/* Amazon */}
-                    <button
-                      onClick={() => handleNewProject('amazon')}
-                      onMouseEnter={() => setHoveredPlatform('amazon')}
-                      onMouseLeave={() => setHoveredPlatform(null)}
-                      className="flex-1 flex flex-col items-center justify-center gap-1.5 border-none outline-none"
-                      style={{
-                        background: 'transparent', cursor: 'pointer',
-                        opacity: newProjectHovered ? 1 : 0,
-                        transform: newProjectHovered ? 'translateY(0px)' : 'translateY(14px)',
-                        transition: 'opacity 240ms cubic-bezier(0.34,1.56,0.64,1) 30ms, transform 300ms cubic-bezier(0.34,1.56,0.64,1) 30ms',
-                      }}
-                    >
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center transition-transform"
-                        style={{
-                          background: hoveredPlatform === 'amazon' ? '#FFE0B2' : '#FFF3E0',
-                          transform: hoveredPlatform === 'amazon' ? 'scale(1.12)' : 'scale(1)',
-                          transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), background 140ms ease',
-                        }}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="#FF9900" opacity="0.2"/>
-                          <path d="M6.5 12.5c0 0 1.2 2.5 5.5 2.5s5.5-2.5 5.5-2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
-                          <path d="M15.5 11l2 1.5-2 1.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M8 7.5h8M12 7.5v2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
-                        </svg>
+                  <p className="mt-6 text-[13px] font-semibold text-gray-700 dark:text-gray-300 text-center">Create your first project</p>
+                  <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500 text-center leading-relaxed">Use New Project in the sidebar to get started</p>
+                  <div className="mt-7 w-full space-y-2.5">
+                    {([
+                      'Import your product list via CSV',
+                      'Pick templates and fill in content',
+                      'Render and export images to Canto',
+                    ] as const).map((label, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="w-5 h-5 rounded bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 flex items-center justify-center shrink-0 text-[9px] font-bold tabular-nums">
+                          {i + 1}
+                        </div>
+                        <p className="text-[12px] text-gray-500 dark:text-gray-400">{label}</p>
                       </div>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#1F2937', letterSpacing: '-0.01em' }}>Amazon</span>
-                      <span style={{ fontSize: 9.5, color: '#9CA3AF', fontWeight: 500 }}>A+ &amp; Gallery</span>
-                    </button>
-
-                    {/* Divider */}
-                    <div style={{
-                      width: 1, alignSelf: 'stretch', margin: '10px 0',
-                      background: '#E5E7EB',
-                      opacity: newProjectHovered ? 1 : 0,
-                      transition: 'opacity 200ms ease 80ms',
-                    }}/>
-
-                    {/* Shopify */}
-                    <button
-                      onClick={() => handleNewProject('shopify')}
-                      onMouseEnter={() => setHoveredPlatform('shopify')}
-                      onMouseLeave={() => setHoveredPlatform(null)}
-                      className="flex-1 flex flex-col items-center justify-center gap-1.5 border-none outline-none"
-                      style={{
-                        background: 'transparent', cursor: 'pointer',
-                        opacity: newProjectHovered ? 1 : 0,
-                        transform: newProjectHovered ? 'translateY(0px)' : 'translateY(14px)',
-                        transition: 'opacity 240ms cubic-bezier(0.34,1.56,0.64,1) 100ms, transform 300ms cubic-bezier(0.34,1.56,0.64,1) 100ms',
-                      }}
-                    >
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                        style={{
-                          background: hoveredPlatform === 'shopify' ? '#BBDFC8' : '#F0FDF4',
-                          transform: hoveredPlatform === 'shopify' ? 'scale(1.12)' : 'scale(1)',
-                          transition: 'transform 200ms cubic-bezier(0.34,1.56,0.64,1), background 140ms ease',
-                        }}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                          <path d="M16 7c-.5-1.5-2-2.5-3.5-2.5-1 0-2 .5-2.5 1.5C9.5 7 9 7 9 7L7.5 17.5l9 1.5L18 9c0 0-1.5-.5-2-2z" fill="#96BF48" opacity="0.2"/>
-                          <path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                          <circle cx="9" cy="20" r="1.2" fill="#5A8A3C"/>
-                          <circle cx="15" cy="20" r="1.2" fill="#5A8A3C"/>
-                        </svg>
-                      </div>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#1F2937', letterSpacing: '-0.01em' }}>Shopify</span>
-                      <span style={{ fontSize: 9.5, color: '#9CA3AF', fontWeight: 500 }}>Gallery only</span>
-                    </button>
+                    ))}
                   </div>
                 </div>
+              )}
 
-                {/* Footer — mirrors the two-line structure of regular project tile footers */}
-                <div className="px-3 py-2.5">
-                  <p className="text-sm font-semibold truncate" style={{
-                    color: newProjectHovered ? '#111827' : '#9CA3AF',
-                    transition: 'color 180ms ease',
-                  }}>New project</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Amazon · Shopify</p>
+              {/* No filter results */}
+              {projects.length > 0 && filteredProjects.length === 0 && (searchQuery || typeFilter !== 'all') && (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <svg className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">No projects match your filters</p>
+                  <button
+                    onClick={() => { setSearchQuery(''); setTypeFilter('all') }}
+                    className="mt-3 text-[12px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline transition-colors"
+                  >
+                    Clear filters
+                  </button>
                 </div>
-              </div>
+              )}
 
-              {/* Project cards */}
-              {projects.map((project, idx) => (
-                <ProjectCard
-                  key={project.id}
-                  project={project}
-                  isSelected={selectedIds.has(project.id)}
-                  isSelectMode={isSelectMode}
-                  isMenuOpen={menuOpenId === project.id}
-                  isRenaming={renamingId === project.id}
-                  renameValue={renamingId === project.id ? renameValue : undefined}
-                  renameInputRef={renameInputRef}
-                  animationDelay={idx * 40}
-                  onToggleSelect={toggleSelect}
-                  onToggleMenu={handleToggleMenu}
-                  onCloseMenu={handleCloseMenu}
-                  onStartRename={startRename}
-                  onCommitRename={commitRename}
-                  onRenameKeyDown={handleRenameKeyDown}
-                  onSetRenameValue={setRenameValue}
-                  onDelete={handleDeleteProject}
-                  onDuplicate={handleDuplicate}
-                />
-              ))}
-            </div>
+              {/* Grid or List */}
+              {filteredProjects.length > 0 && (
+                viewMode === 'grid' ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {filteredProjects.map((project, idx) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        isSelected={selectedIds.has(project.id)}
+                        isSelectMode={isSelectMode}
+                        isMenuOpen={menuOpenId === project.id}
+                        isRenaming={renamingId === project.id}
+                        renameValue={renamingId === project.id ? renameValue : undefined}
+                        renameInputRef={renameInputRef}
+                        animationDelay={idx * 40}
+                        viewMode="grid"
+                        productCount={project.template_state?.products?.length ?? 0}
+                        onToggleSelect={toggleSelect}
+                        onToggleMenu={handleToggleMenu}
+                        onCloseMenu={handleCloseMenu}
+                        onStartRename={startRename}
+                        onCommitRename={commitRename}
+                        onRenameKeyDown={handleRenameKeyDown}
+                        onSetRenameValue={setRenameValue}
+                        onDelete={handleDeleteProject}
+                        onDuplicate={handleDuplicate}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-0 border border-gray-100 dark:border-gray-700/70 rounded overflow-hidden shadow-sm">
+                    {filteredProjects.map((project, idx) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        isSelected={selectedIds.has(project.id)}
+                        isSelectMode={isSelectMode}
+                        isMenuOpen={menuOpenId === project.id}
+                        isRenaming={renamingId === project.id}
+                        renameValue={renamingId === project.id ? renameValue : undefined}
+                        renameInputRef={renameInputRef}
+                        animationDelay={idx * 20}
+                        viewMode="list"
+                        productCount={project.template_state?.products?.length ?? 0}
+                        onToggleSelect={toggleSelect}
+                        onToggleMenu={handleToggleMenu}
+                        onCloseMenu={handleCloseMenu}
+                        onStartRename={startRename}
+                        onCommitRename={commitRename}
+                        onRenameKeyDown={handleRenameKeyDown}
+                        onSetRenameValue={setRenameValue}
+                        onDelete={handleDeleteProject}
+                        onDuplicate={handleDuplicate}
+                      />
+                    ))}
+                  </div>
+                )
+              )}
+            </>
           )}
 
-        </div>
+          </div>
       </div>
 
       {/* Delete confirmation modal */}
@@ -1039,6 +1529,8 @@ export default function Dashboard() {
           loading={deleting}
         />
       )}
+
+      <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   )
 }
