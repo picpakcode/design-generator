@@ -47,6 +47,30 @@ import type { DbProject } from '@/lib/db'
 import AuthModal from './AuthModal'
 import type { DesignState } from '@/types'
 
+// ─── Platform brand marks ─────────────────────────────────────────────────────
+
+function AmazonMark({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8.5 13.5V10C8.5 7.8 10 6.2 12.2 6.2s3.8 1.6 3.8 3.8V12c0 1.2-1 2.2-2.2 2.2H10" stroke="#FF9900" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M4.5 17.5c3 2 10.5 2.5 14.5 0" stroke="#FF9900" strokeWidth="1.6" strokeLinecap="round"/>
+      <path d="M17.5 16l2.5 1.5-.5-2.5" fill="#FF9900"/>
+    </svg>
+  )
+}
+
+function ShopifyMark({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M15.5 5.5c-.4-1.8-1.9-3-3.3-3C11 2.5 9.8 3.5 9.5 5" stroke="#5E8E3E" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M5.5 8.5L4.5 20l14 2L20 9 5.5 8.5z" fill="#95BF47" fillOpacity="0.25" stroke="#5E8E3E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="8.5" cy="21.5" r="1.25" fill="#5E8E3E"/>
+      <circle cx="15.5" cy="21.5" r="1.25" fill="#5E8E3E"/>
+      <path d="M9.5 12c.8-1.2 4.5-.8 4 1s-4 1-3.5 2.8 4.5 1 4 2.2" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(iso: string): string {
@@ -953,11 +977,8 @@ export default function Dashboard() {
           onClick={() => handleNewProjectFromHeader('amazon')}
           className="w-full flex items-center gap-2.5 px-2 py-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group text-left"
         >
-          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ background: '#FFF3E0' }}>
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="#FF9900" opacity="0.15"/>
-              <path d="M7 12h10M12 7l5 5-5 5" stroke="#FF9900" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-[#FFF3E0]">
+            <AmazonMark className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-semibold text-gray-900 dark:text-white">Amazon</p>
@@ -969,13 +990,8 @@ export default function Dashboard() {
           onClick={() => handleNewProjectFromHeader('shopify')}
           className="w-full flex items-center gap-2.5 px-2 py-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group text-left"
         >
-          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ background: '#F0F9EE' }}>
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-              <path d="M16 7c-.5-1.5-2-2.5-3.5-2.5-1 0-2 .5-2.5 1.5C9.5 7 9 7 9 7L7.5 17.5l9 1.5L18 9c0 0-1.5-.5-2-2z" fill="#96BF48" opacity="0.15"/>
-              <path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="9" cy="20" r="1.5" fill="#5A8A3C"/>
-              <circle cx="15" cy="20" r="1.5" fill="#5A8A3C"/>
-            </svg>
+          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-[#F0F9EE]">
+            <ShopifyMark className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-semibold text-gray-900 dark:text-white">Shopify</p>
@@ -1104,11 +1120,11 @@ export default function Dashboard() {
               },
               {
                 key: 'amazon' as const, label: 'Amazon', count: amazonCount,
-                icon: <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none"><path d="M6.5 12.5c0 0 1.2 2 5.5 2s5.5-2 5.5-2" stroke="#FF9900" strokeWidth={1.75} strokeLinecap="round"/><path d="M15.5 11l2 1.5-2 1.5" stroke="#FF9900" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/></svg>,
+                icon: <AmazonMark className="w-3.5 h-3.5 shrink-0" />,
               },
               {
                 key: 'shopify' as const, label: 'Shopify', count: shopifyCount,
-                icon: <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none"><path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/><circle cx="9.5" cy="20" r="1" fill="#5A8A3C"/><circle cx="15.5" cy="20" r="1" fill="#5A8A3C"/></svg>,
+                icon: <ShopifyMark className="w-3.5 h-3.5 shrink-0" />,
               },
             ] as const).map(({ key, label, count, icon }) => (
               <button

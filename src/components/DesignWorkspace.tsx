@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { Category, DesignBlock, DesignState, Format, FormatSettings, GalleryBlock, GalleryTemplateId, PhotoComposition, DEFAULT_PHOTO_COMP, TemplateId, TextTransform, UploadedAsset } from '@/types'
 import { createClient } from '@/lib/supabase/client'
@@ -1337,12 +1338,12 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     return (
       <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
         <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3 shadow-sm">
-          <a href="/dashboard" className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all shrink-0">
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
             Projects
-          </a>
+          </Link>
         </header>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
