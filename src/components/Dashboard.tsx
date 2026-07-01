@@ -98,13 +98,13 @@ const ProjectCard = React.memo(function ProjectCard({
   const timeStr = useMemo(() => timeAgo(project.updated_at), [project.updated_at])
 
   const platformBadge = (
-    <div className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest shrink-0 ${
+    <span className={`badge shrink-0 ${
       project.project_type === 'shopify'
-        ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-        : 'bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400'
+        ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+        : 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'
     }`}>
       {project.project_type === 'shopify' ? 'Shopify' : 'Amazon'}
-    </div>
+    </span>
   )
 
   const thumbnailPlaceholder = (isMini: boolean) => (
@@ -152,19 +152,11 @@ const ProjectCard = React.memo(function ProjectCard({
       {isMenuOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={onCloseMenu} />
-          <div className="absolute bottom-full right-0 mb-1 w-36 bg-white dark:bg-gray-900 rounded shadow-lg border border-gray-100 dark:border-gray-700 py-1.5 z-50 animate-slide-down" style={{ transformOrigin: 'bottom right' }}>
-            <button
-              onClick={e => { e.stopPropagation(); onStartRename(project) }}
-              className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >Rename</button>
-            <button
-              onClick={e => { e.stopPropagation(); onDuplicate(project.id) }}
-              className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >Duplicate</button>
-            <button
-              onClick={e => { e.stopPropagation(); onDelete(project.id) }}
-              className="w-full text-left px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-            >Delete</button>
+          <div className="absolute bottom-full right-0 mb-1 w-36 menu z-50 animate-slide-down" style={{ transformOrigin: 'bottom right' }}>
+            <button onClick={e => { e.stopPropagation(); onStartRename(project) }} className="menu-item">Rename</button>
+            <button onClick={e => { e.stopPropagation(); onDuplicate(project.id) }} className="menu-item">Duplicate</button>
+            <div className="menu-separator" />
+            <button onClick={e => { e.stopPropagation(); onDelete(project.id) }} className="menu-item text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20">Delete</button>
           </div>
         </>
       )}
@@ -174,25 +166,23 @@ const ProjectCard = React.memo(function ProjectCard({
   if (viewMode === 'list') {
     return (
       <div
-        className={`group relative flex items-center gap-3 bg-white dark:bg-gray-900 border-b last:border-b-0 px-3 py-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50 animate-fade-in ${
-          isSelected
-            ? 'border-accent-200 dark:border-accent-900 bg-accent-50/30 dark:bg-accent-950/20'
-            : 'border-gray-200 dark:border-gray-700'
+        className={`group relative flex items-center gap-3 bg-white dark:bg-gray-900 border-b last:border-b-0 px-4 py-2.5 transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/40 animate-fade-in ${
+          isSelected ? 'bg-accent-50/40 dark:bg-accent-950/20 border-gray-200 dark:border-gray-700' : 'border-gray-100 dark:border-gray-800'
         }`}
         style={{ animationDelay: `${animationDelay}ms` }}
       >
         {/* Checkbox */}
         <button
           onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleSelect(project.id) }}
-          className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+          className={`shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
             isSelected
               ? 'bg-accent-600 border-accent-600 opacity-100'
-              : 'bg-white/90 dark:bg-gray-900/90 border-gray-300 dark:border-gray-500 opacity-0 group-hover:opacity-100'
+              : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 opacity-0 group-hover:opacity-100'
           } ${isSelectMode ? 'opacity-100' : ''}`}
           title={isSelected ? 'Deselect' : 'Select'}
         >
           {isSelected && (
-            <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           )}
@@ -202,7 +192,7 @@ const ProjectCard = React.memo(function ProjectCard({
         <a
           href={isSelectMode ? undefined : `/project/${project.id}`}
           onClick={isSelectMode ? e => { e.preventDefault(); onToggleSelect(project.id) } : undefined}
-          className="shrink-0 w-20 h-12 rounded overflow-hidden bg-gray-100 dark:bg-gray-800 block"
+          className="shrink-0 w-16 h-10 rounded overflow-hidden bg-gray-100 dark:bg-gray-800 block border border-gray-100 dark:border-gray-700"
         >
           {project.thumbnail_url ? (
             <img src={project.thumbnail_url} alt={project.name || 'Untitled'} className="w-full h-full object-cover" />
@@ -211,7 +201,7 @@ const ProjectCard = React.memo(function ProjectCard({
           )}
         </a>
 
-        {/* Middle: name + time */}
+        {/* Middle: name + meta */}
         <a
           href={isSelectMode ? undefined : `/project/${project.id}`}
           onClick={isSelectMode ? e => { e.preventDefault(); onToggleSelect(project.id) } : undefined}
@@ -225,22 +215,22 @@ const ProjectCard = React.memo(function ProjectCard({
               onChange={e => onSetRenameValue(e.target.value)}
               onBlur={() => onCommitRename(project.id)}
               onKeyDown={e => onRenameKeyDown(e, project.id)}
-              className="w-full text-sm font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="input input-sm w-full max-w-xs"
               onClick={e => e.stopPropagation()}
             />
           ) : (
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+            <p className="text-[13px] font-semibold text-gray-900 dark:text-white truncate leading-snug">
               {project.name || 'Untitled'}
             </p>
           )}
-          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">Updated {timeStr}</p>
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 leading-none">{timeStr}</p>
         </a>
 
-        {/* Right: badge + product count + menu */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right: badge + count + menu */}
+        <div className="flex items-center gap-2.5 shrink-0">
           {platformBadge}
           {productCount > 0 && (
-            <span className="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">{productCount} products</span>
+            <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{productCount}p</span>
           )}
           {!isSelectMode && dotMenu}
         </div>
@@ -251,25 +241,25 @@ const ProjectCard = React.memo(function ProjectCard({
   // Grid mode
   return (
     <div
-      className={`group relative flex flex-col bg-white dark:bg-gray-900 rounded border transition-all overflow-hidden animate-fade-in ${
+      className={`group relative flex flex-col bg-white dark:bg-gray-900 rounded-lg border transition-all overflow-hidden animate-fade-in ${
         isSelected
-          ? 'border-accent-400 dark:border-accent-500 ring-2 ring-accent-200 dark:ring-accent-900 shadow-md'
-          : 'border-gray-100 dark:border-gray-700/70 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-gray-200 dark:hover:border-gray-600'
+          ? 'border-accent-300 dark:border-accent-700 ring-2 ring-accent-500/20 dark:ring-accent-500/20 shadow-sm'
+          : 'border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300 dark:hover:border-gray-600'
       }`}
       style={{ animationDelay: `${animationDelay}ms` }}
     >
       {/* Checkbox */}
       <button
         onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleSelect(project.id) }}
-        className={`absolute top-2 left-2 z-10 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+        className={`absolute top-2.5 left-2.5 z-10 w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
           isSelected
             ? 'bg-accent-600 border-accent-600 opacity-100'
-            : 'bg-white/90 dark:bg-gray-900/90 border-gray-300 dark:border-gray-500 backdrop-blur-sm opacity-0 group-hover:opacity-100'
+            : 'bg-white/90 dark:bg-gray-900/90 border-gray-300 dark:border-gray-600 backdrop-blur-sm opacity-0 group-hover:opacity-100'
         } ${isSelectMode ? 'opacity-100' : ''}`}
         title={isSelected ? 'Deselect' : 'Select'}
       >
         {isSelected && (
-          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+          <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         )}
@@ -279,7 +269,7 @@ const ProjectCard = React.memo(function ProjectCard({
       <a
         href={isSelectMode ? undefined : `/project/${project.id}`}
         onClick={isSelectMode ? e => { e.preventDefault(); onToggleSelect(project.id) } : undefined}
-        className="relative block aspect-video overflow-hidden bg-gray-100 dark:bg-gray-800"
+        className="relative block aspect-video overflow-hidden bg-gray-50 dark:bg-gray-800"
         tabIndex={0}
       >
         {project.thumbnail_url ? (
@@ -294,7 +284,7 @@ const ProjectCard = React.memo(function ProjectCard({
       </a>
 
       {/* Footer */}
-      <div className="px-3 py-3 flex items-start justify-between gap-2">
+      <div className="px-3 pt-2.5 pb-3 flex items-start gap-2">
         <div className="min-w-0 flex-1">
           {isRenaming ? (
             <input
@@ -304,22 +294,25 @@ const ProjectCard = React.memo(function ProjectCard({
               onChange={e => onSetRenameValue(e.target.value)}
               onBlur={() => onCommitRename(project.id)}
               onKeyDown={e => onRenameKeyDown(e, project.id)}
-              className="w-full text-sm font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-gray-400"
+              className="input input-sm w-full"
               onClick={e => e.stopPropagation()}
             />
           ) : (
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate leading-snug">
+            <a
+              href={isSelectMode ? undefined : `/project/${project.id}`}
+              onClick={isSelectMode ? e => { e.preventDefault(); onToggleSelect(project.id) } : undefined}
+              className="block text-[13px] font-semibold text-gray-900 dark:text-white truncate leading-snug hover:text-accent-600 dark:hover:text-accent-400 transition-colors"
+            >
               {project.name || 'Untitled'}
-            </p>
+            </a>
           )}
-          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+          <div className="flex items-center gap-1.5 mt-1.5">
             {platformBadge}
-            <p className="text-[10px] text-gray-400 dark:text-gray-500">
-              {timeStr}{productCount > 0 ? ` · ${productCount} products` : ''}
-            </p>
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">
+              {timeStr}{productCount > 0 ? ` · ${productCount}p` : ''}
+            </span>
           </div>
         </div>
-
         {!isSelectMode && dotMenu}
       </div>
     </div>
@@ -502,54 +495,29 @@ function DeleteConfirmModal({
   loading: boolean
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onCancel} />
-      <div className="relative w-full max-w-sm bg-white dark:bg-gray-900 rounded border border-gray-100 dark:border-gray-700 overflow-hidden shadow-2xl animate-scale-in">
+    <div className="modal-backdrop z-50">
+      <div className="absolute inset-0 animate-fade-in" onClick={onCancel} />
+      <div className="modal-panel w-full max-w-[360px] animate-scale-in">
         <div className="px-6 pt-6 pb-5 flex flex-col items-center text-center gap-4">
-          {/* Icon */}
-          <div className="w-12 h-12 rounded bg-red-50 dark:bg-red-950/40 flex items-center justify-center shrink-0">
-            <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/40 flex items-center justify-center shrink-0">
+            <svg className="w-4.5 h-4.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
           </div>
-
-          {/* Copy */}
           <div>
-            <h2 className="text-[15px] font-bold text-gray-900 dark:text-white">
-              Delete {count === 1 ? 'project' : `${count} projects`}?
-            </h2>
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">
-              This action cannot be undone.
-            </p>
+            <h2 className="heading-sm">Delete {count === 1 ? 'project' : `${count} projects`}?</h2>
+            <p className="body-sm mt-1">This cannot be undone.</p>
           </div>
         </div>
-
-        {/* Actions */}
-        <div className="px-5 pb-5 flex gap-2.5">
-          <button
-            onClick={onCancel}
-            className="flex-1 h-9 rounded border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className="flex-1 h-9 rounded bg-red-500 hover:bg-red-600 text-white text-sm font-semibold disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
-          >
+        <div className="px-5 pb-5 flex gap-2">
+          <button onClick={onCancel} className="btn btn-md btn-secondary flex-1">Cancel</button>
+          <button onClick={onConfirm} disabled={loading} className="btn btn-md btn-danger flex-1">
             {loading ? (
               <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-            ) : (
-              <>
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete
-              </>
-            )}
+            ) : 'Delete'}
           </button>
         </div>
       </div>
@@ -1036,25 +1004,23 @@ export default function Dashboard() {
     return (
       <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
         <aside className="w-72 shrink-0 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
-          <div className="px-4 h-12 flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 shrink-0">
-            <img src="/Favicon.png" alt="" className="w-5 h-5 rounded object-contain shrink-0" />
-            <span className="font-bold text-gray-900 dark:text-white text-sm tracking-tight truncate">Doc&rsquo;s Design Generator</span>
-          </div>
-          <div className="flex-1" />
-          <div className="px-3 py-3 border-t border-gray-100 dark:border-gray-800">
-            <Link href="/docs" className="flex items-center gap-2 px-2 py-1.5 rounded text-[12px] font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors">
-              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-              Docs
-            </Link>
+          <div className="h-12 flex items-center gap-2.5 px-4 border-b border-gray-100 dark:border-gray-800">
+            <div className="w-6 h-6 rounded overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <img src="/Favicon.png" alt="" className="w-5 h-5 object-contain" />
+            </div>
+            <span className="heading-sm truncate">Doc&rsquo;s Design Generator</span>
           </div>
         </aside>
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Sign in to manage your projects.</p>
-            <button
-              onClick={() => setAuthModalOpen(true)}
-              className="h-9 px-5 rounded bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
-            >
+          <div className="text-center max-w-xs">
+            <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <p className="heading-sm mb-1">Welcome back</p>
+            <p className="body-sm mb-5">Sign in to access your projects.</p>
+            <button onClick={() => setAuthModalOpen(true)} className="btn btn-md btn-primary">
               Sign in
             </button>
           </div>
@@ -1072,18 +1038,20 @@ export default function Dashboard() {
       <aside className="w-72 shrink-0 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
 
         {/* Brand */}
-        <div className="px-4 h-12 flex items-center gap-2 border-b border-gray-100 dark:border-gray-800 shrink-0">
-          <img src="/Favicon.png" alt="" className="w-5 h-5 rounded object-contain shrink-0" />
-          <span className="font-bold text-gray-900 dark:text-white text-sm tracking-tight truncate">Doc&rsquo;s Design Generator</span>
+        <div className="h-12 flex items-center gap-2.5 px-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
+          <div className="w-6 h-6 rounded overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+            <img src="/Favicon.png" alt="" className="w-5 h-5 object-contain" />
+          </div>
+          <span className="heading-sm truncate">Doc&rsquo;s Design Generator</span>
         </div>
 
         {/* New Project */}
-        <div className="px-3 pt-3 pb-1 shrink-0">
+        <div className="px-3 pt-3 pb-2 shrink-0">
           <div ref={platformPickerRef} className="relative">
             <button
               onClick={() => setPlatformPickerOpen(o => !o)}
               disabled={creating || !user}
-              className="w-full flex items-center justify-center gap-1.5 h-8 rounded bg-gray-900 dark:bg-gray-700 text-white text-[12px] font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn btn-md btn-primary w-full"
             >
               {creating ? (
                 <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
@@ -1102,11 +1070,11 @@ export default function Dashboard() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
 
           {/* Search */}
           <div className="relative">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
@@ -1114,12 +1082,12 @@ export default function Dashboard() {
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search…"
-              className="w-full h-7 pl-7 pr-6 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 text-[11px] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600 transition-colors"
+              placeholder="Search projects…"
+              className="input input-sm w-full pl-8 pr-7 bg-gray-50 dark:bg-gray-800/60"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 btn-ghost w-4 h-4 flex items-center justify-center rounded">
+                <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -1128,23 +1096,35 @@ export default function Dashboard() {
 
           {/* Filter */}
           <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2 mb-1.5">Projects</p>
+            <p className="label-xs px-2 mb-1.5">Projects</p>
             {([
-              { key: 'all' as const, label: 'All', count: projects.length },
-              { key: 'amazon' as const, label: 'Amazon', count: amazonCount },
-              { key: 'shopify' as const, label: 'Shopify', count: shopifyCount },
-            ] as const).map(({ key, label, count }) => (
+              {
+                key: 'all' as const, label: 'All Projects', count: projects.length,
+                icon: <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
+              },
+              {
+                key: 'amazon' as const, label: 'Amazon', count: amazonCount,
+                icon: <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none"><path d="M6.5 12.5c0 0 1.2 2 5.5 2s5.5-2 5.5-2" stroke="#FF9900" strokeWidth={1.75} strokeLinecap="round"/><path d="M15.5 11l2 1.5-2 1.5" stroke="#FF9900" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/></svg>,
+              },
+              {
+                key: 'shopify' as const, label: 'Shopify', count: shopifyCount,
+                icon: <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none"><path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round"/><circle cx="9.5" cy="20" r="1" fill="#5A8A3C"/><circle cx="15.5" cy="20" r="1" fill="#5A8A3C"/></svg>,
+              },
+            ] as const).map(({ key, label, count, icon }) => (
               <button
                 key={key}
                 onClick={() => setTypeFilter(key)}
-                className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[12px] transition-colors mb-0.5 ${
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[12px] transition-colors mb-px ${
                   typeFilter === key
-                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-semibold'
-                    : 'font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-medium'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
-                <span>{label}</span>
-                {!isLoading && <span className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">{count}</span>}
+                <span className={`transition-colors ${typeFilter === key ? 'text-gray-600 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}`}>{icon}</span>
+                <span className="flex-1 text-left">{label}</span>
+                {!isLoading && count > 0 && (
+                  <span className={`text-[10px] tabular-nums font-medium ${typeFilter === key ? 'text-gray-500 dark:text-gray-400' : 'text-gray-300 dark:text-gray-600'}`}>{count}</span>
+                )}
               </button>
             ))}
           </div>
@@ -1152,7 +1132,7 @@ export default function Dashboard() {
           {/* Sort */}
           {!isLoading && projects.length > 0 && (
             <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
-              <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2 mb-1.5">Sort by</p>
+              <p className="label-xs px-2 mb-1.5">Sort</p>
               {([
                 { value: 'updated' as const, label: 'Last modified' },
                 { value: 'name' as const, label: 'Name A–Z' },
@@ -1161,13 +1141,13 @@ export default function Dashboard() {
                 <button
                   key={opt.value}
                   onClick={() => setSortBy(opt.value)}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[12px] transition-colors mb-0.5 ${
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[12px] transition-colors mb-px ${
                     sortBy === opt.value
-                      ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-semibold'
-                      : 'font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
+                      ? 'text-gray-900 dark:text-white font-medium'
+                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
-                  <span className={`w-0.5 h-3 rounded-sm shrink-0 transition-colors ${sortBy === opt.value ? 'bg-accent-500' : 'bg-transparent'}`} />
+                  <span className={`w-0.5 h-3.5 rounded-full shrink-0 transition-colors ${sortBy === opt.value ? 'bg-accent-500' : 'bg-transparent'}`} />
                   {opt.label}
                 </button>
               ))}
@@ -1176,37 +1156,24 @@ export default function Dashboard() {
 
           {/* View */}
           <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2 mb-1.5">View</p>
-            <div className="flex items-center gap-1 px-2">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`flex items-center gap-1.5 flex-1 justify-center h-7 rounded text-[11px] font-medium transition-colors ${
-                  viewMode === 'grid'
-                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
-                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
-                }`}
-                title="Grid view"
-              >
-                <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                  <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                  <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-                </svg>
-                Grid
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1.5 flex-1 justify-center h-7 rounded text-[11px] font-medium transition-colors ${
-                  viewMode === 'list'
-                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
-                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
-                }`}
-                title="List view"
-              >
-                <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-                List
-              </button>
+            <p className="label-xs px-2 mb-1.5">View</p>
+            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded">
+              {([
+                { mode: 'grid' as const, label: 'Grid', icon: <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 16 16"><rect x="1" y="1" width="6" height="6" rx="0.75"/><rect x="9" y="1" width="6" height="6" rx="0.75"/><rect x="1" y="9" width="6" height="6" rx="0.75"/><rect x="9" y="9" width="6" height="6" rx="0.75"/></svg> },
+                { mode: 'list' as const, label: 'List', icon: <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg> },
+              ]).map(({ mode, label, icon }) => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`flex items-center justify-center gap-1.5 flex-1 h-6 rounded text-[11px] font-medium transition-colors ${
+                    viewMode === mode
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  {icon}{label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1214,91 +1181,67 @@ export default function Dashboard() {
           <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
             <button
               onClick={() => setSettingsOpen(o => !o)}
-              className="w-full flex items-center justify-between px-2 py-1 rounded hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors text-left group mb-1"
+              className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors text-left group mb-1"
             >
               <div className="flex items-center gap-2">
-                <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">Settings</span>
+                <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="label-xs group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">Settings</span>
               </div>
-              <svg
-                className={`w-3 h-3 text-gray-300 dark:text-gray-600 transition-transform duration-200 ${settingsOpen ? 'rotate-180' : ''}`}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-              >
+              <svg className={`w-3 h-3 text-gray-300 dark:text-gray-600 transition-transform duration-200 ${settingsOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-
             <div style={{ display: 'grid', gridTemplateRows: settingsOpen ? '1fr' : '0fr', transition: 'grid-template-rows 200ms ease' }}>
               <div style={{ overflow: 'hidden' }}>
-                <div className="px-2 pt-1 pb-2 space-y-3">
-
+                <div className="px-2 pt-1 pb-3 space-y-3">
                   <div>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Theme</p>
-                    <div className="flex items-center gap-1">
+                    <p className="label-xs mb-1.5">Theme</p>
+                    <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded">
                       {(['light', 'dark'] as const).map(t => (
-                        <button
-                          key={t}
-                          onClick={() => updateAppSettings({ theme: t })}
-                          className={`flex items-center gap-1.5 flex-1 justify-center h-7 rounded text-[11px] font-medium transition-colors ${
-                            appSettings.theme === t
-                              ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
-                              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
+                        <button key={t} onClick={() => updateAppSettings({ theme: t })}
+                          className={`flex items-center justify-center gap-1.5 flex-1 h-6 rounded text-[11px] font-medium transition-colors ${
+                            appSettings.theme === t ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                           }`}
                         >
-                          {t === 'light'
-                            ? <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="4"/><path strokeLinecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                            : <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-                          }
+                          {t === 'light' ? <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="4"/><path strokeLinecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> : <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>}
                           {t === 'light' ? 'Light' : 'Dark'}
                         </button>
                       ))}
                     </div>
                   </div>
-
                   <div>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Export format</p>
-                    <div className="flex items-center gap-1">
+                    <p className="label-xs mb-1.5">Export</p>
+                    <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded">
                       {(['png', 'jpeg'] as const).map(f => (
-                        <button
-                          key={f}
-                          onClick={() => updateAppSettings({ exportFormat: f })}
-                          className={`flex-1 h-7 rounded text-[11px] font-medium transition-colors uppercase ${
-                            appSettings.exportFormat === f
-                              ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
-                              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
+                        <button key={f} onClick={() => updateAppSettings({ exportFormat: f })}
+                          className={`flex-1 h-6 rounded text-[11px] font-semibold transition-colors uppercase tracking-wide ${
+                            appSettings.exportFormat === f ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                           }`}
-                        >
-                          {f}
-                        </button>
+                        >{f}</button>
                       ))}
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
           </div>
 
           {/* Docs + Shortcuts */}
-          <div className="pt-3 border-t border-gray-100 dark:border-gray-800 space-y-0.5">
-            <Link
-              href="/docs"
-              className="flex items-center gap-2 px-2 py-1.5 rounded text-[12px] font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-              Docs
+          <div className="pt-3 border-t border-gray-100 dark:border-gray-800 space-y-px">
+            <Link href="/docs" className="flex items-center gap-2 px-2 py-1.5 rounded text-[12px] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white transition-colors">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+              Documentation
             </Link>
-            <button
-              onClick={() => setShortcutsOpen(true)}
-              className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-[12px] font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
+            <button onClick={() => setShortcutsOpen(true)} className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-[12px] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white transition-colors">
               <span className="flex items-center gap-2">
-                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                 Shortcuts
               </span>
               <div className="flex items-center gap-0.5">
-                <kbd className="inline-flex items-center justify-center px-1 h-[18px] rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-mono text-[10px] font-semibold text-gray-400 dark:text-gray-500 leading-none">⌘</kbd>
-                <kbd className="inline-flex items-center justify-center px-1 h-[18px] rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-mono text-[10px] font-semibold text-gray-400 dark:text-gray-500 leading-none">/</kbd>
+                <kbd className="inline-flex items-center justify-center px-1.5 h-[18px] rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-mono text-[10px] font-semibold text-gray-400 dark:text-gray-500 leading-none shadow-[0_1px_0_rgba(0,0,0,0.1)]">⌘</kbd>
+                <kbd className="inline-flex items-center justify-center px-1.5 h-[18px] rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-mono text-[10px] font-semibold text-gray-400 dark:text-gray-500 leading-none shadow-[0_1px_0_rgba(0,0,0,0.1)]">/</kbd>
               </div>
             </button>
           </div>
@@ -1309,22 +1252,19 @@ export default function Dashboard() {
           <div ref={userMenuRef} className="relative">
             <button
               onClick={() => setUserMenuOpen(o => !o)}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left group"
+              className="w-full flex items-center gap-2.5 px-2 py-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left group"
             >
-              <div className="w-5 h-5 rounded-full bg-gray-800 dark:bg-gray-600 flex items-center justify-center text-white text-[9px] font-bold shrink-0">
+              <div className="w-6 h-6 rounded-full bg-gray-900 dark:bg-gray-100 flex items-center justify-center text-white dark:text-gray-900 text-[10px] font-bold shrink-0 tabular-nums">
                 {(user?.email ?? '?')[0].toUpperCase()}
               </div>
-              <span className="text-[11px] text-gray-600 dark:text-gray-400 truncate flex-1">{user?.email}</span>
-              <svg className="w-3 h-3 text-gray-300 dark:text-gray-600 shrink-0 group-hover:text-gray-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <span className="body-sm truncate flex-1">{user?.email}</span>
+              <svg className="w-3 h-3 text-gray-300 dark:text-gray-600 shrink-0 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
               </svg>
             </button>
             {userMenuOpen && (
-              <div className="absolute left-0 bottom-full mb-1 z-50 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-lg overflow-hidden animate-scale-in">
-                <button
-                  onClick={() => { setUserMenuOpen(false); signOut() }}
-                  className="w-full text-left px-3 py-2 text-[12px] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                >
+              <div className="absolute left-0 bottom-full mb-1 z-50 w-full menu animate-scale-in">
+                <button onClick={() => { setUserMenuOpen(false); signOut() }} className="menu-item text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20">
                   Sign out
                 </button>
               </div>
@@ -1334,78 +1274,58 @@ export default function Dashboard() {
       </aside>
 
       {/* ── Main ── */}
-      <div className="flex-1 min-w-0 overflow-y-auto px-6 py-6">
-          <div className="max-w-5xl mx-auto">
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
 
-          {/* Selection toolbar */}
-          <div
-            className="overflow-hidden transition-all duration-300 ease-out"
-            style={{ maxHeight: isSelectMode ? '72px' : '0' }}
-          >
-            <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 shadow-sm">
-              {/* Cancel */}
-              <button
-                onClick={clearSelection}
-                className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                title="Clear selection"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-
-              <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 tabular-nums">
-                {selectedIds.size} selected
-              </span>
-
-              <div className="flex-1" />
-
-              {/* Select all / Deselect all */}
-              <button
-                onClick={allSelected ? clearSelection : selectAll}
-                className="text-xs font-semibold text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-              >
+        {/* Page header */}
+        <div className="h-12 flex items-center justify-between px-6 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shrink-0">
+          <div className="flex items-center gap-2">
+            <h1 className="heading-sm">
+              {typeFilter === 'all' ? 'All Projects' : typeFilter === 'amazon' ? 'Amazon' : 'Shopify'}
+            </h1>
+            {!isLoading && filteredProjects.length > 0 && (
+              <span className="badge badge-default">{filteredProjects.length}</span>
+            )}
+          </div>
+          {isSelectMode && (
+            <div className="flex items-center gap-2">
+              <button onClick={allSelected ? clearSelection : selectAll} className="btn btn-sm btn-ghost">
                 {allSelected ? 'Deselect all' : 'Select all'}
               </button>
-
               <div className="w-px h-4 bg-gray-200 dark:bg-gray-700" />
-
-              {/* Delete button */}
-              <button
-                onClick={handleDeleteSelected}
-                className="flex items-center gap-1.5 h-8 px-3.5 rounded bg-red-500 hover:bg-red-600 text-white text-xs font-semibold transition-colors"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+              <button onClick={handleDeleteSelected} className="btn btn-sm btn-danger">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 Delete {selectedIds.size}
               </button>
+              <button onClick={clearSelection} className="btn btn-sm btn-secondary">
+                Cancel
+              </button>
             </div>
-          </div>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          <div className="max-w-5xl mx-auto">
 
           {/* Error banner */}
           {createError && (
-            <div className="mb-4 px-4 py-3 rounded bg-red-50 border border-red-200 flex items-start gap-3">
-              <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="mb-5 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 flex items-start gap-3">
+              <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-red-700">Failed to create project</p>
-                <p className="text-[11px] text-red-500 mt-0.5">{createError}</p>
-                <p className="text-[11px] text-red-400 mt-1">Have you run the SQL migration in Supabase?</p>
+                <p className="text-[12px] font-semibold text-red-700 dark:text-red-400">Failed to create project</p>
+                <p className="text-[11px] text-red-500 dark:text-red-500 mt-0.5">{createError}</p>
               </div>
-              <button onClick={() => setCreateError(null)} className="shrink-0 text-red-300 hover:text-red-500">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+              <button onClick={() => setCreateError(null)} className="shrink-0 text-red-300 hover:text-red-500 transition-colors">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
           )}
 
-          {/* Loading spinner */}
+          {/* Loading */}
           {isLoading && (
-            <div className="flex items-center justify-center py-24">
-              <svg className="animate-spin w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24">
+            <div className="flex items-center justify-center py-32">
+              <svg className="animate-spin w-5 h-5 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
@@ -1415,42 +1335,36 @@ export default function Dashboard() {
           {/* Content */}
           {!isLoading && (
             <>
-              {/* Empty state — no projects at all */}
+              {/* Empty state */}
               {projects.length === 0 && (
-                <div className="flex flex-col items-center max-w-xs mx-auto pt-10">
-                  <div className="max-w-[180px] mx-auto w-full">
-                    <NewProjectCard creating={creating} user={user} onNewProject={handleNewProject} />
+                <div className="flex flex-col items-center max-w-[280px] mx-auto pt-16 text-center">
+                  <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
                   </div>
-                  <p className="mt-6 text-[13px] font-semibold text-gray-700 dark:text-gray-300 text-center">Create your first project</p>
-                  <p className="mt-1 text-[11px] text-gray-400 dark:text-gray-500 text-center leading-relaxed">Use New Project in the sidebar to get started</p>
-                  <div className="mt-7 w-full space-y-2.5">
-                    {([
-                      'Import your product list via CSV',
-                      'Pick templates and fill in content',
-                      'Render and export images to Canto',
-                    ] as const).map((label, i) => (
+                  <p className="heading-sm mb-1">Create your first project</p>
+                  <p className="body-sm mb-6 leading-relaxed">Press <kbd className="font-mono text-[10px] px-1 py-0.5 rounded border border-gray-200 dark:border-gray-700">N</kbd> or use New Project in the sidebar.</p>
+                  <div className="w-full space-y-2 text-left">
+                    {(['Import products via CSV', 'Fill templates with content', 'Export to Canto'] as const).map((label, i) => (
                       <div key={i} className="flex items-center gap-3">
-                        <div className="w-5 h-5 rounded bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 flex items-center justify-center shrink-0 text-[9px] font-bold tabular-nums">
-                          {i + 1}
-                        </div>
-                        <p className="text-[12px] text-gray-500 dark:text-gray-400">{label}</p>
+                        <span className="w-5 h-5 rounded bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 flex items-center justify-center shrink-0 text-[9px] font-bold tabular-nums">{i + 1}</span>
+                        <p className="body-sm">{label}</p>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* No filter results */}
+              {/* No results */}
               {projects.length > 0 && filteredProjects.length === 0 && (searchQuery || typeFilter !== 'all') && (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <svg className="w-10 h-10 text-gray-300 dark:text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <svg className="w-8 h-8 text-gray-200 dark:text-gray-700 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">No projects match your filters</p>
-                  <button
-                    onClick={() => { setSearchQuery(''); setTypeFilter('all') }}
-                    className="mt-3 text-[12px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline transition-colors"
-                  >
+                  <p className="heading-sm mb-1">No results</p>
+                  <p className="body-sm mb-4">No projects match your current filters.</p>
+                  <button onClick={() => { setSearchQuery(''); setTypeFilter('all') }} className="btn btn-sm btn-secondary">
                     Clear filters
                   </button>
                 </div>
@@ -1462,53 +1376,31 @@ export default function Dashboard() {
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                     {filteredProjects.map((project, idx) => (
                       <ProjectCard
-                        key={project.id}
-                        project={project}
-                        isSelected={selectedIds.has(project.id)}
-                        isSelectMode={isSelectMode}
-                        isMenuOpen={menuOpenId === project.id}
-                        isRenaming={renamingId === project.id}
+                        key={project.id} project={project}
+                        isSelected={selectedIds.has(project.id)} isSelectMode={isSelectMode}
+                        isMenuOpen={menuOpenId === project.id} isRenaming={renamingId === project.id}
                         renameValue={renamingId === project.id ? renameValue : undefined}
-                        renameInputRef={renameInputRef}
-                        animationDelay={idx * 40}
-                        viewMode="grid"
+                        renameInputRef={renameInputRef} animationDelay={idx * 30} viewMode="grid"
                         productCount={project.template_state?.products?.length ?? 0}
-                        onToggleSelect={toggleSelect}
-                        onToggleMenu={handleToggleMenu}
-                        onCloseMenu={handleCloseMenu}
-                        onStartRename={startRename}
-                        onCommitRename={commitRename}
-                        onRenameKeyDown={handleRenameKeyDown}
-                        onSetRenameValue={setRenameValue}
-                        onDelete={handleDeleteProject}
-                        onDuplicate={handleDuplicate}
+                        onToggleSelect={toggleSelect} onToggleMenu={handleToggleMenu} onCloseMenu={handleCloseMenu}
+                        onStartRename={startRename} onCommitRename={commitRename} onRenameKeyDown={handleRenameKeyDown}
+                        onSetRenameValue={setRenameValue} onDelete={handleDeleteProject} onDuplicate={handleDuplicate}
                       />
                     ))}
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-0 border border-gray-100 dark:border-gray-700/70 rounded overflow-hidden shadow-sm">
+                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
                     {filteredProjects.map((project, idx) => (
                       <ProjectCard
-                        key={project.id}
-                        project={project}
-                        isSelected={selectedIds.has(project.id)}
-                        isSelectMode={isSelectMode}
-                        isMenuOpen={menuOpenId === project.id}
-                        isRenaming={renamingId === project.id}
+                        key={project.id} project={project}
+                        isSelected={selectedIds.has(project.id)} isSelectMode={isSelectMode}
+                        isMenuOpen={menuOpenId === project.id} isRenaming={renamingId === project.id}
                         renameValue={renamingId === project.id ? renameValue : undefined}
-                        renameInputRef={renameInputRef}
-                        animationDelay={idx * 20}
-                        viewMode="list"
+                        renameInputRef={renameInputRef} animationDelay={idx * 15} viewMode="list"
                         productCount={project.template_state?.products?.length ?? 0}
-                        onToggleSelect={toggleSelect}
-                        onToggleMenu={handleToggleMenu}
-                        onCloseMenu={handleCloseMenu}
-                        onStartRename={startRename}
-                        onCommitRename={commitRename}
-                        onRenameKeyDown={handleRenameKeyDown}
-                        onSetRenameValue={setRenameValue}
-                        onDelete={handleDeleteProject}
-                        onDuplicate={handleDuplicate}
+                        onToggleSelect={toggleSelect} onToggleMenu={handleToggleMenu} onCloseMenu={handleCloseMenu}
+                        onStartRename={startRename} onCommitRename={commitRename} onRenameKeyDown={handleRenameKeyDown}
+                        onSetRenameValue={setRenameValue} onDelete={handleDeleteProject} onDuplicate={handleDuplicate}
                       />
                     ))}
                   </div>
@@ -1518,6 +1410,7 @@ export default function Dashboard() {
           )}
 
           </div>
+        </div>
       </div>
 
       {/* Delete confirmation modal */}

@@ -92,7 +92,7 @@
   /* ── Menu / dropdown container ─────────────────────────────── */
   .menu {
     @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700
-           rounded-menu shadow-floating ring-1 ring-black/5 dark:ring-white/8
+           rounded-menu shadow-floating ring-1 ring-black/5 dark:ring-white/10
            p-1;
   }
   .menu-item {
