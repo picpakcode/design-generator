@@ -44,7 +44,7 @@ function P({ children }: { children: React.ReactNode }) {
 
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 px-4 py-3 mb-4">
+    <div className="flex gap-2.5 rounded-none bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 px-4 py-3 mb-4">
       <svg className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
@@ -55,7 +55,7 @@ function Note({ children }: { children: React.ReactNode }) {
 
 function Tip({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-2.5 rounded-lg bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800/40 px-4 py-3 mb-4">
+    <div className="flex gap-2.5 rounded-none bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800/40 px-4 py-3 mb-4">
       <svg className="w-3.5 h-3.5 text-accent-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
@@ -86,7 +86,7 @@ function Cards({ items }: { items: { icon: string; title: string; body: string; 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
       {items.map(item => (
-        <div key={item.title} className="rounded-lg border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900 px-4 py-3 flex gap-3">
+        <div key={item.title} className="rounded-none border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900 px-4 py-3 flex gap-3">
           <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
           <div>
             <p className="text-[12px] font-bold text-gray-900 dark:text-white mb-0.5">{item.title}</p>
@@ -100,7 +100,7 @@ function Cards({ items }: { items: { icon: string; title: string; body: string; 
 
 function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-white/8 mb-4">
+    <div className="overflow-x-auto rounded-none border border-gray-200 dark:border-white/8 mb-4">
       <table className="w-full text-[12px]">
         <thead>
           <tr className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-white/8">
@@ -129,7 +129,7 @@ function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
 
 function Code({ children }: { children: string }) {
   return (
-    <pre className="rounded-lg bg-gray-900 dark:bg-black text-gray-100 text-[11px] leading-relaxed p-4 overflow-x-auto mb-4 font-mono">
+    <pre className="rounded-none bg-gray-900 dark:bg-black text-gray-100 text-[11px] leading-relaxed p-4 overflow-x-auto mb-4 font-mono">
       {children}
     </pre>
   )
@@ -172,9 +172,9 @@ export default function DocsPage() {
           <span className="text-[11px] font-semibold">Dashboard</span>
         </Link>
         <span className="w-px h-4 bg-gray-200 dark:bg-gray-700" />
-        <img src="/Favicon.png" alt="" className="w-5 h-5 rounded object-contain shrink-0" />
+        <img src="/Favicon.png" alt="" className="w-5 h-5 rounded-none object-contain shrink-0" />
         <span className="font-bold text-gray-900 dark:text-white text-sm tracking-tight">Docs</span>
-        <span className="ml-1 shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700">Beta</span>
+        <span className="ml-1 shrink-0 px-1.5 py-0.5 rounded-none text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700">Beta</span>
       </header>
 
       <div className="flex flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6">
@@ -188,7 +188,7 @@ export default function DocsPage() {
                 <li key={s.id}>
                   <a
                     href={`#${s.id}`}
-                    className={`block px-2 py-1.5 rounded text-[12px] font-medium transition-colors ${
+                    className={`block px-2 py-1.5 rounded-none text-[12px] font-medium transition-colors ${
                       active === s.id
                         ? 'bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 font-semibold'
                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -479,7 +479,7 @@ Recovery Snatch Block,SB-002,Maximum Pull,Rated for 8,000 lb working load`}</Cod
           <SubHeading>Session data</SubHeading>
           <P>A design session (the current editor state) is also saved as a separate auto-save record tied to your user account. This allows the editor to restore your last-open state even if you navigate away before the project saves.</P>
 
-          <div className="mt-12 rounded-xl border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-gray-900 px-6 py-5 flex items-start gap-4">
+          <div className="mt-12 rounded-none border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-gray-900 px-6 py-5 flex items-start gap-4">
             <div className="w-8 h-8 rounded-full bg-accent-100 dark:bg-accent-900/50 flex items-center justify-center shrink-0">
               <svg className="w-4 h-4 text-accent-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

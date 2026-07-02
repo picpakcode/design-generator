@@ -5,7 +5,7 @@
 All UI work must follow [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md).
 
 Key rules enforced on every PR:
-- Border radius: `rounded` (controls) · `rounded-md` (menus) · `rounded-lg` (modals) · `rounded-full` (circles only)
+- Border radius: `rounded-none` (all controls, menus, modals) · `rounded-full` (circles only)
 - Button heights: `h-7` (sm) · `h-8` (md, default) · `h-9` (lg) — never mix `h-*` with `py-*`
 - Borders: `border-gray-200 dark:border-gray-700` (standard) · `border-gray-100 dark:border-gray-800` (subtle)
 - Shadows: none (flat) · `shadow-sm` (raised) · `shadow-lg ring-1 ring-black/5` (floating) · `shadow-2xl ring-1 ring-black/5` (modal)

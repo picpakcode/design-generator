@@ -144,7 +144,7 @@ function ReactionBar({
         {pickerOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setPickerOpen(false)} />
-            <div className="absolute bottom-6 left-0 z-20 flex gap-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 px-2 py-1.5">
+            <div className="absolute bottom-6 left-0 z-20 flex gap-1 bg-white dark:bg-gray-800 rounded-none shadow-lg border border-gray-100 dark:border-gray-700 px-2 py-1.5">
               {EMOJIS.map(e => (
                 <button
                   key={e}
@@ -191,7 +191,7 @@ function ThreadCard({
   }
 
   return (
-    <div className={`rounded-xl border transition-all ${
+    <div className={`rounded-none border transition-all ${
       isResolved
         ? 'border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 opacity-60'
         : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-200 dark:hover:border-gray-600'
@@ -265,20 +265,20 @@ function ThreadCard({
                 placeholder="Reply… (⌘↵ to post)"
                 rows={2}
                 autoFocus
-                className="w-full px-2.5 py-1.5 text-[11px] border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 resize-none placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                className="w-full px-2.5 py-1.5 text-[11px] border border-gray-200 dark:border-gray-600 rounded-none bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 resize-none placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
               />
               <div className="flex gap-1.5">
                 <button
                   onClick={submitReply}
                   disabled={posting || !replyText.trim()}
-                  className="h-6 px-2.5 rounded-lg bg-accent-600 text-white text-[10px] font-bold hover:bg-accent-500 disabled:opacity-40 transition-colors flex items-center gap-1"
+                  className="h-6 px-2.5 rounded-none bg-accent-600 text-white text-[10px] font-bold hover:bg-accent-500 disabled:opacity-40 transition-colors flex items-center gap-1"
                 >
                   {posting && <svg className="animate-spin w-2.5 h-2.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
                   Reply
                 </button>
                 <button
                   onClick={() => { setReplyOpen(false); setReplyText('') }}
-                  className="h-6 px-2 rounded-lg text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  className="h-6 px-2 rounded-none text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   Cancel
                 </button>
@@ -479,12 +479,12 @@ export default function FeedbackPanel({ projectId, user, isOpen, onClose, onUnre
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
           )}
-          <button onClick={load} title="Refresh" className="w-6 h-6 flex items-center justify-center rounded-md text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+          <button onClick={load} title="Refresh" className="w-6 h-6 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
-          <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded-md text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+          <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -512,7 +512,7 @@ export default function FeedbackPanel({ projectId, user, isOpen, onClose, onUnre
         <div className="flex-1 min-h-0 overflow-y-auto">
           {!loading && filteredGroups.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-6 gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-none bg-gray-50 dark:bg-gray-800 flex items-center justify-center">
                 <svg className="w-5 h-5 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>

@@ -72,7 +72,7 @@ export default function ExportButton({ canvasRef, filename, altCanvasRef, altFil
       <button
         onClick={handleCopy}
         disabled={busy}
-        className="w-full h-9 flex items-center justify-center gap-2 rounded border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        className="w-full h-9 flex items-center justify-center gap-2 rounded-none border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
       >
         {loading === 'copy' ? <><Spinner /><span>Copying…</span></> :
          copied            ? <><CheckIcon /><span>Copied!</span></> :
@@ -86,7 +86,7 @@ export default function ExportButton({ canvasRef, filename, altCanvasRef, altFil
       <button
         onClick={() => handleExport('png')}
         disabled={busy}
-        className="w-full h-9 flex items-center justify-center gap-2 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="w-full h-9 flex items-center justify-center gap-2 rounded-none bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         {loading === 'png' ? <><Spinner /><span>Exporting…</span></> : <><DownloadIcon /><span>Export PNG</span></>}
       </button>
@@ -95,7 +95,7 @@ export default function ExportButton({ canvasRef, filename, altCanvasRef, altFil
       <button
         onClick={() => handleExport('jpeg')}
         disabled={busy}
-        className="w-full h-9 flex items-center justify-center gap-2 rounded border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="w-full h-9 flex items-center justify-center gap-2 rounded-none border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         {loading === 'jpeg' ? <><Spinner /><span>Exporting…</span></> : <><DownloadIcon /><span>Export JPG</span></>}
       </button>
@@ -105,7 +105,7 @@ export default function ExportButton({ canvasRef, filename, altCanvasRef, altFil
         <button
           onClick={handleExportAll}
           disabled={busy}
-          className="w-full h-9 flex items-center justify-center gap-2 rounded border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 text-[11px] font-bold uppercase tracking-widest hover:border-gray-500 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="w-full h-9 flex items-center justify-center gap-2 rounded-none border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 text-[11px] font-bold uppercase tracking-widest hover:border-gray-500 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {loading === 'all' ? <><Spinner /><span>Zipping…</span></> : <><ZipIcon /><span>All Formats (.zip)</span></>}
         </button>

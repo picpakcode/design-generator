@@ -51,7 +51,7 @@ export default function AssetUploader({ assets, onAdd, onRemove, slotLabels }: A
                 </span>
 
                 {asset ? (
-                  <div className="relative group flex-1 h-14 rounded-md overflow-hidden border border-gray-200 dark:border-gray-600">
+                  <div className="relative group flex-1 h-14 rounded-none overflow-hidden border border-gray-200 dark:border-gray-600">
                     <img
                       src={asset.url}
                       alt={asset.name}
@@ -68,7 +68,7 @@ export default function AssetUploader({ assets, onAdd, onRemove, slotLabels }: A
                   <>
                     <button
                       onClick={() => slotInputRefs.current[i]?.click()}
-                      className="flex-1 h-14 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-md text-[11px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-500 dark:hover:text-gray-400 transition-colors flex items-center justify-center gap-1.5"
+                      className="flex-1 h-14 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-none text-[11px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-500 dark:hover:text-gray-400 transition-colors flex items-center justify-center gap-1.5"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
@@ -99,7 +99,7 @@ export default function AssetUploader({ assets, onAdd, onRemove, slotLabels }: A
         onClick={() => genericInputRef.current?.click()}
         onDrop={(e) => { e.preventDefault(); handleGenericFiles(e.dataTransfer.files) }}
         onDragOver={(e) => e.preventDefault()}
-        className="border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors duration-150 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 bg-white dark:bg-gray-800/50"
+        className="border-2 border-dashed rounded-none p-4 text-center cursor-pointer transition-colors duration-150 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 bg-white dark:bg-gray-800/50"
       >
         <svg className="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -121,7 +121,7 @@ export default function AssetUploader({ assets, onAdd, onRemove, slotLabels }: A
         <div className="mt-3 grid grid-cols-3 gap-2">
           {assets.map((asset) => (
             <div key={asset.id} className="relative group">
-              <img src={asset.url} alt={asset.name} className="w-full h-16 object-cover rounded-md border border-gray-200 dark:border-gray-600" />
+              <img src={asset.url} alt={asset.name} className="w-full h-16 object-cover rounded-none border border-gray-200 dark:border-gray-600" />
               <button
                 onClick={() => onRemove(asset.id)}
                 className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm leading-none"

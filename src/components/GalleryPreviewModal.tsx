@@ -80,7 +80,7 @@ export default function GalleryPreviewModal({ open, onClose, design }: Props) {
       {/* Sheet — pointer-events-none wrapper lets backdrop clicks pass through */}
       <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
         <div
-          className={`pointer-events-auto w-full flex flex-col rounded-t-[4px] overflow-hidden shadow-[0_-8px_48px_rgba(0,0,0,0.22)] ${panelBg} ${panelAnim}`}
+          className={`pointer-events-auto w-full flex flex-col rounded-none overflow-hidden shadow-[0_-8px_48px_rgba(0,0,0,0.22)] ${panelBg} ${panelAnim}`}
           style={{ height: 'calc(100vh - 2.5rem)' }}
           onClick={e => e.stopPropagation()}
         >
@@ -99,7 +99,7 @@ export default function GalleryPreviewModal({ open, onClose, design }: Props) {
               <span className={`text-[10px] hidden sm:block ${dimText}`}>Esc to close</span>
               <button
                 onClick={handleClose}
-                className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${closeBtn}`}
+                className={`w-7 h-7 flex items-center justify-center rounded-none transition-colors ${closeBtn}`}
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -128,7 +128,7 @@ export default function GalleryPreviewModal({ open, onClose, design }: Props) {
                       {block.slug || `Slide ${idx + 1}`}
                     </div>
                     <div
-                      className={`overflow-hidden rounded-[2px] ${isDarkTheme ? 'shadow-[0_2px_16px_rgba(0,0,0,0.5)]' : 'shadow-[0_2px_16px_rgba(0,0,0,0.12)]'}`}
+                      className={`overflow-hidden rounded-none ${isDarkTheme ? 'shadow-[0_2px_16px_rgba(0,0,0,0.5)]' : 'shadow-[0_2px_16px_rgba(0,0,0,0.12)]'}`}
                       style={{ width: tpl.width * scale, height: tpl.height * scale, position: 'relative', flexShrink: 0 }}
                     >
                       <div style={{ width: tpl.width, height: tpl.height, transform: `scale(${scale})`, transformOrigin: 'top left', position: 'absolute', top: 0, left: 0 }}>

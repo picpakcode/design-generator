@@ -102,7 +102,7 @@ function BlockBadge({ blockId, feedback }: { blockId: string; feedback: Feedback
   return (
     <div className="absolute top-2 right-2 z-20 flex items-center gap-1 pointer-events-none">
       {count > 0 && (
-        <span className="bg-gray-900/75 text-white text-[9px] font-semibold rounded px-1.5 py-0.5 flex items-center gap-0.5 backdrop-blur-sm">
+        <span className="bg-gray-900/75 text-white text-[9px] font-semibold rounded-none px-1.5 py-0.5 flex items-center gap-0.5 backdrop-blur-sm">
           <svg className="w-2.5 h-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
@@ -110,12 +110,12 @@ function BlockBadge({ blockId, feedback }: { blockId: string; feedback: Feedback
         </span>
       )}
       {status === 'approved' && (
-        <span className="bg-emerald-500 text-white rounded w-5 h-5 flex items-center justify-center shadow-sm" title="Approved">
+        <span className="bg-emerald-500 text-white rounded-none w-5 h-5 flex items-center justify-center shadow-sm" title="Approved">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
         </span>
       )}
       {status === 'changes_requested' && (
-        <span className="bg-amber-500 text-white rounded w-5 h-5 flex items-center justify-center shadow-sm" title="Changes requested">
+        <span className="bg-amber-500 text-white rounded-none w-5 h-5 flex items-center justify-center shadow-sm" title="Changes requested">
           <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
         </span>
       )}
@@ -136,7 +136,7 @@ function BlockWrapper({
 }) {
   return (
     <div
-      className={`relative mb-3 cursor-pointer rounded-sm transition-shadow ${
+      className={`relative mb-3 cursor-pointer rounded-none transition-shadow ${
         selected
           ? 'shadow-[0_0_0_2px_#2563eb]'
           : 'hover:shadow-[0_0_0_1px_#e5e7eb]'
@@ -668,7 +668,7 @@ function CommentsSidebar({
                 key={block.id}
                 onClick={() => onSelectBlock(block.id)}
                 title={block.label}
-                className={`relative shrink-0 h-[26px] px-2.5 rounded text-[10px] font-semibold transition-all whitespace-nowrap ${
+                className={`relative shrink-0 h-[26px] px-2.5 rounded-none text-[10px] font-semibold transition-all whitespace-nowrap ${
                   isActive ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                 }`}
               >
@@ -697,7 +697,7 @@ function CommentsSidebar({
               onClick={() => handleApproval('approved')}
               disabled={approving || !authorName}
               title={!authorName ? 'Enter your name below to vote' : undefined}
-              className={`flex-1 h-8 rounded text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`flex-1 h-8 rounded-none text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
                 myLatest?.status === 'approved'
                   ? 'bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600'
                   : 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
@@ -710,7 +710,7 @@ function CommentsSidebar({
               onClick={() => handleApproval('changes_requested')}
               disabled={approving || !authorName}
               title={!authorName ? 'Enter your name below to vote' : undefined}
-              className={`flex-1 h-8 rounded text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`flex-1 h-8 rounded-none text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all border disabled:opacity-40 disabled:cursor-not-allowed ${
                 myLatest?.status === 'changes_requested'
                   ? 'bg-amber-500 border-amber-500 text-white hover:bg-amber-600'
                   : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
@@ -754,7 +754,7 @@ function CommentsSidebar({
               const isResolved = !!root.resolved_at
               const isReplying = replyingTo === root.id
               return (
-                <div key={root.id} className={`rounded-xl border transition-all ${isResolved ? 'border-gray-100 bg-gray-50/50 opacity-60' : `border-gray-100 bg-white${highlightThreads ? ' ring-1 ring-accent-200' : ''}`}`}>
+                <div key={root.id} className={`rounded-none border transition-all ${isResolved ? 'border-gray-100 bg-gray-50/50 opacity-60' : `border-gray-100 bg-white${highlightThreads ? ' ring-1 ring-accent-200' : ''}`}`}>
                   {/* Root comment */}
                   <div className="p-3">
                     <div className="flex items-start gap-2">
@@ -789,7 +789,7 @@ function CommentsSidebar({
                             {emojiPickerFor === root.id && (
                               <>
                                 <div className="fixed inset-0 z-10" onClick={() => setEmojiPickerFor(null)} />
-                                <div className="absolute bottom-6 left-0 z-20 flex gap-1 bg-white rounded-xl shadow-lg border border-gray-100 px-2 py-1.5">
+                                <div className="absolute bottom-6 left-0 z-20 flex gap-1 bg-white rounded-none shadow-lg border border-gray-100 px-2 py-1.5">
                                   {SHARE_EMOJIS.map(e => <button key={e} onClick={() => handleReaction(root.id, e)} className="text-base hover:scale-125 transition-transform">{e}</button>)}
                                 </div>
                               </>
@@ -840,15 +840,15 @@ function CommentsSidebar({
                             placeholder="Reply… (⌘↵ to post)"
                             rows={2}
                             autoFocus
-                            className="w-full px-2.5 py-1.5 text-[11px] border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 resize-none placeholder:text-gray-300 transition-all"
+                            className="w-full px-2.5 py-1.5 text-[11px] border border-gray-200 rounded-none bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 resize-none placeholder:text-gray-300 transition-all"
                           />
                           <div className="flex gap-1.5">
                             <button onClick={() => handlePostReply(root.id, root.block_id)} disabled={replyPosting || !replyText.trim()}
-                              className="h-6 px-2.5 rounded-lg bg-accent-600 text-white text-[10px] font-bold hover:bg-accent-500 disabled:opacity-40 transition-colors">
+                              className="h-6 px-2.5 rounded-none bg-accent-600 text-white text-[10px] font-bold hover:bg-accent-500 disabled:opacity-40 transition-colors">
                               {replyPosting ? '…' : 'Reply'}
                             </button>
                             <button onClick={() => { setReplyingTo(null); setReplyText('') }}
-                              className="h-6 px-2 rounded-lg text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                              className="h-6 px-2 rounded-none text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
                               Cancel
                             </button>
                           </div>
@@ -881,10 +881,10 @@ function CommentsSidebar({
               <input type="text" value={nameInput} onChange={e => setNameInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') saveName() }}
                 placeholder="Enter your name…" autoFocus
-                className="flex-1 h-7 px-2.5 text-[11px] border border-gray-200 rounded bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 placeholder:text-gray-300 transition-all"
+                className="flex-1 h-7 px-2.5 text-[11px] border border-gray-200 rounded-none bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 placeholder:text-gray-300 transition-all"
               />
               <button onClick={saveName} disabled={!nameInput.trim()}
-                className="h-7 px-3 rounded bg-accent-600 text-white text-[11px] font-bold hover:bg-accent-500 disabled:opacity-40 transition-colors">
+                className="h-7 px-3 rounded-none bg-accent-600 text-white text-[11px] font-bold hover:bg-accent-500 disabled:opacity-40 transition-colors">
                 Set
               </button>
             </div>
@@ -897,7 +897,7 @@ function CommentsSidebar({
             <textarea value={commentInput} onChange={e => setCommentInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handlePostComment() }}
               placeholder="Leave a comment… (⌘↵ to post)" rows={2}
-              className="w-full px-2.5 py-2 text-[11px] border border-gray-200 rounded bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 resize-none placeholder:text-gray-300 transition-all"
+              className="w-full px-2.5 py-2 text-[11px] border border-gray-200 rounded-none bg-white focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-400 resize-none placeholder:text-gray-300 transition-all"
             />
             {submitError && <p className="text-[10px] text-red-500">{submitError}</p>}
             <div className="flex items-center justify-between gap-2">
@@ -906,7 +906,7 @@ function CommentsSidebar({
                 As&nbsp;<span className="font-medium text-gray-600">{authorName}</span>&nbsp;·&nbsp;Change
               </button>
               <button onClick={handlePostComment} disabled={submitting || !commentInput.trim()}
-                className={`shrink-0 h-7 px-3 rounded bg-accent-600 text-white text-[11px] font-bold hover:bg-accent-500 disabled:opacity-40 transition-colors flex items-center gap-1.5 ${postFlash ? 'animate-bounce-once' : ''}`}>
+                className={`shrink-0 h-7 px-3 rounded-none bg-accent-600 text-white text-[11px] font-bold hover:bg-accent-500 disabled:opacity-40 transition-colors flex items-center gap-1.5 ${postFlash ? 'animate-bounce-once' : ''}`}>
                 {submitting && <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>}
                 Post
               </button>
@@ -1141,7 +1141,7 @@ export default function ShareView({ token }: { token: string }) {
       <div className="flex flex-col h-screen overflow-hidden bg-white">
         {/* Header */}
         <header className="shrink-0 bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shadow-sm z-10">
-          <img src="/Favicon.png" alt="" className="w-6 h-6 rounded object-contain shrink-0" />
+          <img src="/Favicon.png" alt="" className="w-6 h-6 rounded-none object-contain shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">{data.projectName}</p>
             {data.ownerEmail && (
@@ -1190,14 +1190,14 @@ export default function ShareView({ token }: { token: string }) {
                 <button
                   onClick={() => { if (prev) { setSelectedProductId(prev.id); setSelectedBlockId(null) } }}
                   disabled={!prev}
-                  className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-6 h-6 flex items-center justify-center rounded-none border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
                 </button>
                 <button
                   onClick={() => { if (next) { setSelectedProductId(next.id); setSelectedBlockId(null) } }}
                   disabled={!next}
-                  className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  className="w-6 h-6 flex items-center justify-center rounded-none border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
                 </button>
@@ -1383,7 +1383,7 @@ export default function ShareView({ token }: { token: string }) {
 
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header className="shrink-0 bg-white border-b border-gray-100 px-5 py-3 flex items-center gap-3 shadow-sm z-10">
-        <img src="/Favicon.png" alt="" className="w-6 h-6 rounded object-contain shrink-0" />
+        <img src="/Favicon.png" alt="" className="w-6 h-6 rounded-none object-contain shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-900 truncate">{data.projectName}</p>
           {data.ownerEmail && (

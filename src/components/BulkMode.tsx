@@ -772,7 +772,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
                   onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
                   onDragLeave={() => setIsDragging(false)}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`flex flex-col items-center justify-center gap-2 h-24 rounded-xl border-2 border-dashed cursor-pointer transition-colors ${
+                  className={`flex flex-col items-center justify-center gap-2 h-24 rounded-none border-2 border-dashed cursor-pointer transition-colors ${
                     isDragging ? 'border-gray-400 bg-gray-50 dark:bg-gray-800' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 hover:bg-gray-50/50 dark:hover:bg-gray-800/50'
                   }`}
                 >
@@ -785,12 +785,12 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
                   </div>
                 </div>
                 {fileErrors.length > 0 && (
-                  <div className="p-2 rounded-lg bg-red-50 border border-red-100">
+                  <div className="p-2 rounded-none bg-red-50 border border-red-100">
                     {fileErrors.map((e, i) => <p key={i} className="text-[10px] text-red-600">{e}</p>)}
                   </div>
                 )}
                 <button onClick={() => downloadTemplate()}
-                  className="w-full h-7 flex items-center justify-center gap-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                  className="w-full h-7 flex items-center justify-center gap-1.5 rounded-none border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                   <DownloadIcon className="w-3 h-3" /> Download Template
                 </button>
               </div>
@@ -873,7 +873,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
                   thumbnailFit="contain"
                 />
               </div>
-              <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 space-y-1">
+              <div className="p-2.5 rounded-none bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 space-y-1">
                 <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-relaxed">
                   <span className="font-semibold text-gray-700 dark:text-gray-300">Photos</span> are matched per product by SKU from Canto.
                 </p>
@@ -891,10 +891,10 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
             <div className="space-y-1.5">
               {slotConfigs.map((cfg, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className={`w-6 h-5 rounded text-[9px] font-bold uppercase flex items-center justify-center shrink-0 ${
+                  <span className={`w-6 h-5 rounded-none text-[9px] font-bold uppercase flex items-center justify-center shrink-0 ${
                     i === 1 ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
                   }`}>{slotName(i)}</span>
-                  <div className="flex flex-1 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+                  <div className="flex flex-1 rounded-none border border-gray-200 dark:border-gray-600 overflow-hidden">
                     {(['5050-right', '5050-left', 'icons'] as SlotTemplate[]).map(t => (
                       <button key={t} onClick={() => setSlotTemplate(i, t)}
                         className={`flex-1 h-6 text-[9px] font-bold uppercase tracking-wide transition-colors ${
@@ -915,10 +915,10 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
             <SettingRow label="A+ Slots">
               <div className="flex items-center gap-1.5">
                 <button onClick={() => setAplusSlots(n => Math.max(2, n - 1))}
-                  className="w-6 h-6 rounded-md border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 transition-colors text-sm flex items-center justify-center">−</button>
+                  className="w-6 h-6 rounded-none border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 transition-colors text-sm flex items-center justify-center">−</button>
                 <span className="w-4 text-center text-[12px] font-semibold text-gray-800 dark:text-gray-200 tabular-nums">{aplusSlots}</span>
                 <button onClick={() => setAplusSlots(n => Math.min(8, n + 1))}
-                  className="w-6 h-6 rounded-md border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 transition-colors text-sm flex items-center justify-center">+</button>
+                  className="w-6 h-6 rounded-none border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 transition-colors text-sm flex items-center justify-center">+</button>
               </div>
             </SettingRow>
             <SettingRow label="Gallery Images">
@@ -928,7 +928,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
               </button>
             </SettingRow>
             <SettingRow label="Output Format">
-              <div className="flex rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+              <div className="flex rounded-none border border-gray-200 dark:border-gray-600 overflow-hidden">
                 {(['png', 'jpeg'] as const).map(f => (
                   <button key={f} onClick={() => setOutputFormat(f)}
                     className={`h-6 px-2.5 text-[10px] font-bold uppercase tracking-wide transition-colors ${
@@ -938,7 +938,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
               </div>
             </SettingRow>
             {hasProducts && (
-              <div className="mt-1 p-2.5 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+              <div className="mt-1 p-2.5 rounded-none bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
                 <p className="text-[10px] text-gray-500 dark:text-gray-400">
                   <span className="font-semibold text-gray-700 dark:text-gray-300">{jobs.length} products</span>
                   {' × '}<span className="font-semibold text-gray-700 dark:text-gray-300">{imagesPerProduct} images</span>
@@ -957,9 +957,9 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
               <input type="text" placeholder="Preset name…" value={presetName}
                 onChange={e => setPresetName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSavePreset()}
-                className="flex-1 h-7 px-2.5 rounded-lg border border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 placeholder:text-gray-300 dark:placeholder:text-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500" />
+                className="flex-1 h-7 px-2.5 rounded-none border border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 placeholder:text-gray-300 dark:placeholder:text-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-500" />
               <button onClick={handleSavePreset} disabled={!presetName.trim()}
-                className="h-7 px-2.5 rounded-lg bg-gray-900 dark:bg-gray-700 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
+                className="h-7 px-2.5 rounded-none bg-gray-900 dark:bg-gray-700 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap">
                 Save
               </button>
             </div>
@@ -968,7 +968,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
             ) : (
               <div className="space-y-1">
                 {presets.map(p => (
-                  <div key={p.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 transition-colors">
+                  <div key={p.id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-none border border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 transition-colors">
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 truncate">{p.name}</p>
                       <p className="text-[9px] text-gray-400 dark:text-gray-500">{p.aplusSlots} slots · {p.outputFormat.toUpperCase()}</p>
@@ -999,17 +999,17 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
           <div className="flex gap-1.5">
             {isRunning ? (
               <button onClick={handleCancel}
-                className="flex-1 h-9 rounded-lg border border-red-200 text-red-500 text-[11px] font-bold uppercase tracking-widest hover:bg-red-50 transition-colors">
+                className="flex-1 h-9 rounded-none border border-red-200 text-red-500 text-[11px] font-bold uppercase tracking-widest hover:bg-red-50 transition-colors">
                 Cancel
               </button>
             ) : allDone ? (
               <button onClick={handleReset}
-                className="flex-1 h-9 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+                className="flex-1 h-9 rounded-none border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
                 Reset & Run Again
               </button>
             ) : (
               <button onClick={handleRun} disabled={!canRun}
-                className="flex-1 h-9 rounded-lg bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5">
+                className="flex-1 h-9 rounded-none bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5">
                 <PlayIcon /> Run Bulk Generate
               </button>
             )}
@@ -1047,7 +1047,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
             </div>
 
             {productWarnings > 0 && (
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/40">
+              <div className="flex items-start gap-2 p-3 rounded-none bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/40">
                 <span className="text-amber-500 shrink-0 mt-0.5">⚠</span>
                 <p className="text-[11px] text-amber-700 dark:text-amber-400">
                   {productWarnings} product{productWarnings !== 1 ? 's have' : ' has'} warnings — hover the ⚠ to see details. Generation will still run.
@@ -1055,7 +1055,7 @@ export default function BulkMode({ designState, exportFnRef, onCanExportChange, 
               </div>
             )}
 
-            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-gray-900 rounded-none border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
@@ -1124,7 +1124,7 @@ function StatusBadge({ status }: { status: ConnectionStatus }) {
     error:      { cls: 'bg-red-50 text-red-600', label: 'Error' },
   }
   const { cls, label } = map[status]
-  return <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${cls}`}>{label}</span>
+  return <span className={`px-1.5 py-0.5 rounded-none text-[9px] font-bold uppercase tracking-wide ${cls}`}>{label}</span>
 }
 
 function ProductRow({ job, imagesPerProduct }: { job: JobProduct; imagesPerProduct: number }) {
@@ -1165,7 +1165,7 @@ function OutputPreview({ jobs, aplusSlots, includeGallery, capturedImages, outpu
   const ext = outputFormat === 'jpeg' ? 'jpg' : 'png'
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 rounded-none border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between">
         <h3 className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Output Preview</h3>
         <span className="text-[10px] text-gray-400 dark:text-gray-500">{jobs.length} done</span>
@@ -1190,9 +1190,9 @@ function OutputPreview({ jobs, aplusSlots, includeGallery, capturedImages, outpu
                 <div className="flex items-center gap-3 mb-2">
                   <p className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">A+ Content</p>
                   <div className="flex items-center gap-2 text-[8px] text-gray-300 dark:text-gray-600">
-                    <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-semibold">D</span>
+                    <span className="px-1.5 py-0.5 rounded-none bg-gray-100 dark:bg-gray-800 font-semibold">D</span>
                     <span>Desktop 1464×600</span>
-                    <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-semibold">M</span>
+                    <span className="px-1.5 py-0.5 rounded-none bg-gray-100 dark:bg-gray-800 font-semibold">M</span>
                     <span>Mobile 600×450</span>
                   </div>
                 </div>
@@ -1206,7 +1206,7 @@ function OutputPreview({ jobs, aplusSlots, includeGallery, capturedImages, outpu
                         <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase w-5 shrink-0">{label}</span>
                         {/* Desktop thumbnail — 1464:600 ≈ 2.44:1, height 40 → width 97 */}
                         <a href={desktopUrl} download={`${job.sku}-${label}-desktop.${ext}`}
-                          className="group relative block rounded overflow-hidden border border-gray-200 dark:border-gray-600 hover:border-gray-400 transition-colors shrink-0"
+                          className="group relative block rounded-none overflow-hidden border border-gray-200 dark:border-gray-600 hover:border-gray-400 transition-colors shrink-0"
                           style={{ width: 97, height: 40 }}>
                           {desktopUrl
                             ? <img src={desktopUrl} alt={`${label} desktop`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -1218,7 +1218,7 @@ function OutputPreview({ jobs, aplusSlots, includeGallery, capturedImages, outpu
                         </a>
                         {/* Mobile thumbnail — 600:450 = 4:3, height 40 → width 53 */}
                         <a href={mobileUrl} download={`${job.sku}-${label}-mobile.${ext}`}
-                          className="group relative block rounded overflow-hidden border border-gray-200 dark:border-gray-600 hover:border-gray-400 transition-colors shrink-0"
+                          className="group relative block rounded-none overflow-hidden border border-gray-200 dark:border-gray-600 hover:border-gray-400 transition-colors shrink-0"
                           style={{ width: 53, height: 40 }}>
                           {mobileUrl
                             ? <img src={mobileUrl} alt={`${label} mobile`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -1243,7 +1243,7 @@ function OutputPreview({ jobs, aplusSlots, includeGallery, capturedImages, outpu
                       const url = capturedImages.get(key)
                       return (
                         <a key={i} href={url} download={`${job.sku}-gallery-${i + 1}.${ext}`}
-                          className="group relative block rounded overflow-hidden border border-gray-200 dark:border-gray-600 hover:border-gray-400 transition-colors"
+                          className="group relative block rounded-none overflow-hidden border border-gray-200 dark:border-gray-600 hover:border-gray-400 transition-colors"
                           style={{ width: 50, height: 50 }}>
                           {url
                             ? <img src={url} alt={`gallery-${i+1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -1271,7 +1271,7 @@ function OutputPreview({ jobs, aplusSlots, includeGallery, capturedImages, outpu
 function EmptyState({ onDownloadTemplate }: { onDownloadTemplate: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
-      <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+      <div className="w-14 h-14 rounded-none bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
         <svg className="w-7 h-7 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
         </svg>
@@ -1286,7 +1286,7 @@ function EmptyState({ onDownloadTemplate }: { onDownloadTemplate: () => void }) 
           { step: '2', label: 'Export CSV', desc: 'File → Download → CSV in Google Sheets' },
           { step: '3', label: 'Drop & Run', desc: 'Upload the file and click Run' },
         ].map(item => (
-          <div key={item.step} className="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-700 p-3 shadow-sm">
+          <div key={item.step} className="bg-white dark:bg-gray-800/50 rounded-none border border-gray-100 dark:border-gray-700 p-3 shadow-sm">
             <div className="w-5 h-5 rounded-full bg-gray-900 dark:bg-gray-700 text-white text-[9px] font-bold flex items-center justify-center mb-2">{item.step}</div>
             <p className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{item.label}</p>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{item.desc}</p>
@@ -1294,7 +1294,7 @@ function EmptyState({ onDownloadTemplate }: { onDownloadTemplate: () => void }) 
         ))}
       </div>
       <button onClick={onDownloadTemplate}
-        className="flex items-center gap-1.5 h-8 px-4 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+        className="flex items-center gap-1.5 h-8 px-4 rounded-none border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 text-[11px] font-bold uppercase tracking-widest hover:border-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
         <DownloadIcon className="w-3.5 h-3.5" /> Download Sheet Template
       </button>
     </div>

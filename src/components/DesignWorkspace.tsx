@@ -1338,7 +1338,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     return (
       <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-950">
         <header className="shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center gap-3 shadow-sm">
-          <Link href="/dashboard" className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-none border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white transition-all shrink-0">
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
@@ -1350,7 +1350,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Sign in to view this project.</p>
             <button
               onClick={() => setAuthModalOpen(true)}
-              className="h-9 px-5 rounded bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+              className="h-9 px-5 rounded-none bg-gray-900 dark:bg-gray-700 text-white text-sm font-semibold hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
             >
               Sign in
             </button>
@@ -1366,7 +1366,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       <button
         onClick={() => setSettingsMenuOpen(o => !o)}
         title="Settings"
-        className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${settingsMenuOpen ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300'}`}
+        className={`w-8 h-8 flex items-center justify-center rounded-none transition-colors ${settingsMenuOpen ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300'}`}
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -1376,16 +1376,16 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       {settingsMenuOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setSettingsMenuOpen(false)} />
-          <div className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 p-4 z-50 animate-slide-down">
+          <div className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-none shadow-2xl border border-gray-100 dark:border-gray-700 p-4 z-50 animate-slide-down">
 
             {/* Appearance */}
             <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Appearance</p>
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs text-gray-600 dark:text-gray-400">Theme</span>
-              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-none p-0.5">
                 {(['light', 'dark'] as const).map(t => (
                   <button key={t} onClick={() => updateAppSettings({ theme: t })}
-                    className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.theme === t ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    className={`h-6 px-3 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.theme === t ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                     {t === 'light' ? 'Light' : 'Dark'}
                   </button>
                 ))}
@@ -1393,10 +1393,10 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             </div>
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs text-gray-600 dark:text-gray-400">Density</span>
-              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-none p-0.5">
                 {(['comfortable', 'compact'] as const).map(d => (
                   <button key={d} onClick={() => updateAppSettings({ uiDensity: d })}
-                    className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.uiDensity === d ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    className={`h-6 px-3 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.uiDensity === d ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                     {d === 'comfortable' ? 'Cozy' : 'Compact'}
                   </button>
                 ))}
@@ -1413,11 +1413,11 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 : ['#FFFFFF', '#F0F0F0', '#E0E0E0', '#1a1a1a'] as const
               ).map(color => (
                 <button key={color} onClick={() => setCanvasBg(color)} title={color}
-                  className={`w-8 h-8 rounded ring-2 transition-all ${canvasBg === color ? 'ring-gray-900 dark:ring-white ring-offset-1 dark:ring-offset-gray-900' : 'ring-gray-200 dark:ring-gray-600 hover:ring-gray-400'}`}
+                  className={`w-8 h-8 rounded-none ring-2 transition-all ${canvasBg === color ? 'ring-gray-900 dark:ring-white ring-offset-1 dark:ring-offset-gray-900' : 'ring-gray-200 dark:ring-gray-600 hover:ring-gray-400'}`}
                   style={{ backgroundColor: color }} />
               ))}
-              <label title="Custom color" className="relative w-8 h-8 flex items-center justify-center rounded ring-2 ring-gray-200 dark:ring-gray-600 hover:ring-gray-400 transition-all cursor-pointer overflow-hidden shrink-0">
-                <div className="w-full h-full rounded" style={{ background: 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />
+              <label title="Custom color" className="relative w-8 h-8 flex items-center justify-center rounded-none ring-2 ring-gray-200 dark:ring-gray-600 hover:ring-gray-400 transition-all cursor-pointer overflow-hidden shrink-0">
+                <div className="w-full h-full rounded-none" style={{ background: 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)' }} />
                 <input type="color" value={canvasBg} onChange={e => setCanvasBg(e.target.value)}
                   style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }} />
               </label>
@@ -1430,10 +1430,10 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             <p className="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3">Export defaults</p>
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs text-gray-600 dark:text-gray-400">Format</span>
-              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5">
+              <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-none p-0.5">
                 {(['png', 'jpeg'] as const).map(f => (
                   <button key={f} onClick={() => updateAppSettings({ exportFormat: f })}
-                    className={`h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.exportFormat === f ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                    className={`h-6 px-3 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all ${appSettings.exportFormat === f ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                     {f.toUpperCase()}
                   </button>
                 ))}
@@ -1459,7 +1459,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             <div className="flex gap-1">
               {([0, 1000, 2000, 5000] as const).map(ms => (
                 <button key={ms} onClick={() => updateAppSettings({ autosaveInterval: ms })}
-                  className={`flex-1 h-7 rounded text-[10px] font-bold border-2 transition-all ${appSettings.autosaveInterval === ms ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
+                  className={`flex-1 h-7 rounded-none text-[10px] font-bold border-2 transition-all ${appSettings.autosaveInterval === ms ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
                   {ms === 0 ? 'Off' : `${ms / 1000}s`}
                 </button>
               ))}
@@ -1486,14 +1486,14 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           value={albumSearch[key] ?? ''}
                           onChange={e => setAlbumSearch(s => ({ ...s, [key]: e.target.value }))}
                           placeholder="Search albums…"
-                          className="w-full h-7 pl-6 pr-2 rounded-t border border-b-0 border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none placeholder-gray-300 dark:placeholder-gray-600"
+                          className="w-full h-7 pl-6 pr-2 rounded-none border border-b-0 border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none placeholder-gray-300 dark:placeholder-gray-600"
                         />
                       </div>
                       <select
                         value={folderConfig[key] ?? ''}
                         onChange={e => updateFolderConfig({ [key]: e.target.value || null })}
                         size={4}
-                        className="w-full px-2 py-1 rounded-b border border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-400"
+                        className="w-full px-2 py-1 rounded-none border border-gray-200 dark:border-gray-600 text-[11px] text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 focus:outline-none focus:ring-1 focus:ring-gray-400"
                       >
                         <option value="">— not set —</option>
                         {filteredAlbums(key).map(a => (
@@ -1522,7 +1522,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           <>
             <a
               href="/dashboard"
-              className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shrink-0"
+              className="flex items-center gap-1.5 h-7 pl-2 pr-3 rounded-none border border-gray-200 dark:border-gray-600 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-all shrink-0"
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -1564,7 +1564,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           </>
         ) : (
           <>
-            <img src="/Favicon.png" alt="Doc's Design Generator" className="w-7 h-7 rounded-lg object-contain shrink-0" />
+            <img src="/Favicon.png" alt="Doc's Design Generator" className="w-7 h-7 rounded-none object-contain shrink-0" />
             <span className="font-bold text-gray-900 dark:text-white text-base tracking-tight shrink-0">Doc&rsquo;s Design Generator</span>
           </>
         )}
@@ -1588,15 +1588,15 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
         )}
 
         {/* Beta badge */}
-        <span className="shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700">
+        <span className="shrink-0 px-1.5 py-0.5 rounded-none text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700">
           Beta
         </span>
 
         {/* Mode tabs */}
-        <div className="relative flex items-center bg-gray-100 dark:bg-gray-800 rounded p-0.5 shrink-0">
+        <div className="relative flex items-center bg-gray-100 dark:bg-gray-800 rounded-none p-0.5 shrink-0">
           {/* Sliding active pill */}
           <div
-            className="absolute top-0.5 bottom-0.5 rounded-sm bg-white dark:bg-gray-700 shadow-sm pointer-events-none"
+            className="absolute top-0.5 bottom-0.5 rounded-none bg-white dark:bg-gray-700 shadow-sm pointer-events-none"
             style={{
               width: 'calc(50% - 2px)',
               left: 2,
@@ -1611,7 +1611,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               onClick={() => setAppMode(mode)}
               title={mode === 'bulk' ? 'Coming soon' : undefined}
               disabled={mode === 'bulk'}
-              className={`relative z-10 flex-1 h-6 px-3 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-colors duration-150 ${
+              className={`relative z-10 flex-1 h-6 px-3 rounded-none text-[10px] font-bold uppercase tracking-widest transition-colors duration-150 ${
                 appMode === mode
                   ? 'text-gray-900 dark:text-white'
                   : mode === 'bulk'
@@ -1641,14 +1641,14 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             {bulkExportOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setBulkExportOpen(false)} />
-                <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 p-3 z-50 animate-slide-down">
+                <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-none shadow-2xl border border-gray-100 dark:border-gray-700 p-3 z-50 animate-slide-down">
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums mb-3 px-1">
                     {bulkCanExport ? 'Generation complete' : 'Run bulk generation first'}
                   </p>
                   <button
                     onClick={() => { bulkExportFnRef.current(); setBulkExportOpen(false) }}
                     disabled={!bulkCanExport}
-                    className="w-full h-9 flex items-center justify-center gap-2 rounded bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-full h-9 flex items-center justify-center gap-2 rounded-none bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
@@ -1668,7 +1668,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             <button
               onClick={() => templatePreviewFnRef.current()}
               title="Preview"
-              className="w-8 h-8 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1682,7 +1682,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               <button
                 onClick={() => setFeedbackOpen(o => !o)}
                 title="View feedback"
-                className="relative w-8 h-8 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                className="relative w-8 h-8 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -1731,13 +1731,13 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             {templateExportOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setTemplateExportOpen(false)} />
-                <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded shadow-2xl border border-gray-100 dark:border-gray-700 p-2.5 z-50 animate-slide-down">
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-none shadow-2xl border border-gray-100 dark:border-gray-700 p-2.5 z-50 animate-slide-down">
 
                   {/* ── Primary export ── */}
                   <button
                     onClick={() => { templateExportFnRef.current(); setTemplateExportOpen(false) }}
                     disabled={!templateCanExport || templateRenderingAll}
-                    className="w-full h-9 flex items-center gap-2 px-3 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-full h-9 flex items-center gap-2 px-3 rounded-none bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                     Export All ZIP
@@ -1748,7 +1748,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   <button
                     onClick={() => { templateExportCurrentFnRef.current(); setTemplateExportOpen(false) }}
                     disabled={!templateCanExportCurrent}
-                    className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-full h-9 flex items-center gap-2 px-3 rounded-none text-[11px] font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     Export Current Product
@@ -1783,7 +1783,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                                   active ? next.delete(g.id) : next.add(g.id)
                                   return next
                                 })}
-                                className={`h-7 w-full flex items-center justify-center rounded text-[11px] font-bold transition-all ${
+                                className={`h-7 w-full flex items-center justify-center rounded-none text-[11px] font-bold transition-all ${
                                   active
                                     ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
                                     : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -1800,7 +1800,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                             await templateExportSelectedFnRef.current(Array.from(selectedSlots))
                           }}
                           disabled={selectedSlots.size === 0}
-                          className="w-full h-9 flex items-center justify-center gap-1.5 px-3 rounded bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          className="w-full h-9 flex items-center justify-center gap-1.5 px-3 rounded-none bg-gray-900 dark:bg-gray-700 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                         >
                           <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                           {selectedSlots.size === 0 ? 'Pick slots above' : `Export ${selectedSlots.size} slot${selectedSlots.size !== 1 ? 's' : ''}`}
@@ -1814,7 +1814,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   {cantoConnected === false ? (
                     <button
                       onClick={() => { setTemplateExportOpen(false); window.location.href = '/api/canto/auth' }}
-                      className="w-full h-9 flex items-center justify-center gap-2.5 px-3 rounded bg-[#F5A623]/15 border border-[#F5A623]/30 text-[#C8820F] dark:text-[#F5A623] text-[11px] font-bold uppercase tracking-widest hover:bg-[#F5A623]/25 hover:border-[#F5A623]/50 transition-colors"
+                      className="w-full h-9 flex items-center justify-center gap-2.5 px-3 rounded-none bg-[#F5A623]/15 border border-[#F5A623]/30 text-[#C8820F] dark:text-[#F5A623] text-[11px] font-bold uppercase tracking-widest hover:bg-[#F5A623]/25 hover:border-[#F5A623]/50 transition-colors"
                     >
                       <CantoLogoMark className="h-4 w-4 shrink-0" />
                       Connect Canto
@@ -1828,7 +1828,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           if (files.length > 0) { setCantoFiles(files); setCantoModalOpen(true) }
                         }}
                         disabled={!templateCanExport || templateRenderingAll}
-                        className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-[#F5A623]/10 hover:text-[#C8820F] dark:hover:text-[#F5A623] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="w-full h-9 flex items-center gap-2 px-3 rounded-none text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-[#F5A623]/10 hover:text-[#C8820F] dark:hover:text-[#F5A623] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <CantoLogoMark className="h-4 w-4 shrink-0" />
                         Save All to Canto
@@ -1840,7 +1840,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           if (files.length > 0) { setCantoFiles(files); setCantoModalOpen(true) }
                         }}
                         disabled={!templateCanExportCurrent}
-                        className="w-full h-9 flex items-center gap-2 px-3 rounded text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-[#F5A623]/10 hover:text-[#C8820F] dark:hover:text-[#F5A623] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="w-full h-9 flex items-center gap-2 px-3 rounded-none text-[11px] font-bold text-gray-700 dark:text-gray-300 hover:bg-[#F5A623]/10 hover:text-[#C8820F] dark:hover:text-[#F5A623] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         <CantoLogoMark className="h-4 w-4 shrink-0" />
                         Save Current to Canto
@@ -1851,7 +1851,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           setCantoConnected(false)
                           setTemplateExportOpen(false)
                         }}
-                        className="w-full h-7 flex items-center gap-2 px-3 rounded text-[10px] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        className="w-full h-7 flex items-center gap-2 px-3 rounded-none text-[10px] text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                       >
                         Disconnect Canto
                       </button>
@@ -1886,7 +1886,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             <>
               {/* Backdrop — closes dropdown, sits below the menu */}
               <div className="fixed inset-0 z-40" onClick={() => setCategoryDropdownOpen(false)} />
-              <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 py-1.5 z-50 animate-slide-down">
+              <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-none shadow-xl border border-gray-100 dark:border-gray-700 py-1.5 z-50 animate-slide-down">
                 {(['aplus', 'gallery'] as Category[]).map(id => {
                   const label = id === 'aplus' ? 'Amazon A+ Content' : 'Amazon Gallery Images'
                   const sub   = id === 'aplus' ? 'Rich banners below the fold' : 'Main product carousel · 1500×1500'
@@ -1916,11 +1916,11 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
             {/* Undo / Redo */}
             <button onClick={undo} disabled={!canUndo} title="Undo (⌘Z)"
-              className="w-8 h-8 flex items-center justify-center rounded text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              className="w-8 h-8 flex items-center justify-center rounded-none text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <UndoIcon />
             </button>
             <button onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)"
-              className="w-8 h-8 flex items-center justify-center rounded text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              className="w-8 h-8 flex items-center justify-center rounded-none text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <RedoIcon />
             </button>
 
@@ -1932,7 +1932,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 <button
                   onClick={() => setUserMenuOpen(o => !o)}
                   title={user.email ?? 'Account'}
-                  className="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  className="w-8 h-8 flex items-center justify-center rounded-none hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
                   <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center text-white text-[10px] font-bold">
                     {(user.email ?? '?')[0].toUpperCase()}
@@ -1941,7 +1941,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 {userMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                    <div className="absolute top-full right-0 mt-2 w-52 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 p-2 z-50 animate-slide-down">
+                    <div className="absolute top-full right-0 mt-2 w-52 bg-white dark:bg-gray-900 rounded-none shadow-2xl border border-gray-100 dark:border-gray-700 p-2 z-50 animate-slide-down">
                       <div className="px-3 py-2 mb-1">
                         <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{user.user_metadata?.full_name ?? user.email}</p>
                         <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{user.email}</p>
@@ -1949,7 +1949,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                       <div className="h-px bg-gray-100 dark:bg-gray-700 mb-1" />
                       <button
                         onClick={() => { setUserMenuOpen(false); signOut() }}
-                        className="w-full text-left px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-500 rounded transition-colors"
+                        className="w-full text-left px-3 py-2 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-red-500 rounded-none transition-colors"
                       >
                         Sign out
                       </button>
@@ -1990,7 +1990,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             <button
               onClick={() => isGallery ? setGalleryPreviewOpen(true) : setPreviewOpen(true)}
               title={isGallery ? 'Preview all slides' : 'Preview all blocks'}
-              className="w-8 h-8 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -2005,7 +2005,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             <button
               onClick={() => setShortcutsOpen(true)}
               title="Keyboard shortcuts (⌘/)"
-              className="w-8 h-8 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-mono text-[13px] font-semibold"
+              className="w-8 h-8 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors font-mono text-[13px] font-semibold"
             >
               ?
             </button>
@@ -2016,7 +2016,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               <button
                 onClick={() => setFeedbackOpen(o => !o)}
                 title="View feedback"
-                className="relative w-8 h-8 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                className="relative w-8 h-8 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -2057,7 +2057,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               {exportMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setExportMenuOpen(false)} />
-                  <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 p-3 z-50 animate-slide-down">
+                  <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-none shadow-2xl border border-gray-100 dark:border-gray-700 p-3 z-50 animate-slide-down">
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums mb-3 px-1">
                       {template.width} × {template.height} px
                       <span className="mx-1 text-gray-300">·</span>
@@ -2073,13 +2073,13 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           value={fileBase}
                           onChange={e => setCustomBase(e.target.value || null)}
                           spellCheck={false}
-                          className="flex-1 min-w-0 px-2.5 h-8 text-[11px] font-mono text-gray-700 border border-gray-200 rounded bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-400 focus:bg-white transition-all"
+                          className="flex-1 min-w-0 px-2.5 h-8 text-[11px] font-mono text-gray-700 border border-gray-200 rounded-none bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-400 focus:bg-white transition-all"
                         />
                         {customBase && (
                           <button
                             onClick={() => setCustomBase(null)}
                             title="Reset to default"
-                            className="shrink-0 w-7 h-7 flex items-center justify-center rounded text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+                            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-none text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
                           >
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -2111,7 +2111,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           <button
                             onClick={() => { setExportMenuOpen(false); exportAllBlocks(design) }}
                             disabled={isExportingAll}
-                            className="w-full h-9 flex items-center justify-center gap-2 rounded bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="w-full h-9 flex items-center justify-center gap-2 rounded-none bg-gray-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             {isExportingAll ? (
                               <>
@@ -2208,7 +2208,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     onChange={e => setDesign(d => ({ ...d, productName: e.target.value }))}
                     placeholder="e.g. CCV Filter D3932C"
                     spellCheck={false}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
                   />
                 </div>
                 {design.productName.trim() ? (
@@ -2242,11 +2242,11 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     onChange={e => setPresetName(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') savePreset() }}
                     placeholder="Name this preset…"
-                    className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all min-w-0"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all min-w-0"
                   />
                   <button
                     onClick={savePreset}
-                    className="shrink-0 px-3 h-[38px] text-[11px] font-bold uppercase tracking-widest rounded bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+                    className="shrink-0 px-3 h-[38px] text-[11px] font-bold uppercase tracking-widest rounded-none bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
                   >
                     Save
                   </button>
@@ -2259,14 +2259,14 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                       <div key={p.id} className="flex items-center gap-1.5 group">
                         <button
                           onClick={() => loadPreset(p)}
-                          className="flex-1 text-left px-3 py-2 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-700/60 rounded transition-colors truncate font-medium"
+                          className="flex-1 text-left px-3 py-2 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/60 hover:bg-gray-100 dark:hover:bg-gray-700/60 rounded-none transition-colors truncate font-medium"
                         >
                           {p.name}
                         </button>
                         <button
                           onClick={() => deletePreset(p.id)}
                           title="Delete preset"
-                          className="shrink-0 w-7 h-7 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                          className="shrink-0 w-7 h-7 flex items-center justify-center rounded-none text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -2297,7 +2297,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                       <button
                         type="button"
                         onClick={() => setGalleryShowDescription(!design.galleryIconsShowDescription)}
-                        className={`flex items-center gap-1 h-5 px-2 rounded text-[9px] font-bold uppercase tracking-wider transition-colors ${
+                        className={`flex items-center gap-1 h-5 px-2 rounded-none text-[9px] font-bold uppercase tracking-wider transition-colors ${
                           design.galleryIconsShowDescription
                             ? 'bg-gray-900 dark:bg-gray-600 text-white'
                             : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
@@ -2367,7 +2367,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                             patchDesign({ iconLabels: next })
                           }}
                           placeholder={`Icon ${i + 1} label…`}
-                          className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                          className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 dark:focus:ring-gray-500/30 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
                         />
                       </div>
                     ))}
@@ -2390,7 +2390,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                       const asset = currentAssets[0]
                       return asset ? (
                         <div className="flex items-center gap-1.5">
-                          <div className="w-12 h-8 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
+                          <div className="w-12 h-8 rounded-none bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" />
                           </div>
@@ -2403,7 +2403,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           </button>
                           <button
                             onClick={() => removeCurrentAsset(asset.id)}
-                            className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
+                            className="w-5 h-5 flex items-center justify-center rounded-none text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
                             title="Remove photo"
                           >
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -2414,7 +2414,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                       ) : (
                         <button
                           onClick={() => setPhotoPickerOpen(true)}
-                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-none border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                         >
                           <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -2463,7 +2463,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                               <div className="flex-1 flex items-center gap-1.5">
                                 {asset ? (
                                   <>
-                                    <div className="w-8 h-8 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center overflow-hidden shrink-0">
+                                    <div className="w-8 h-8 rounded-none bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center overflow-hidden shrink-0">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img src={asset.url} alt={asset.name} className="max-w-full max-h-full object-contain p-0.5" />
                                     </div>
@@ -2476,7 +2476,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                                     </button>
                                     <button
                                       onClick={() => removeCurrentAsset(asset.id)}
-                                      className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
+                                      className="w-5 h-5 flex items-center justify-center rounded-none text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0"
                                       title="Remove icon"
                                     >
                                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -2488,7 +2488,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                                   <button
                                     onClick={() => setIconPickerSlot(slot)}
                                     disabled={!folderConfig.iconsAlbumId}
-                                    className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                    className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-none border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                                   >
                                     <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -2538,7 +2538,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Photo Composition</p>
                   <button
                     onClick={() => setPhotoEditMode(m => !m)}
-                    className={`w-full h-9 flex items-center justify-center gap-2 rounded border-2 text-[11px] font-bold uppercase tracking-widest transition-all ${
+                    className={`w-full h-9 flex items-center justify-center gap-2 rounded-none border-2 text-[11px] font-bold uppercase tracking-widest transition-all ${
                       photoEditMode
                         ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
                         : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
@@ -2547,7 +2547,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     <MoveIcon />
                     {photoEditMode ? 'Drag enabled · click photo' : 'Drag to reposition'}
                   </button>
-                  <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
+                  <div className="rounded-none bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs text-gray-500">Scale</span>
@@ -2592,7 +2592,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                   <div className="flex gap-2">
                     <button
                       onClick={() => patchPhotoComp(p => ({ ...p, flipH: !p.flipH }))}
-                      className={`flex-1 h-8 flex items-center justify-center gap-1.5 rounded border text-[10px] font-semibold transition-all ${
+                      className={`flex-1 h-8 flex items-center justify-center gap-1.5 rounded-none border text-[10px] font-semibold transition-all ${
                         (settings.photoComposition ?? DEFAULT_PHOTO_COMP).flipH
                           ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
                           : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500'
@@ -2602,7 +2602,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     </button>
                     <button
                       onClick={() => patchPhotoComp(() => DEFAULT_PHOTO_COMP)}
-                      className="flex-1 h-8 flex items-center justify-center gap-1.5 rounded border border-gray-200 dark:border-gray-600 text-[10px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 transition-all"
+                      className="flex-1 h-8 flex items-center justify-center gap-1.5 rounded-none border border-gray-200 dark:border-gray-600 text-[10px] font-semibold text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500 transition-all"
                     >
                       <ResetIcon /> Reset
                     </button>
@@ -2625,7 +2625,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           key={String(flipped)}
                           onClick={() => patchSettings({ layoutFlipped: flipped })}
                           title={flipped ? 'Text left · Photo right' : 'Photo left · Text right'}
-                          className={`flex-1 h-9 rounded border-2 flex items-center justify-center transition-all ${
+                          className={`flex-1 h-9 rounded-none border-2 flex items-center justify-center transition-all ${
                             settings.layoutFlipped === flipped
                               ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
                               : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-500'
@@ -2644,7 +2644,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                       <button
                         key={c}
                         onClick={() => patchSettings({ logoCorner: c })}
-                        className={`h-7 rounded text-sm border-2 flex items-center justify-center transition-all ${
+                        className={`h-7 rounded-none text-sm border-2 flex items-center justify-center transition-all ${
                           settings.logoCorner === c
                             ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
                             : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-500'
@@ -2655,7 +2655,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                     ))}
                   </div>
                 </div>
-                <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
+                <div className="rounded-none bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
                   <Slider label="Logo size" value={settings.logoSize} unit="px" min={20} max={200} step={4}
                     onChange={v => patchSettings({ logoSize: v })} />
                   <Slider label="Logo padding" value={settings.logoPadding} unit="px" min={4} max={100} step={4}
@@ -2668,7 +2668,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             {((!isGallery && design.activeTemplate === 'aplus-icons') || (isGallery && activeGalleryBlock?.templateId === 'gallery-icons')) && (
               <Section title="Icons" icon={<CantoSidebarIcon />}>
                 <div className="space-y-3">
-                  <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
+                  <div className="rounded-none bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
                     <div>
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Count</p>
                       <div className="flex gap-1">
@@ -2676,7 +2676,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                           <button
                             key={n}
                             onClick={() => patchDesign({ iconCount: n })}
-                            className={`flex-1 h-7 rounded text-xs font-bold border-2 transition-all ${
+                            className={`flex-1 h-7 rounded-none text-xs font-bold border-2 transition-all ${
                               design.iconCount === n
                                 ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white'
                                 : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-gray-500 hover:text-gray-600 dark:hover:text-gray-300'
@@ -2703,7 +2703,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               <div className="space-y-3">
 
                 {/* Title card */}
-                <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
+                <div className="rounded-none bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Title</p>
                   <Slider label="Size" value={settings.titleFontSize} unit="px" min={24} max={200} step={2}
                     onChange={v => patchSettings({ titleFontSize: v })} />
@@ -2718,7 +2718,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                 </div>
 
                 {/* Description card */}
-                <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
+                <div className="rounded-none bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Description</p>
                   <Slider label="Size" value={settings.subtitleFontSize} unit="px" min={10} max={80} step={1}
                     onChange={v => patchSettings({ subtitleFontSize: v })} />
@@ -2737,7 +2737,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
             {/* Spacing */}
             <Section title="Spacing" icon={<SpacingIcon />}>
-              <div className="rounded-xl bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
+              <div className="rounded-none bg-gray-50 dark:bg-gray-800/60 px-3 pt-2.5 pb-3 space-y-2.5">
                 <Slider label="Padding H" value={settings.contentPaddingX} unit="px" min={8} max={120} step={4}
                   onChange={v => patchSettings({ contentPaddingX: v })} />
                 <Slider label="Padding V" value={settings.contentPaddingV} unit="px" min={8} max={120} step={4}
@@ -3155,7 +3155,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           </div>
 
           {/* Zoom HUD */}
-          <div className="absolute bottom-4 right-4 z-10 flex items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-sm overflow-hidden">
+          <div className="absolute bottom-4 right-4 z-10 flex items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-none shadow-sm overflow-hidden">
             <button
               onClick={() => adjustZoom(1 / 1.25)}
               className="w-7 h-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold transition-colors"
@@ -3206,7 +3206,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       {saveToShareOpen && (
         <>
           <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm" onClick={() => setSaveToShareOpen(false)} />
-          <div className="fixed z-50 w-full max-w-sm top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-950 border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl p-5 animate-scale-in">
+          <div className="fixed z-50 w-full max-w-sm top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-950 border border-gray-200 dark:border-white/10 rounded-none shadow-2xl p-5 animate-scale-in">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">Save project to share</h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Give your project a name first — you can always rename it later.</p>
             <input
@@ -3216,16 +3216,16 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
               onChange={e => setSaveToShareName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') saveAndShare(); if (e.key === 'Escape') setSaveToShareOpen(false) }}
               placeholder="Project name"
-              className="w-full h-9 px-3 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none focus:ring-2 focus:ring-accent-500 mb-4"
+              className="w-full h-9 px-3 rounded-none border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none focus:ring-2 focus:ring-accent-500 mb-4"
             />
             <div className="flex items-center justify-end gap-2">
-              <button onClick={() => setSaveToShareOpen(false)} className="h-8 px-3 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <button onClick={() => setSaveToShareOpen(false)} className="h-8 px-3 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-none hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                 Cancel
               </button>
               <button
                 onClick={saveAndShare}
                 disabled={saveToShareSaving}
-                className="h-8 px-4 bg-accent-600 hover:bg-accent-500 text-white text-xs font-bold uppercase tracking-widest rounded transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="h-8 px-4 bg-accent-600 hover:bg-accent-500 text-white text-xs font-bold uppercase tracking-widest rounded-none transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {saveToShareSaving && (
                   <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
@@ -3330,7 +3330,7 @@ function TransformBtns({ value, onChange }: { value: TextTransform; onChange: (v
     <div className="flex gap-1">
       {TRANSFORMS.map(t => (
         <button key={t.value} title={t.title} onClick={() => onChange(t.value)}
-          className={`flex-1 py-1.5 text-xs rounded border font-mono font-semibold transition-all ${value === t.value ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
+          className={`flex-1 py-1.5 text-xs rounded-none border font-mono font-semibold transition-all ${value === t.value ? 'border-gray-900 dark:border-gray-500 bg-gray-900 dark:bg-gray-700 text-white' : 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}>
           {t.label}
         </button>
       ))}
@@ -3343,7 +3343,7 @@ function TransformBtns({ value, onChange }: { value: TextTransform; onChange: (v
 function ColorRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <label className="flex items-center gap-3 cursor-pointer group">
-      <div className="relative w-8 h-8 rounded overflow-hidden shrink-0 ring-2 ring-gray-200 dark:ring-gray-600 group-hover:ring-gray-400 dark:group-hover:ring-gray-500 transition-all">
+      <div className="relative w-8 h-8 rounded-none overflow-hidden shrink-0 ring-2 ring-gray-200 dark:ring-gray-600 group-hover:ring-gray-400 dark:group-hover:ring-gray-500 transition-all">
         <div className="w-full h-full" style={{ backgroundColor: value }} />
         <input type="color" value={value} onChange={e => onChange(e.target.value)}
           style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', padding: 0, border: 'none' }} />
@@ -3360,7 +3360,7 @@ function ColorRow({ label, value, onChange }: { label: string; value: string; on
 
 function PanelIcon({ photoLeft, active }: { photoLeft: boolean; active: boolean }) {
   const c = active ? 'white' : 'currentColor'
-  const photo = <div className="w-4 h-5 rounded-sm" style={{ backgroundColor: c, opacity: active ? 0.7 : 0.4 }} />
+  const photo = <div className="w-4 h-5 rounded-none" style={{ backgroundColor: c, opacity: active ? 0.7 : 0.4 }} />
   const text = (
     <div className="flex flex-col gap-0.5">
       <div className="w-5 h-1 rounded-full" style={{ backgroundColor: c, opacity: active ? 1 : 0.7 }} />
@@ -3542,8 +3542,8 @@ const APLUS_TEMPLATE_CARDS: { id: TemplateId; name: string; desc: string; availa
     available: true,
     preview: (
       <div className="w-full h-full flex">
-        <div className="w-1/2 h-full bg-gray-300 rounded-l-md" />
-        <div className="w-1/2 h-full bg-gray-700 rounded-r-md flex flex-col justify-center gap-1 px-2">
+        <div className="w-1/2 h-full bg-gray-300 rounded-none-md" />
+        <div className="w-1/2 h-full bg-gray-700 rounded-none-md flex flex-col justify-center gap-1 px-2">
           <div className="h-1.5 w-3/4 bg-white/70 rounded-full" />
           <div className="h-1 w-full bg-white/40 rounded-full" />
           <div className="h-1 w-5/6 bg-white/40 rounded-full" />
@@ -3558,8 +3558,8 @@ const APLUS_TEMPLATE_CARDS: { id: TemplateId; name: string; desc: string; availa
     available: true,
     preview: (
       <div className="w-full h-full flex">
-        <div className="w-1/2 h-full bg-gray-300 rounded-l-md" />
-        <div className="w-1/2 h-full bg-gray-700 rounded-r-md flex flex-col justify-between px-2 py-2">
+        <div className="w-1/2 h-full bg-gray-300 rounded-none-md" />
+        <div className="w-1/2 h-full bg-gray-700 rounded-none-md flex flex-col justify-between px-2 py-2">
           <div className="space-y-1">
             <div className="h-1.5 w-4/5 bg-red-400/80 rounded-full" />
             <div className="h-1 w-full bg-white/40 rounded-full" />
@@ -3583,8 +3583,8 @@ const APLUS_TEMPLATE_CARDS: { id: TemplateId; name: string; desc: string; availa
     desc: 'Full-width hero with text overlay',
     available: false,
     preview: (
-      <div className="w-full h-full bg-gray-300 rounded-md relative flex flex-col justify-end p-2">
-        <div className="absolute inset-0 rounded-md bg-gradient-to-t from-gray-800/80 to-transparent" />
+      <div className="w-full h-full bg-gray-300 rounded-none relative flex flex-col justify-end p-2">
+        <div className="absolute inset-0 rounded-none bg-gradient-to-t from-gray-800/80 to-transparent" />
         <div className="relative space-y-1">
           <div className="h-1.5 w-3/5 bg-white/80 rounded-full" />
           <div className="h-1 w-4/5 bg-white/50 rounded-full" />
@@ -3598,7 +3598,7 @@ const APLUS_TEMPLATE_CARDS: { id: TemplateId; name: string; desc: string; availa
     desc: 'Wide narrative layout',
     available: false,
     preview: (
-      <div className="w-full h-full rounded-md bg-gray-800 flex flex-col justify-between p-2">
+      <div className="w-full h-full rounded-none bg-gray-800 flex flex-col justify-between p-2">
         <div className="flex gap-1 items-center">
           <div className="w-4 h-4 rounded-full bg-gray-400 shrink-0" />
           <div className="h-1 w-16 bg-gray-500 rounded-full" />
@@ -3620,7 +3620,7 @@ const GALLERY_TEMPLATE_CARDS: { id: GalleryTemplateId; name: string; desc: strin
     desc: 'Full photo with text panel below',
     available: true,
     preview: (
-      <div className="w-full h-full flex flex-col rounded-md overflow-hidden">
+      <div className="w-full h-full flex flex-col rounded-none overflow-hidden">
         <div className="flex-1 bg-gray-300" />
         <div style={{ height: 3, backgroundColor: '#AF3939' }} />
         <div className="bg-gray-800 px-2 py-1.5 space-y-1">
@@ -3636,7 +3636,7 @@ const GALLERY_TEMPLATE_CARDS: { id: GalleryTemplateId; name: string; desc: strin
     desc: 'Photo top, title + 3 features below',
     available: true,
     preview: (
-      <div className="w-full h-full flex flex-col rounded-md overflow-hidden">
+      <div className="w-full h-full flex flex-col rounded-none overflow-hidden">
         <div className="flex-1 bg-gray-300" />
         <div style={{ height: 3, backgroundColor: '#AF3939' }} />
         <div className="bg-gray-800 flex" style={{ height: '38%' }}>
@@ -3664,8 +3664,8 @@ const GALLERY_TEMPLATE_CARDS: { id: GalleryTemplateId; name: string; desc: strin
     desc: 'Feature callout with overlay text',
     available: false,
     preview: (
-      <div className="w-full h-full bg-gray-300 rounded-md relative flex items-end p-2">
-        <div className="absolute inset-0 rounded-md bg-gradient-to-t from-gray-900/80 to-transparent" />
+      <div className="w-full h-full bg-gray-300 rounded-none relative flex items-end p-2">
+        <div className="absolute inset-0 rounded-none bg-gradient-to-t from-gray-900/80 to-transparent" />
         <div className="relative space-y-1 w-full">
           <div className="h-2 w-2/3 rounded-full" style={{ backgroundColor: '#AF3939', opacity: 0.8 }} />
           <div className="h-1 w-full bg-white/50 rounded-full" />
@@ -3679,7 +3679,7 @@ const GALLERY_TEMPLATE_CARDS: { id: GalleryTemplateId; name: string; desc: strin
     desc: 'Lifestyle shot with minimal branding',
     available: false,
     preview: (
-      <div className="w-full h-full bg-gray-400 rounded-md relative overflow-hidden">
+      <div className="w-full h-full bg-gray-400 rounded-none relative overflow-hidden">
         <div className="absolute top-2 right-2 space-y-1">
           <div className="h-1.5 w-12 bg-white/80 rounded-full" />
           <div className="h-1 w-10 bg-white/50 rounded-full" />
@@ -3712,7 +3712,7 @@ function TemplatePicker({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+      <div className="relative bg-white rounded-none shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
@@ -3724,7 +3724,7 @@ function TemplatePicker({
               {isGallery ? 'Amazon Gallery Images · 1500 × 1500 px' : 'Amazon A+ Content · 1464 × 600 desktop'}
             </p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
+          <button onClick={onClose} className="w-8 h-8 rounded-none flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -3740,7 +3740,7 @@ function TemplatePicker({
                 key={card.id}
                 onClick={card.available ? () => isGallery ? onSelectGallery(card.id as GalleryTemplateId) : onSelectAplus(card.id as TemplateId) : undefined}
                 disabled={!card.available}
-                className={`group relative rounded-xl border-2 overflow-hidden text-left transition-all ${
+                className={`group relative rounded-none border-2 overflow-hidden text-left transition-all ${
                   isActive
                     ? 'border-gray-900 ring-2 ring-gray-900/10'
                     : card.available

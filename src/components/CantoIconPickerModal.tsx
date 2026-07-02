@@ -75,7 +75,7 @@ export default function CantoIconPickerModal({ albumId, open, onClose, onSelect,
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
         <div
-          className={`pointer-events-auto w-full max-w-2xl bg-white dark:bg-gray-900 rounded-[4px] shadow-[0_8px_48px_rgba(0,0,0,0.22)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden ${panelAnim}`}
+          className={`pointer-events-auto w-full max-w-2xl bg-white dark:bg-gray-900 rounded-none shadow-[0_8px_48px_rgba(0,0,0,0.22)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden ${panelAnim}`}
           style={{ maxHeight: '84vh' }}
           onClick={e => e.stopPropagation()}
         >
@@ -94,7 +94,7 @@ export default function CantoIconPickerModal({ albumId, open, onClose, onSelect,
             </div>
             <button
               onClick={handleClose}
-              className="w-7 h-7 flex items-center justify-center rounded text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-none text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -114,12 +114,12 @@ export default function CantoIconPickerModal({ albumId, open, onClose, onSelect,
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Search by name or keyword…"
-                className="w-full pl-9 pr-8 py-2 text-[13px] border border-gray-200 dark:border-gray-700 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-400/25 focus:border-accent-400 dark:focus:border-accent-600 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                className="w-full pl-9 pr-8 py-2 text-[13px] border border-gray-200 dark:border-gray-700 rounded-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-400/25 focus:border-accent-400 dark:focus:border-accent-600 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
               />
               {query && (
                 <button
                   onClick={() => { setQuery(''); inputRef.current?.focus() }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded text-gray-300 hover:text-gray-500 transition-colors"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-none text-gray-300 hover:text-gray-500 transition-colors"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -155,11 +155,11 @@ export default function CantoIconPickerModal({ albumId, open, onClose, onSelect,
                   <button
                     key={a.id}
                     onClick={() => { onSelect(a); handleClose() }}
-                    className="flex flex-col items-center gap-1.5 p-2 rounded-[4px] border border-transparent hover:border-accent-200 dark:hover:border-accent-800 hover:bg-accent-50/60 dark:hover:bg-accent-900/20 active:border-accent-300 transition-all group"
+                    className="flex flex-col items-center gap-1.5 p-2 rounded-none border border-transparent hover:border-accent-200 dark:hover:border-accent-800 hover:bg-accent-50/60 dark:hover:bg-accent-900/20 active:border-accent-300 transition-all group"
                     title={a.name}
                   >
                     <div
-                      className="rounded-[4px] bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden group-hover:bg-white dark:group-hover:bg-gray-700 transition-colors w-full border border-transparent group-hover:border-gray-100 dark:group-hover:border-gray-700"
+                      className="rounded-none bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden group-hover:bg-white dark:group-hover:bg-gray-700 transition-colors w-full border border-transparent group-hover:border-gray-100 dark:group-hover:border-gray-700"
                       style={{ height: thumbnailSize }}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}

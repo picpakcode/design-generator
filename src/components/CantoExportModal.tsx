@@ -44,11 +44,11 @@ function ChipInput({
 
   return (
     <div
-      className="flex flex-wrap gap-1 p-2 min-h-[34px] rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus-within:ring-1 focus-within:ring-gray-400 dark:focus-within:ring-gray-500 cursor-text"
+      className="flex flex-wrap gap-1 p-2 min-h-[34px] rounded-none border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus-within:ring-1 focus-within:ring-gray-400 dark:focus-within:ring-gray-500 cursor-text"
       onClick={e => (e.currentTarget.querySelector('input') as HTMLInputElement | null)?.focus()}
     >
       {chips.map(chip => (
-        <span key={chip} className="flex items-center gap-0.5 h-5 pl-2 pr-1 bg-gray-100 dark:bg-gray-700 rounded text-[11px] text-gray-700 dark:text-gray-300 shrink-0">
+        <span key={chip} className="flex items-center gap-0.5 h-5 pl-2 pr-1 bg-gray-100 dark:bg-gray-700 rounded-none text-[11px] text-gray-700 dark:text-gray-300 shrink-0">
           {chip}
           <button
             type="button"
@@ -93,7 +93,7 @@ function AlbumPicker({
   const getParentPath  = (p: string) => { const parts = p.split('/'); return parts.length > 1 ? parts.slice(0, -1).join(' / ') : '' }
 
   return (
-    <div className="rounded border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="rounded-none border border-gray-200 dark:border-gray-700 overflow-hidden">
       {/* Search row */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-800/40">
         <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -308,7 +308,7 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
       />
 
       {/* Panel — 4px radius, scale-in on open, scale-out on close */}
-      <div className={`relative w-full max-w-sm bg-white dark:bg-gray-900 rounded shadow-2xl border border-gray-100 dark:border-gray-700 flex flex-col overflow-hidden transition-all duration-180 ${closing ? 'scale-95 opacity-0' : 'animate-scale-in'}`}>
+      <div className={`relative w-full max-w-sm bg-white dark:bg-gray-900 rounded-none shadow-2xl border border-gray-100 dark:border-gray-700 flex flex-col overflow-hidden transition-all duration-180 ${closing ? 'scale-95 opacity-0' : 'animate-scale-in'}`}>
 
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-5 pb-4 shrink-0">
@@ -323,7 +323,7 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
           {phase !== 'uploading' && (
             <button
               onClick={handleClose}
-              className="w-7 h-7 flex items-center justify-center rounded text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shrink-0"
+              className="w-7 h-7 flex items-center justify-center rounded-none text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shrink-0"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -393,7 +393,7 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
                           onChange={e => setDescription(e.target.value)}
                           placeholder="Optional description applied to all files…"
                           rows={2}
-                          className="w-full px-3 py-2 text-[12px] rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 placeholder:text-gray-300 dark:placeholder:text-gray-600 resize-none focus:outline-none focus:ring-1 focus:ring-gray-400"
+                          className="w-full px-3 py-2 text-[12px] rounded-none border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 placeholder:text-gray-300 dark:placeholder:text-gray-600 resize-none focus:outline-none focus:ring-1 focus:ring-gray-400"
                         />
                       </div>
                     </div>
@@ -469,7 +469,7 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
 
               {/* Error list */}
               {failed > 0 && (
-                <div className="w-full max-h-40 overflow-y-auto rounded border border-red-100 dark:border-red-900/40 bg-red-50 dark:bg-red-900/10 p-3 space-y-2">
+                <div className="w-full max-h-40 overflow-y-auto rounded-none border border-red-100 dark:border-red-900/40 bg-red-50 dark:bg-red-900/10 p-3 space-y-2">
                   {results.filter(r => !r.ok).map(r => (
                     <div key={r.filename} className="text-[11px]">
                       <p className="font-semibold text-red-600 dark:text-red-400 truncate">{r.filename}</p>
@@ -488,12 +488,12 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
             <>
               <button
                 onClick={handleClose}
-                className="h-8 px-4 rounded text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+                className="h-8 px-4 rounded-none text-[11px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
               >Cancel</button>
               <button
                 onClick={handleUpload}
                 disabled={!selectedAlbum || files.length === 0}
-                className="h-8 px-4 rounded text-[11px] font-bold uppercase tracking-widest bg-[#F5A623] text-white hover:bg-[#E09510] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                className="h-8 px-4 rounded-none text-[11px] font-bold uppercase tracking-widest bg-[#F5A623] text-white hover:bg-[#E09510] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -510,12 +510,12 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
               {failed > 0 && (
                 <button
                   onClick={handleRetry}
-                  className="h-8 px-4 rounded text-[11px] font-bold uppercase tracking-widest border border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
+                  className="h-8 px-4 rounded-none text-[11px] font-bold uppercase tracking-widest border border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
                 >Retry {failed} failed</button>
               )}
               <button
                 onClick={handleClose}
-                className="h-8 px-5 rounded text-[11px] font-bold uppercase tracking-widest bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+                className="h-8 px-5 rounded-none text-[11px] font-bold uppercase tracking-widest bg-gray-900 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
               >Done</button>
             </>
           )}

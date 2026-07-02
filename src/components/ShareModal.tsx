@@ -115,7 +115,7 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className={`absolute inset-0 ${t.backdrop} backdrop-blur-sm`} onClick={onClose} />
-      <div className={`relative z-10 w-full max-w-md mx-4 rounded shadow-2xl overflow-hidden ${t.panel} animate-scale-in`}>
+      <div className={`relative z-10 w-full max-w-md mx-4 rounded-none shadow-2xl overflow-hidden ${t.panel} animate-scale-in`}>
 
         {/* Header */}
         <div className={`flex items-center justify-between px-5 py-3.5 ${t.header}`}>
@@ -125,7 +125,7 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
             </svg>
             <span className={`font-semibold text-sm ${t.headerText}`}>Share Project</span>
           </div>
-          <button onClick={onClose} className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${t.closeBtn}`}>
+          <button onClick={onClose} className={`w-7 h-7 flex items-center justify-center rounded-none transition-colors ${t.closeBtn}`}>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -146,11 +146,11 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
               {share ? (
                 <div className="space-y-2">
                   <p className={`text-[10px] font-bold uppercase tracking-wider ${t.label}`}>Share link</p>
-                  <div className={`flex items-center gap-2 rounded px-3 py-2.5 ${t.urlBox}`}>
+                  <div className={`flex items-center gap-2 rounded-none px-3 py-2.5 ${t.urlBox}`}>
                     <span className="flex-1 text-[11px] font-mono truncate">{shareUrl}</span>
                     <button
                       onClick={copyLink}
-                      className={`shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded transition-all ${
+                      className={`shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-none transition-all ${
                         copied
                           ? 'bg-emerald-500 text-white'
                           : isDark
@@ -177,7 +177,7 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
                   <button
                     onClick={handleRevoke}
                     disabled={revoking}
-                    className={`text-xs font-medium px-3 py-1.5 rounded transition-colors disabled:opacity-40 ${t.revoke}`}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-none transition-colors disabled:opacity-40 ${t.revoke}`}
                   >
                     {revoking ? 'Revoking…' : 'Revoke link'}
                   </button>
@@ -188,7 +188,7 @@ export default function ShareModal({ open, onClose, projectId, userId }: Props) 
                   <button
                     onClick={handleCreateOrUpdate}
                     disabled={saving}
-                    className="h-8 px-4 rounded bg-accent-600 hover:bg-accent-500 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="h-8 px-4 rounded-none bg-accent-600 hover:bg-accent-500 text-white text-xs font-bold uppercase tracking-widest transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {saving && (
                       <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">

@@ -40,7 +40,7 @@ function P({ children }: { children: React.ReactNode }) {
 
 function C({ children }: { children: string }) {
   return (
-    <code className="font-mono text-[11px] px-1.5 py-0.5 rounded border whitespace-nowrap bg-accent-50 dark:bg-gray-800 border-accent-100 dark:border-gray-700 text-accent-700 dark:text-accent-300">
+    <code className="font-mono text-[11px] px-1.5 py-0.5 rounded-none border whitespace-nowrap bg-accent-50 dark:bg-gray-800 border-accent-100 dark:border-gray-700 text-accent-700 dark:text-accent-300">
       {children}
     </code>
   )
@@ -48,7 +48,7 @@ function C({ children }: { children: string }) {
 
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 px-3 py-2.5 mb-3">
+    <div className="flex gap-2 rounded-none bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 px-3 py-2.5 mb-3">
       <svg className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
@@ -59,7 +59,7 @@ function Note({ children }: { children: React.ReactNode }) {
 
 function Tip({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-2 rounded-lg bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800/40 px-3 py-2.5 mb-3">
+    <div className="flex gap-2 rounded-none bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800/40 px-3 py-2.5 mb-3">
       <svg className="w-3 h-3 text-accent-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
@@ -88,7 +88,7 @@ function Steps({ items }: { items: { title: string; body: string }[] }) {
 
 function DataTable({ headers, rows }: { headers: string[]; rows: (string | React.ReactNode)[][] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-white/8 mb-3">
+    <div className="overflow-x-auto rounded-none border border-gray-200 dark:border-white/8 mb-3">
       <table className="w-full text-[11px]">
         <thead>
           <tr className="bg-gray-50 dark:bg-gray-900/80 border-b border-gray-200 dark:border-white/8">
@@ -117,7 +117,7 @@ function DataTable({ headers, rows }: { headers: string[]; rows: (string | React
 
 function CodeBlock({ children }: { children: string }) {
   return (
-    <pre className="rounded-lg bg-gray-900 dark:bg-black text-gray-100 text-[10px] leading-relaxed p-3 overflow-x-auto mb-3 font-mono">
+    <pre className="rounded-none bg-gray-900 dark:bg-black text-gray-100 text-[10px] leading-relaxed p-3 overflow-x-auto mb-3 font-mono">
       {children}
     </pre>
   )
@@ -191,7 +191,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
       {/* Panel — centered with max-width; pointer-events-none lets backdrop clicks pass through side gaps */}
       <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
       <div
-        className={`pointer-events-auto w-full max-w-[1400px] flex flex-col bg-white dark:bg-gray-950 rounded-t-[4px] shadow-[0_-8px_40px_rgba(0,0,0,0.18)] overflow-hidden ${
+        className={`pointer-events-auto w-full max-w-[1400px] flex flex-col bg-white dark:bg-gray-950 rounded-none shadow-[0_-8px_40px_rgba(0,0,0,0.18)] overflow-hidden ${
           closing ? 'animate-slide-down-full' : 'animate-slide-up-full'
         }`}
         style={{ height: 'calc(100vh - 3rem)' }}
@@ -199,7 +199,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
         {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-white/8 bg-white dark:bg-gray-950">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-accent-100 dark:bg-accent-900/50">
+            <div className="w-7 h-7 rounded-none flex items-center justify-center bg-accent-100 dark:bg-accent-900/50">
               <svg className="w-3.5 h-3.5 text-accent-600 dark:text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
@@ -213,7 +213,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
             <span className="text-[10px] text-gray-400 dark:text-gray-600 hidden sm:block">Esc to close</span>
             <button
               onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/8 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/8 transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -233,7 +233,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
                 <button
                   key={s.id}
                   onClick={() => scrollTo(s.id)}
-                  className={`w-full text-left px-2 py-1.5 rounded text-[11px] font-medium transition-colors ${
+                  className={`w-full text-left px-2 py-1.5 rounded-none text-[11px] font-medium transition-colors ${
                     active === s.id
                       ? 'bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 font-semibold'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/6'
@@ -247,7 +247,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
             <div className="mt-auto pt-4 border-t border-gray-100 dark:border-white/6">
               <button
                 onClick={() => downloadTemplate()}
-                className="w-full flex items-center justify-center gap-1.5 h-8 rounded border border-accent-200 dark:border-accent-800 text-[11px] font-semibold text-accent-600 dark:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/30 hover:border-accent-300 dark:hover:border-accent-700 transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 h-8 rounded-none border border-accent-200 dark:border-accent-800 text-[11px] font-semibold text-accent-600 dark:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/30 hover:border-accent-300 dark:hover:border-accent-700 transition-colors"
               >
                 <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -316,7 +316,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
                     { l: 'Icons',     d: 'Icon grid only, no description.' },
                     { l: 'Icn+Txt',  d: 'Icon callouts + headline + description.' },
                   ].map(t => (
-                    <div key={t.l} className="rounded border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900/60 px-2.5 py-2">
+                    <div key={t.l} className="rounded-none border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900/60 px-2.5 py-2">
                       <p className="text-[11px] font-bold text-gray-800 dark:text-gray-200">{t.l}</p>
                       <p className="text-[10px] text-gray-400 dark:text-gray-500">{t.d}</p>
                     </div>
@@ -331,7 +331,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
                     { l: 'Icons',    d: 'Icon grid with callout labels.' },
                     { l: 'Icn+Txt', d: 'Icon grid plus a title and description.' },
                   ].map(t => (
-                    <div key={t.l} className="rounded border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900/60 px-2.5 py-2">
+                    <div key={t.l} className="rounded-none border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900/60 px-2.5 py-2">
                       <p className="text-[11px] font-bold text-gray-800 dark:text-gray-200">{t.l}</p>
                       <p className="text-[10px] text-gray-400 dark:text-gray-500">{t.d}</p>
                     </div>
@@ -369,7 +369,7 @@ SB-002,Recovery Snatch Block,Maximum Pull,Rated for 8000 lb working load,High st
             {/* Download button (mobile — sidebar not visible) */}
             <button
               onClick={() => downloadTemplate()}
-              className="md:hidden w-full flex items-center justify-center gap-1.5 h-9 rounded-lg border border-accent-200 dark:border-accent-800 text-[12px] font-semibold text-accent-600 dark:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/30 transition-colors mb-4"
+              className="md:hidden w-full flex items-center justify-center gap-1.5 h-9 rounded-none border border-accent-200 dark:border-accent-800 text-[12px] font-semibold text-accent-600 dark:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/30 transition-colors mb-4"
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -417,7 +417,7 @@ SB-002,Recovery Snatch Block,Maximum Pull,Rated for 8000 lb working load,High st
                 { icon: '🔁', t: 'Flip layout', d: 'Mirror image-left / text-right arrangement' },
                 { icon: '📝', t: 'Text edit', d: 'Edit title and body copy directly in the sidebar' },
               ].map(c => (
-                <div key={c.t} className="rounded border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900/60 px-3 py-2.5 flex gap-2">
+                <div key={c.t} className="rounded-none border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900/60 px-3 py-2.5 flex gap-2">
                   <span className="text-sm shrink-0">{c.icon}</span>
                   <div>
                     <p className="text-[11px] font-bold text-gray-800 dark:text-gray-200">{c.t}</p>

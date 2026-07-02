@@ -3,7 +3,7 @@ import React from 'react'
 export type BtnVariant = 'primary' | 'secondary' | 'ghost' | 'indigo'
 export type BtnSize = 'sm' | 'md'
 
-const base = 'inline-flex items-center justify-center gap-1.5 font-bold uppercase tracking-widest rounded transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed'
+const base = 'inline-flex items-center justify-center gap-1.5 font-bold uppercase tracking-widest rounded-none transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed'
 
 const sizes: Record<BtnSize, string> = {
   sm: 'h-7 px-3 text-[10px]',

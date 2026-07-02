@@ -108,7 +108,7 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6 pointer-events-none">
         <div
-          className={`pointer-events-auto w-full max-w-3xl bg-white dark:bg-gray-900 rounded-[4px] shadow-[0_8px_48px_rgba(0,0,0,0.22)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden ${panelAnim}`}
+          className={`pointer-events-auto w-full max-w-3xl bg-white dark:bg-gray-900 rounded-none shadow-[0_8px_48px_rgba(0,0,0,0.22)] border border-gray-200 dark:border-gray-700/80 flex flex-col overflow-hidden ${panelAnim}`}
           style={{ maxHeight: '88vh' }}
           onClick={e => e.stopPropagation()}
         >
@@ -127,7 +127,7 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
             </div>
             <button
               onClick={handleClose}
-              className="w-7 h-7 flex items-center justify-center rounded text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-none text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -148,12 +148,12 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   placeholder="Search by SKU, product name, or keyword…"
-                  className="w-full pl-9 pr-8 py-2 text-[13px] border border-gray-200 dark:border-gray-700 rounded-[4px] bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-400/25 focus:border-accent-400 dark:focus:border-accent-600 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                  className="w-full pl-9 pr-8 py-2 text-[13px] border border-gray-200 dark:border-gray-700 rounded-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-400/25 focus:border-accent-400 dark:focus:border-accent-600 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
                 />
                 {query && (
                   <button
                     onClick={() => { setQuery(''); setAllResults([]); setSearched(false); setPage(0); inputRef.current?.focus() }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded text-gray-300 hover:text-gray-500 transition-colors"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-none text-gray-300 hover:text-gray-500 transition-colors"
                   >
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -164,7 +164,7 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
               <button
                 onClick={() => runSearch(query)}
                 disabled={!query.trim() || loading}
-                className="shrink-0 px-4 h-[36px] text-[11px] font-bold uppercase tracking-widest rounded-[4px] bg-accent-600 hover:bg-accent-700 dark:bg-accent-700 dark:hover:bg-accent-600 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="shrink-0 px-4 h-[36px] text-[11px] font-bold uppercase tracking-widest rounded-none bg-accent-600 hover:bg-accent-700 dark:bg-accent-700 dark:hover:bg-accent-600 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 {loading ? 'Searching…' : 'Search'}
               </button>
@@ -200,7 +200,7 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
                   <button
                     key={photo.id}
                     onClick={() => { onSelect(photo); handleClose() }}
-                    className="group flex flex-col rounded-[4px] overflow-hidden border border-gray-100 dark:border-gray-800 hover:border-accent-300 dark:hover:border-accent-700 bg-gray-50 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:shadow-md transition-all text-left"
+                    className="group flex flex-col rounded-none overflow-hidden border border-gray-100 dark:border-gray-800 hover:border-accent-300 dark:hover:border-accent-700 bg-gray-50 dark:bg-gray-800/40 hover:bg-white dark:hover:bg-gray-800 hover:shadow-md transition-all text-left"
                     title={photo.name}
                   >
                     <div className="w-full bg-gray-100 dark:bg-gray-800 overflow-hidden" style={{ height: 108 }}>
@@ -230,7 +230,7 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
               <button
                 onClick={() => goToPage(page - 1)}
                 disabled={page === 0}
-                className="flex items-center gap-1.5 px-3 h-7 rounded-[4px] border border-gray-200 dark:border-gray-700 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-accent-300 hover:text-accent-600 dark:hover:border-accent-700 dark:hover:text-accent-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="flex items-center gap-1.5 px-3 h-7 rounded-none border border-gray-200 dark:border-gray-700 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-accent-300 hover:text-accent-600 dark:hover:border-accent-700 dark:hover:text-accent-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -243,7 +243,7 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
                   <button
                     key={i}
                     onClick={() => goToPage(i)}
-                    className={`w-6 h-6 rounded-[4px] text-[11px] font-semibold transition-all ${
+                    className={`w-6 h-6 rounded-none text-[11px] font-semibold transition-all ${
                       i === page
                         ? 'bg-accent-600 dark:bg-accent-700 text-white'
                         : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300'
@@ -257,7 +257,7 @@ export default function CantoPhotoPickerModal({ open, onClose, onSelect, initial
               <button
                 onClick={() => goToPage(page + 1)}
                 disabled={page === totalPages - 1}
-                className="flex items-center gap-1.5 px-3 h-7 rounded-[4px] border border-gray-200 dark:border-gray-700 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-accent-300 hover:text-accent-600 dark:hover:border-accent-700 dark:hover:text-accent-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="flex items-center gap-1.5 px-3 h-7 rounded-none border border-gray-200 dark:border-gray-700 text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:border-accent-300 hover:text-accent-600 dark:hover:border-accent-700 dark:hover:text-accent-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
               >
                 Next
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

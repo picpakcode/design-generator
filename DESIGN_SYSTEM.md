@@ -94,14 +94,12 @@ Warning:            amber-500 (#f59e0b)
 
 ## Border Radius
 
-| Context                              | Value  | Tailwind       |
-|--------------------------------------|--------|----------------|
-| Inline controls (buttons, inputs, badges, chips) | 4px | `rounded`  |
-| Menus, dropdowns, popovers           | 6px    | `rounded-md`   |
-| Cards, panels, modals                | 8px    | `rounded-lg`   |
-| Avatars, icon containers (circular)  | 9999px | `rounded-full` |
+| Context                              | Value  | Tailwind          |
+|--------------------------------------|--------|-------------------|
+| All controls, menus, cards, modals   | 0px    | `rounded-none`    |
+| Avatars, icon containers (circular)  | 9999px | `rounded-full`    |
 
-**Rule**: `rounded-xl` and above are never used. `rounded-full` only for genuinely circular elements.
+**Rule**: everything is square-cornered (`rounded-none`). `rounded-full` only for genuinely circular elements (avatars, dot indicators).
 
 ---
 
@@ -141,14 +139,14 @@ Ghost:     text-gray-600 hover:bg-gray-100 hover:text-gray-900    (dark: text-gr
 Danger:    bg-red-500 text-white hover:bg-red-600
 ```
 
-All buttons: `rounded transition-colors` (150ms). `disabled:opacity-40 disabled:cursor-not-allowed`. No box-shadow on buttons.
+All buttons: `rounded-none transition-colors` (150ms). `disabled:opacity-40 disabled:cursor-not-allowed`. No box-shadow on buttons.
 
-Icon buttons (square): same height as size class, `w-7`/`w-8`/`w-9`, `rounded`.
+Icon buttons (square): same height as size class, `w-7`/`w-8`/`w-9`, `rounded-none`.
 
 ### Inputs
 
 ```
-Standard:  h-8 px-3 text-[13px] rounded border border-gray-200 dark:border-gray-700
+Standard:  h-8 px-3 text-[13px] rounded-none border border-gray-200 dark:border-gray-700
            bg-white dark:bg-gray-800 text-gray-900 dark:text-white
            placeholder:text-gray-400 dark:placeholder:text-gray-500
            focus:outline-none focus:ring-2 focus:ring-gray-900/15 dark:focus:ring-white/15 focus:border-gray-400
@@ -162,10 +160,10 @@ Search inputs: `pl-7` (icon left), `pr-6` (clear button right), `h-7`.
 
 ```
 Container: bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700
-           rounded-md shadow-lg ring-1 ring-black/5 dark:ring-white/8
+           rounded-none shadow-lg ring-1 ring-black/5 dark:ring-white/8
            p-1 (padding inside — items get their own px-2 py-1.5)
 
-Item:      w-full px-2 py-1.5 rounded text-[12px] text-gray-700 dark:text-gray-200
+Item:      w-full px-2 py-1.5 rounded-none text-[12px] text-gray-700 dark:text-gray-200
            hover:bg-gray-100 dark:hover:bg-gray-800 text-left transition-colors
            
 Separator: h-px bg-gray-100 dark:bg-gray-800 my-1 mx-2
@@ -175,7 +173,7 @@ Separator: h-px bg-gray-100 dark:bg-gray-800 my-1 mx-2
 
 ```
 Backdrop:  fixed inset-0 z-[200] bg-black/40 dark:bg-black/60 backdrop-blur-sm
-Container: bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700
+Container: bg-white dark:bg-gray-900 rounded-none border border-gray-200 dark:border-gray-700
            shadow-2xl ring-1 ring-black/5 dark:ring-white/5
            max-w-[480px] w-full (or specific widths per context)
 
@@ -191,7 +189,7 @@ Footer:    px-5 py-3 border-t border-gray-100 dark:border-gray-800
 Inspired by Linear's sidebar: items are compact, left-aligned, with a subtle active state.
 
 ```
-Nav item:  w-full flex items-center gap-2 px-2 py-1.5 rounded text-[12px]
+Nav item:  w-full flex items-center gap-2 px-2 py-1.5 rounded-none text-[12px]
            text-gray-600 dark:text-gray-400
            hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white
 
@@ -204,7 +202,7 @@ Section label: text-[10px] font-bold uppercase tracking-widest text-gray-400 dar
 ### Badges / Pills
 
 ```
-Default:  px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300
+Default:  px-1.5 py-0.5 rounded-none text-[10px] font-semibold bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300
 Accent:   bg-accent-50 dark:bg-accent-900/30 text-accent-600 dark:text-accent-400
 Success:  bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400
 Warning:  bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400
@@ -215,7 +213,7 @@ Danger:   bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400
 
 ```
 inline-flex items-center justify-center px-1.5 h-[18px] min-w-[18px]
-rounded border border-gray-200 dark:border-gray-600
+rounded-none border border-gray-200 dark:border-gray-600
 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300
 font-mono text-[10px] font-semibold leading-none
 shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(0,0,0,0.5)]

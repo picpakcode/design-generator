@@ -164,7 +164,7 @@ const ProjectCard = React.memo(function ProjectCard({
     <div className="relative shrink-0">
       <button
         onClick={e => { e.stopPropagation(); onToggleMenu(project.id) }}
-        className="w-7 h-7 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+        className="w-7 h-7 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
         title="Project options"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -198,7 +198,7 @@ const ProjectCard = React.memo(function ProjectCard({
         {/* Checkbox */}
         <button
           onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleSelect(project.id) }}
-          className={`shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+          className={`shrink-0 w-4 h-4 rounded-none border-2 flex items-center justify-center transition-all ${
             isSelected
               ? 'bg-accent-600 border-accent-600 opacity-100'
               : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 opacity-0 group-hover:opacity-100'
@@ -216,7 +216,7 @@ const ProjectCard = React.memo(function ProjectCard({
         <a
           href={isSelectMode ? undefined : `/project/${project.id}`}
           onClick={isSelectMode ? e => { e.preventDefault(); onToggleSelect(project.id) } : undefined}
-          className="shrink-0 w-16 h-10 rounded overflow-hidden bg-gray-100 dark:bg-gray-800 block border border-gray-100 dark:border-gray-700"
+          className="shrink-0 w-16 h-10 rounded-none overflow-hidden bg-gray-100 dark:bg-gray-800 block border border-gray-100 dark:border-gray-700"
         >
           {project.thumbnail_url ? (
             <img src={project.thumbnail_url} alt={project.name || 'Untitled'} className="w-full h-full object-cover" />
@@ -265,7 +265,7 @@ const ProjectCard = React.memo(function ProjectCard({
   // Grid mode
   return (
     <div
-      className={`group relative flex flex-col bg-white dark:bg-gray-900 rounded-lg border transition-all overflow-hidden animate-fade-in ${
+      className={`group relative flex flex-col bg-white dark:bg-gray-900 rounded-none border transition-all overflow-hidden animate-fade-in ${
         isSelected
           ? 'border-accent-300 dark:border-accent-700 ring-2 ring-accent-500/20 dark:ring-accent-500/20 shadow-sm'
           : 'border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300 dark:hover:border-gray-600'
@@ -275,7 +275,7 @@ const ProjectCard = React.memo(function ProjectCard({
       {/* Checkbox */}
       <button
         onClick={e => { e.preventDefault(); e.stopPropagation(); onToggleSelect(project.id) }}
-        className={`absolute top-2.5 left-2.5 z-10 w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+        className={`absolute top-2.5 left-2.5 z-10 w-4 h-4 rounded-none border-2 flex items-center justify-center transition-all ${
           isSelected
             ? 'bg-accent-600 border-accent-600 opacity-100'
             : 'bg-white/90 dark:bg-gray-900/90 border-gray-300 dark:border-gray-600 backdrop-blur-sm opacity-0 group-hover:opacity-100'
@@ -381,12 +381,12 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
         className={`fixed inset-0 z-50 bg-black/50 dark:bg-black/80 backdrop-blur-sm ${closing ? 'animate-fade-out' : 'animate-fade-in'}`}
         onClick={onClose}
       />
-      <div className={`fixed inset-x-6 bottom-6 top-14 z-50 max-w-2xl mx-auto flex flex-col rounded overflow-hidden border bg-white dark:bg-gray-950 border-gray-200 dark:border-white/8 ${closing ? 'animate-scale-out' : 'animate-scale-in'}`}>
+      <div className={`fixed inset-x-6 bottom-6 top-14 z-50 max-w-2xl mx-auto flex flex-col rounded-none overflow-hidden border bg-white dark:bg-gray-950 border-gray-200 dark:border-white/8 ${closing ? 'animate-scale-out' : 'animate-scale-in'}`}>
 
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b bg-gray-50 dark:bg-gray-900/80 border-gray-200 dark:border-white/8">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded flex items-center justify-center bg-accent-100 dark:bg-accent-900/50">
+            <div className="w-8 h-8 rounded-none flex items-center justify-center bg-accent-100 dark:bg-accent-900/50">
               <svg className="w-4 h-4 text-accent-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -398,7 +398,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] hidden sm:block text-gray-400 dark:text-gray-500">Esc to close</span>
-            <button onClick={onClose} className="ml-1 w-8 h-8 flex items-center justify-center rounded transition-colors text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-white dark:hover:bg-white/10">
+            <button onClick={onClose} className="ml-1 w-8 h-8 flex items-center justify-center rounded-none transition-colors text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-white dark:hover:bg-white/10">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -419,7 +419,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
                 { icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', title: '4-second debounce', body: 'State is written to Supabase 4 seconds after your last change. Switching projects or closing mid-edit may miss the final state if you move too fast.' },
               ] as const).map(s => (
                 <div key={s.title} className="flex gap-4">
-                  <div className="w-7 h-7 rounded bg-accent-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-7 h-7 rounded-none bg-accent-500 text-white flex items-center justify-center shrink-0 mt-0.5">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg>
                   </div>
                   <div>
@@ -441,7 +441,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
                 { icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15', title: 'Polling updates', body: 'Reviewer pages re-fetch the full project state every 30 seconds and comments every 10 seconds — so photo and text changes appear without a manual refresh.' },
               ] as const).map(s => (
                 <div key={s.title} className="flex gap-4">
-                  <div className="w-7 h-7 rounded bg-accent-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-7 h-7 rounded-none bg-accent-500 text-white flex items-center justify-center shrink-0 mt-0.5">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={s.icon} /></svg>
                   </div>
                   <div>
@@ -463,7 +463,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
                 { label: 'Emoji reactions', desc: 'React to any comment with 👍 ❤️ 😄 👀 🎉 — shown inline with counts.' },
                 { label: 'Approve / Changes', desc: 'Each reviewer votes per block. Latest vote per person wins. Owner sees live status badges on the canvas.' },
               ] as const).map(s => (
-                <div key={s.label} className="rounded border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900 px-4 py-3">
+                <div key={s.label} className="rounded-none border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900 px-4 py-3">
                   <p className="text-[11px] font-bold mb-1 text-gray-900 dark:text-white">{s.label}</p>
                   <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">{s.desc}</p>
                 </div>
@@ -474,7 +474,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
           {/* What's stored */}
           <section>
             <h3 className="text-[10px] font-bold uppercase tracking-widest mb-4 pb-2 border-b text-accent-600 dark:text-accent-400 border-accent-100 dark:border-accent-900/40">What Gets Stored</h3>
-            <div className="rounded border border-gray-100 dark:border-white/8 overflow-hidden">
+            <div className="rounded-none border border-gray-100 dark:border-white/8 overflow-hidden">
               {stored.map((r, i) => (
                 <div key={r.label} className={`flex items-center gap-3 px-4 py-3 ${i < stored.length - 1 ? 'border-b border-gray-100 dark:border-white/8' : ''}`}>
                   <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-white text-[10px] font-bold ${r.yes ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-700'}`}>
@@ -495,7 +495,7 @@ function ProjectGuideModal({ open, onClose }: { open: boolean; onClose: () => vo
         <div className="shrink-0 flex items-center justify-end px-6 py-3.5 border-t bg-gray-50 dark:bg-gray-900/80 border-gray-200 dark:border-white/8">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded text-[12px] font-semibold transition-colors bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-white/15"
+            className="px-4 py-1.5 rounded-none text-[12px] font-semibold transition-colors bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white hover:bg-gray-200 dark:hover:bg-white/15"
           >
             Close
           </button>
@@ -523,7 +523,7 @@ function DeleteConfirmModal({
       <div className="absolute inset-0 animate-fade-in" onClick={onCancel} />
       <div className="modal-panel w-full max-w-[360px] animate-scale-in">
         <div className="px-6 pt-6 pb-5 flex flex-col items-center text-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-red-50 dark:bg-red-950/40 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-none bg-red-50 dark:bg-red-950/40 flex items-center justify-center shrink-0">
             <svg className="w-4.5 h-4.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
@@ -565,7 +565,7 @@ function NewProjectCard({ creating, user, onNewProject }: NewProjectCardProps) {
     <div
       onMouseEnter={() => { if (!creating && user) setHovered(true) }}
       onMouseLeave={() => { setHovered(false); setHoveredPlatform(null) }}
-      className="relative flex flex-col rounded overflow-hidden select-none"
+      className="relative flex flex-col rounded-none overflow-hidden select-none"
       style={{
         border: `2px ${hovered ? 'solid' : 'dashed'} ${hovered ? '#94A3B8' : '#E5E7EB'}`,
         background: 'white',
@@ -639,7 +639,7 @@ function NewProjectCard({ creating, user, onNewProject }: NewProjectCardProps) {
               transition: 'opacity 240ms cubic-bezier(0.34,1.56,0.64,1) 30ms, transform 300ms cubic-bezier(0.34,1.56,0.64,1) 30ms',
             }}
           >
-            <div className="w-9 h-9 rounded flex items-center justify-center transition-transform"
+            <div className="w-9 h-9 rounded-none flex items-center justify-center transition-transform"
               style={{
                 background: hoveredPlatform === 'amazon' ? '#FFE0B2' : '#FFF3E0',
                 transform: hoveredPlatform === 'amazon' ? 'scale(1.12)' : 'scale(1)',
@@ -677,7 +677,7 @@ function NewProjectCard({ creating, user, onNewProject }: NewProjectCardProps) {
               transition: 'opacity 240ms cubic-bezier(0.34,1.56,0.64,1) 100ms, transform 300ms cubic-bezier(0.34,1.56,0.64,1) 100ms',
             }}
           >
-            <div className="w-9 h-9 rounded flex items-center justify-center"
+            <div className="w-9 h-9 rounded-none flex items-center justify-center"
               style={{
                 background: hoveredPlatform === 'shopify' ? '#BBDFC8' : '#F0FDF4',
                 transform: hoveredPlatform === 'shopify' ? 'scale(1.12)' : 'scale(1)',
@@ -740,8 +740,6 @@ export default function Dashboard() {
   const [sortBy, setSortBy] = useState<'updated' | 'name' | 'type'>('updated')
   const [typeFilter, setTypeFilter] = useState<'all' | 'amazon' | 'shopify'>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [settingsOpen, setSettingsOpen] = useState(false)
-
   const supabase = createClient()
 
   useEffect(() => {
@@ -971,36 +969,36 @@ export default function Dashboard() {
 
   // ── Shared sidebar ────────────────────────────────────────────────────────
   const platformPickerDropdown = platformPickerOpen && (
-    <div className="absolute left-0 top-full mt-1 z-50 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-lg overflow-hidden animate-scale-in">
+    <div className="absolute left-0 top-full mt-1 z-50 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-none shadow-lg overflow-hidden animate-scale-in">
       <div className="px-2 pt-2 pb-1.5 space-y-0.5">
         <button
           onClick={() => handleNewProjectFromHeader('amazon')}
-          className="w-full flex items-center gap-2.5 px-2 py-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group text-left"
+          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group text-left"
         >
-          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-[#FFF3E0]">
+          <div className="w-7 h-7 rounded-none flex items-center justify-center shrink-0 bg-[#FFF3E0]">
             <AmazonMark className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-semibold text-gray-900 dark:text-white">Amazon</p>
             <p className="text-[10px] text-gray-400 dark:text-gray-500">A+ Content &amp; Gallery</p>
           </div>
-          <kbd className="inline-flex items-center justify-center w-[18px] h-[18px] rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-400 font-mono text-[10px] font-semibold leading-none shrink-0">A</kbd>
+          <kbd className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-none border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-400 font-mono text-[10px] font-semibold leading-none shrink-0">A</kbd>
         </button>
         <button
           onClick={() => handleNewProjectFromHeader('shopify')}
-          className="w-full flex items-center gap-2.5 px-2 py-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group text-left"
+          className="w-full flex items-center gap-2.5 px-2 py-2 rounded-none hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group text-left"
         >
-          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-[#F0F9EE]">
+          <div className="w-7 h-7 rounded-none flex items-center justify-center shrink-0 bg-[#F0F9EE]">
             <ShopifyMark className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-semibold text-gray-900 dark:text-white">Shopify</p>
             <p className="text-[10px] text-gray-400 dark:text-gray-500">Gallery images only</p>
           </div>
-          <kbd className="inline-flex items-center justify-center w-[18px] h-[18px] rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-400 font-mono text-[10px] font-semibold leading-none shrink-0">S</kbd>
+          <kbd className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-none border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-400 font-mono text-[10px] font-semibold leading-none shrink-0">S</kbd>
         </button>
-        <div className="w-full flex items-center gap-2.5 px-2 py-2 rounded opacity-40 cursor-not-allowed">
-          <div className="w-7 h-7 rounded flex items-center justify-center shrink-0 bg-gray-100 dark:bg-gray-800">
+        <div className="w-full flex items-center gap-2.5 px-2 py-2 rounded-none opacity-40 cursor-not-allowed">
+          <div className="w-7 h-7 rounded-none flex items-center justify-center shrink-0 bg-gray-100 dark:bg-gray-800">
             <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none">
               <path d="M3 12c0-2 1.5-3.5 3.5-3.5S10 10 10 12s-1.5 3.5-3.5 3.5S3 14 3 12zM10 12h11M17 8l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -1019,17 +1017,17 @@ export default function Dashboard() {
   if (!authLoading && !user) {
     return (
       <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
-        <aside className="w-72 shrink-0 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
+        <aside className="w-72 shrink-0 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-700 shadow-sm">
           <div className="h-12 flex items-center gap-2.5 px-4 border-b border-gray-100 dark:border-gray-800">
-            <div className="w-6 h-6 rounded overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-              <img src="/Favicon.png" alt="" className="w-5 h-5 object-contain" />
+            <div className="w-6 h-6 rounded-none overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <img src="/Favicon.svg" alt="" className="w-5 h-5 object-contain" />
             </div>
             <span className="heading-sm truncate">Doc&rsquo;s Design Generator</span>
           </div>
         </aside>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-xs">
-            <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
+            <div className="w-10 h-10 rounded-none bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
               <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
@@ -1051,18 +1049,18 @@ export default function Dashboard() {
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
 
       {/* ── Sidebar ── */}
-      <aside className="w-72 shrink-0 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700">
+      <aside className="w-72 shrink-0 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-700 shadow-sm z-10">
 
         {/* Brand */}
         <div className="h-12 flex items-center gap-2.5 px-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
-          <div className="w-6 h-6 rounded overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-            <img src="/Favicon.png" alt="" className="w-5 h-5 object-contain" />
+          <div className="w-6 h-6 rounded-none overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+            <img src="/Favicon.svg" alt="" className="w-5 h-5 object-contain" />
           </div>
           <span className="heading-sm truncate">Doc&rsquo;s Design Generator</span>
         </div>
 
         {/* New Project */}
-        <div className="px-3 pt-3 pb-2 shrink-0">
+        <div className="px-4 pt-3 pb-3 shrink-0 border-b border-gray-100 dark:border-gray-800">
           <div ref={platformPickerRef} className="relative">
             <button
               onClick={() => setPlatformPickerOpen(o => !o)}
@@ -1086,37 +1084,43 @@ export default function Dashboard() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
+        <nav className="flex-1 overflow-y-auto">
 
           {/* Search */}
-          <div className="relative">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search projects…"
-              className="input input-sm w-full pl-8 pr-7 bg-gray-50 dark:bg-gray-800/60"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 btn-ghost w-4 h-4 flex items-center justify-center rounded">
-                <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+            <div className="relative">
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-gray-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search projects…"
+                className="input input-sm w-full pl-8 pr-7 bg-gray-50 dark:bg-gray-800/60"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center">
+                  <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Filter */}
-          <div>
-            <p className="label-xs px-2 mb-1.5">Projects</p>
+          {/* Projects filter */}
+          <DashboardSection
+            title="Projects"
+            defaultOpen
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>}
+            contentPadding="py-1 pb-2"
+          >
             {([
               {
                 key: 'all' as const, label: 'All Projects', count: projects.length,
-                icon: <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
+                icon: <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
               },
               {
                 key: 'amazon' as const, label: 'Amazon', count: amazonCount,
@@ -1130,10 +1134,10 @@ export default function Dashboard() {
               <button
                 key={key}
                 onClick={() => setTypeFilter(key)}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[12px] transition-colors mb-px ${
+                className={`w-full flex items-center gap-2 px-4 py-1.5 text-[12px] transition-colors ${
                   typeFilter === key
                     ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-medium'
-                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 <span className={`transition-colors ${typeFilter === key ? 'text-gray-600 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}`}>{icon}</span>
@@ -1143,45 +1147,49 @@ export default function Dashboard() {
                 )}
               </button>
             ))}
-          </div>
+          </DashboardSection>
 
           {/* Sort */}
-          {!isLoading && projects.length > 0 && (
-            <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
-              <p className="label-xs px-2 mb-1.5">Sort</p>
-              {([
-                { value: 'updated' as const, label: 'Last modified' },
-                { value: 'name' as const, label: 'Name A–Z' },
-                { value: 'type' as const, label: 'Platform' },
-              ] as const).map(opt => (
-                <button
-                  key={opt.value}
-                  onClick={() => setSortBy(opt.value)}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[12px] transition-colors mb-px ${
-                    sortBy === opt.value
-                      ? 'text-gray-900 dark:text-white font-medium'
-                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  <span className={`w-0.5 h-3.5 rounded-full shrink-0 transition-colors ${sortBy === opt.value ? 'bg-accent-500' : 'bg-transparent'}`} />
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
+          <DashboardSection
+            title="Sort"
+            defaultOpen
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M6 12h12M9 17h6" /></svg>}
+            contentPadding="py-1 pb-2"
+          >
+            {([
+              { value: 'updated' as const, label: 'Last modified' },
+              { value: 'name' as const, label: 'Name A–Z' },
+              { value: 'type' as const, label: 'Platform' },
+            ] as const).map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setSortBy(opt.value)}
+                className={`w-full flex items-center gap-3 px-4 py-1.5 text-[12px] transition-colors ${
+                  sortBy === opt.value
+                    ? 'text-gray-900 dark:text-white font-medium'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                <span className={`w-0.5 h-3.5 rounded-full shrink-0 transition-colors ${sortBy === opt.value ? 'bg-accent-500' : 'bg-transparent'}`} />
+                {opt.label}
+              </button>
+            ))}
+          </DashboardSection>
 
           {/* View */}
-          <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
-            <p className="label-xs px-2 mb-1.5">View</p>
-            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded">
+          <DashboardSection
+            title="View"
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>}
+          >
+            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800">
               {([
-                { mode: 'grid' as const, label: 'Grid', icon: <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 16 16"><rect x="1" y="1" width="6" height="6" rx="0.75"/><rect x="9" y="1" width="6" height="6" rx="0.75"/><rect x="1" y="9" width="6" height="6" rx="0.75"/><rect x="9" y="9" width="6" height="6" rx="0.75"/></svg> },
+                { mode: 'grid' as const, label: 'Grid', icon: <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 16 16"><rect x="1" y="1" width="6" height="6"/><rect x="9" y="1" width="6" height="6"/><rect x="1" y="9" width="6" height="6"/><rect x="9" y="9" width="6" height="6"/></svg> },
                 { mode: 'list' as const, label: 'List', icon: <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg> },
               ]).map(({ mode, label, icon }) => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
-                  className={`flex items-center justify-center gap-1.5 flex-1 h-6 rounded text-[11px] font-medium transition-colors ${
+                  className={`flex items-center justify-center gap-1.5 flex-1 h-6 text-[11px] font-medium transition-colors ${
                     viewMode === mode
                       ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
                       : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
@@ -1191,84 +1199,73 @@ export default function Dashboard() {
                 </button>
               ))}
             </div>
-          </div>
+          </DashboardSection>
 
-          {/* Settings — collapsible */}
-          <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
-            <button
-              onClick={() => setSettingsOpen(o => !o)}
-              className="w-full flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors text-left group mb-1"
-            >
-              <div className="flex items-center gap-2">
-                <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span className="label-xs group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">Settings</span>
+          {/* Settings */}
+          <DashboardSection
+            title="Settings"
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
+          >
+            <div className="space-y-3">
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Theme</p>
+                <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800">
+                  {(['light', 'dark'] as const).map(t => (
+                    <button key={t} onClick={() => updateAppSettings({ theme: t })}
+                      className={`flex items-center justify-center gap-1.5 flex-1 h-6 text-[11px] font-medium transition-colors ${
+                        appSettings.theme === t ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                      }`}
+                    >
+                      {t === 'light' ? <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="4"/><path strokeLinecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> : <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>}
+                      {t === 'light' ? 'Light' : 'Dark'}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <svg className={`w-3 h-3 text-gray-300 dark:text-gray-600 transition-transform duration-200 ${settingsOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            <div style={{ display: 'grid', gridTemplateRows: settingsOpen ? '1fr' : '0fr', transition: 'grid-template-rows 200ms ease' }}>
-              <div style={{ overflow: 'hidden' }}>
-                <div className="px-2 pt-1 pb-3 space-y-3">
-                  <div>
-                    <p className="label-xs mb-1.5">Theme</p>
-                    <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded">
-                      {(['light', 'dark'] as const).map(t => (
-                        <button key={t} onClick={() => updateAppSettings({ theme: t })}
-                          className={`flex items-center justify-center gap-1.5 flex-1 h-6 rounded text-[11px] font-medium transition-colors ${
-                            appSettings.theme === t ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                          }`}
-                        >
-                          {t === 'light' ? <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="4"/><path strokeLinecap="round" d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> : <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>}
-                          {t === 'light' ? 'Light' : 'Dark'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="label-xs mb-1.5">Export</p>
-                    <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded">
-                      {(['png', 'jpeg'] as const).map(f => (
-                        <button key={f} onClick={() => updateAppSettings({ exportFormat: f })}
-                          className={`flex-1 h-6 rounded text-[11px] font-semibold transition-colors uppercase tracking-wide ${
-                            appSettings.exportFormat === f ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-                          }`}
-                        >{f}</button>
-                      ))}
-                    </div>
-                  </div>
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Export format</p>
+                <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800">
+                  {(['png', 'jpeg'] as const).map(f => (
+                    <button key={f} onClick={() => updateAppSettings({ exportFormat: f })}
+                      className={`flex-1 h-6 text-[11px] font-semibold transition-colors uppercase tracking-wide ${
+                        appSettings.exportFormat === f ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                      }`}
+                    >{f}</button>
+                  ))}
                 </div>
               </div>
             </div>
-          </div>
+          </DashboardSection>
 
-          {/* Docs + Shortcuts */}
-          <div className="pt-3 border-t border-gray-100 dark:border-gray-800 space-y-px">
-            <Link href="/docs" className="flex items-center gap-2 px-2 py-1.5 rounded text-[12px] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white transition-colors">
+          {/* Help */}
+          <DashboardSection
+            title="Help"
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>}
+            contentPadding="py-1 pb-2"
+          >
+            <Link href="/docs" className="w-full flex items-center gap-2 px-4 py-1.5 text-[12px] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white transition-colors">
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
               Documentation
             </Link>
-            <button onClick={() => setShortcutsOpen(true)} className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-[12px] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <button onClick={() => setShortcutsOpen(true)} className="w-full flex items-center justify-between gap-2 px-4 py-1.5 text-[12px] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white transition-colors">
               <span className="flex items-center gap-2">
                 <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                 Shortcuts
               </span>
               <div className="flex items-center gap-0.5">
-                <kbd className="inline-flex items-center justify-center px-1.5 h-[18px] rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-mono text-[10px] font-semibold text-gray-400 dark:text-gray-500 leading-none shadow-[0_1px_0_rgba(0,0,0,0.1)]">⌘</kbd>
-                <kbd className="inline-flex items-center justify-center px-1.5 h-[18px] rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-mono text-[10px] font-semibold text-gray-400 dark:text-gray-500 leading-none shadow-[0_1px_0_rgba(0,0,0,0.1)]">/</kbd>
+                <kbd className="inline-flex items-center justify-center px-1.5 h-[18px] border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-mono text-[10px] font-semibold text-gray-400 dark:text-gray-500 leading-none shadow-[0_1px_0_rgba(0,0,0,0.1)]">⌘</kbd>
+                <kbd className="inline-flex items-center justify-center px-1.5 h-[18px] border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 font-mono text-[10px] font-semibold text-gray-400 dark:text-gray-500 leading-none shadow-[0_1px_0_rgba(0,0,0,0.1)]">/</kbd>
               </div>
             </button>
-          </div>
+          </DashboardSection>
         </nav>
 
         {/* User */}
-        <div className="shrink-0 px-3 py-3 border-t border-gray-100 dark:border-gray-800">
+        <div className="shrink-0 px-4 py-3 border-t border-gray-100 dark:border-gray-800">
           <div ref={userMenuRef} className="relative">
             <button
               onClick={() => setUserMenuOpen(o => !o)}
-              className="w-full flex items-center gap-2.5 px-2 py-2 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left group"
+              className="w-full flex items-center gap-2.5 px-2 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left group"
             >
               <div className="w-6 h-6 rounded-full bg-gray-900 dark:bg-gray-100 flex items-center justify-center text-white dark:text-gray-900 text-[10px] font-bold shrink-0 tabular-nums">
                 {(user?.email ?? '?')[0].toUpperCase()}
@@ -1324,7 +1321,7 @@ export default function Dashboard() {
 
           {/* Error banner */}
           {createError && (
-            <div className="mb-5 px-4 py-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 flex items-start gap-3">
+            <div className="mb-5 px-4 py-3 rounded-none bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 flex items-start gap-3">
               <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
@@ -1354,17 +1351,17 @@ export default function Dashboard() {
               {/* Empty state */}
               {projects.length === 0 && (
                 <div className="flex flex-col items-center max-w-[280px] mx-auto pt-16 text-center">
-                  <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 rounded-none bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
                     <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
                   </div>
                   <p className="heading-sm mb-1">Create your first project</p>
-                  <p className="body-sm mb-6 leading-relaxed">Press <kbd className="font-mono text-[10px] px-1 py-0.5 rounded border border-gray-200 dark:border-gray-700">N</kbd> or use New Project in the sidebar.</p>
+                  <p className="body-sm mb-6 leading-relaxed">Press <kbd className="font-mono text-[10px] px-1 py-0.5 rounded-none border border-gray-200 dark:border-gray-700">N</kbd> or use New Project in the sidebar.</p>
                   <div className="w-full space-y-2 text-left">
                     {(['Import products via CSV', 'Fill templates with content', 'Export to Canto'] as const).map((label, i) => (
                       <div key={i} className="flex items-center gap-3">
-                        <span className="w-5 h-5 rounded bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 flex items-center justify-center shrink-0 text-[9px] font-bold tabular-nums">{i + 1}</span>
+                        <span className="w-5 h-5 rounded-none bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 flex items-center justify-center shrink-0 text-[9px] font-bold tabular-nums">{i + 1}</span>
                         <p className="body-sm">{label}</p>
                       </div>
                     ))}
@@ -1405,7 +1402,7 @@ export default function Dashboard() {
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                  <div className="rounded-none border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
                     {filteredProjects.map((project, idx) => (
                       <ProjectCard
                         key={project.id} project={project}
@@ -1440,6 +1437,34 @@ export default function Dashboard() {
       )}
 
       <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+    </div>
+  )
+}
+
+function DashboardSection({ title, icon, defaultOpen = false, contentPadding = 'px-4 pb-4 pt-1', children }: {
+  title: string
+  icon?: React.ReactNode
+  defaultOpen?: boolean
+  contentPadding?: string
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left group">
+        <div className="flex items-center gap-2">
+          {icon && <span className="text-gray-400 dark:text-gray-500 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors">{icon}</span>}
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">{title}</span>
+        </div>
+        <svg className={`w-3 h-3 text-gray-300 dark:text-gray-600 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div style={{ display: 'grid', gridTemplateRows: open ? '1fr' : '0fr', transition: 'grid-template-rows 200ms ease' }}>
+        <div style={{ overflow: 'hidden' }}>
+          <div className={contentPadding}>{children}</div>
+        </div>
+      </div>
     </div>
   )
 }

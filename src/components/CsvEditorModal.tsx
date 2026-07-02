@@ -175,14 +175,14 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
   const sidebarBg = isDark ? 'bg-gray-900/60 border-r border-white/8' : 'bg-white border-r border-gray-100'
   const scrollBg  = isDark ? 'bg-gray-900'                          : 'bg-[#f0f0f0]'
 
-  const inputCls = `w-full rounded-[4px] border px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-accent-400/25 focus:border-accent-400 dark:focus:border-accent-600 transition-all ${
+  const inputCls = `w-full rounded-none border px-2.5 py-1.5 text-[12px] focus:outline-none focus:ring-2 focus:ring-accent-400/25 focus:border-accent-400 dark:focus:border-accent-600 transition-all ${
     isDark
       ? 'bg-gray-800 border-gray-700 text-gray-200 placeholder:text-gray-600'
       : 'bg-white border-gray-200 text-gray-800 placeholder:text-gray-400'
   }`
   const labelCls     = `block text-[10px] font-semibold mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`
   const sectionHead  = `text-[9px] font-bold uppercase tracking-widest mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`
-  const cardCls      = `rounded-[4px] border p-4 ${isDark ? 'border-gray-800 bg-gray-800/30' : 'border-gray-100 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]'}`
+  const cardCls      = `rounded-none border p-4 ${isDark ? 'border-gray-800 bg-gray-800/30' : 'border-gray-100 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]'}`
 
   return (
     <>
@@ -193,7 +193,7 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
 
       <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
         <div
-          className={`pointer-events-auto w-full max-w-[1400px] flex flex-col rounded-t-[4px] overflow-hidden shadow-[0_-8px_48px_rgba(0,0,0,0.28)] ${panelBg} ${panelAnim}`}
+          className={`pointer-events-auto w-full max-w-[1400px] flex flex-col rounded-none overflow-hidden shadow-[0_-8px_48px_rgba(0,0,0,0.28)] ${panelBg} ${panelAnim}`}
           style={{ height: 'calc(100vh - 3rem)' }}
           onClick={e => e.stopPropagation()}
         >
@@ -211,7 +211,7 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
               <span className={`text-[10px] hidden sm:block ${dimText}`}>Esc to close</span>
               <button
                 onClick={handleClose}
-                className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${closeBtn}`}
+                className={`w-7 h-7 flex items-center justify-center rounded-none transition-colors ${closeBtn}`}
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -239,7 +239,7 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
                     }`}
                     onClick={() => setSelectedIdx(idx)}
                   >
-                    <span className={`shrink-0 w-5 h-5 rounded text-[9px] font-bold flex items-center justify-center leading-none ${
+                    <span className={`shrink-0 w-5 h-5 rounded-none text-[9px] font-bold flex items-center justify-center leading-none ${
                       idx === selectedIdx
                         ? 'bg-accent-600 text-white'
                         : isDark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'
@@ -262,7 +262,7 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
                       <button
                         onClick={e => { e.stopPropagation(); deleteRow(idx) }}
                         title="Remove product"
-                        className="shrink-0 w-4 h-4 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all"
+                        className="shrink-0 w-4 h-4 rounded-none flex items-center justify-center opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all"
                       >
                         <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -275,7 +275,7 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
               <div className={`shrink-0 p-3 border-t ${isDark ? 'border-white/8' : 'border-gray-100'}`}>
                 <button
                   onClick={addRow}
-                  className="w-full flex items-center justify-center gap-1.5 h-8 rounded-[4px] text-[11px] font-bold border transition-all bg-accent-50 dark:bg-accent-950/40 text-accent-600 dark:text-accent-400 border-accent-200 dark:border-accent-800 hover:bg-accent-100 dark:hover:bg-accent-900/40"
+                  className="w-full flex items-center justify-center gap-1.5 h-8 rounded-none text-[11px] font-bold border transition-all bg-accent-50 dark:bg-accent-950/40 text-accent-600 dark:text-accent-400 border-accent-200 dark:border-accent-800 hover:bg-accent-100 dark:hover:bg-accent-900/40"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -325,7 +325,7 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
                         {sel.slots.map((slot, j) => (
                           <div key={j} className={cardCls}>
                             <div className="flex items-center gap-2 mb-3">
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-[3px] ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-500'}`}>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-none ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-500'}`}>
                                 {slotLabel(j)}
                               </span>
                             </div>
@@ -387,7 +387,7 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
                         {sel.gallerySlots.map((slot, g) => (
                           <div key={g} className={cardCls}>
                             <div className="flex items-center gap-2 mb-3">
-                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-[3px] ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-500'}`}>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-none ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-500'}`}>
                                 {galleryLabel(g)}
                               </span>
                             </div>
@@ -455,7 +455,7 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
             <div className="flex items-center gap-2">
               <button
                 onClick={handleClose}
-                className={`h-8 px-4 rounded-[4px] text-[12px] font-medium transition-all ${
+                className={`h-8 px-4 rounded-none text-[12px] font-medium transition-all ${
                   isDark ? 'text-gray-400 hover:text-white hover:bg-white/8' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
               >
@@ -464,7 +464,7 @@ export default function CsvEditorModal({ open, onClose, initialCsv, aplusSlots, 
               <button
                 onClick={handleApply}
                 disabled={rows.length === 0}
-                className="h-8 px-5 rounded-[4px] text-[12px] font-bold bg-accent-600 text-white hover:bg-accent-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                className="h-8 px-5 rounded-none text-[12px] font-bold bg-accent-600 text-white hover:bg-accent-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 Apply Changes
               </button>

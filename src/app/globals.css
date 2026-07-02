@@ -55,7 +55,7 @@
   /* ── Button primitives ─────────────────────────────────────── */
   /* Usage: <button className="btn btn-sm btn-primary"> */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded font-semibold transition-colors
+    @apply inline-flex items-center justify-center gap-2 rounded-none font-semibold transition-colors
            disabled:opacity-40 disabled:cursor-not-allowed;
   }
   .btn-sm  { @apply h-7 px-2.5 text-[11px] gap-1.5; }
@@ -80,7 +80,7 @@
 
   /* ── Input primitive ───────────────────────────────────────── */
   .input {
-    @apply w-full rounded border border-gray-200 bg-white text-gray-900
+    @apply w-full rounded-none border border-gray-200 bg-white text-gray-900
            placeholder:text-gray-400
            focus:outline-none focus:ring-2 focus:ring-gray-900/15 focus:border-gray-400
            dark:border-gray-700 dark:bg-gray-800 dark:text-white
@@ -92,11 +92,11 @@
   /* ── Menu / dropdown container ─────────────────────────────── */
   .menu {
     @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700
-           rounded-menu shadow-floating ring-1 ring-black/5 dark:ring-white/10
+           rounded-none shadow-floating ring-1 ring-black/5 dark:ring-white/10
            p-1;
   }
   .menu-item {
-    @apply w-full flex items-center gap-2 px-2 py-1.5 rounded
+    @apply w-full flex items-center gap-2 px-2 py-1.5 rounded-none
            text-[12px] text-gray-700 dark:text-gray-200
            hover:bg-gray-100 dark:hover:bg-gray-800
            transition-colors text-left;
@@ -113,7 +113,7 @@
   .modal-panel {
     @apply relative bg-white dark:bg-gray-900
            border border-gray-200 dark:border-gray-700
-           rounded-lg shadow-modal ring-1 ring-black/5 dark:ring-white/5;
+           rounded-none shadow-modal ring-1 ring-black/5 dark:ring-white/5;
   }
   .modal-header {
     @apply flex items-center justify-between px-5 py-3.5
@@ -127,7 +127,7 @@
 
   /* ── Badge ─────────────────────────────────────────────────── */
   .badge {
-    @apply inline-flex items-center px-1.5 py-0.5 rounded
+    @apply inline-flex items-center px-1.5 py-0.5 rounded-none
            text-[10px] font-semibold leading-none;
   }
   .badge-default { @apply bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300; }
@@ -209,8 +209,8 @@
 }
 
 /* ── Dark mode: sidebar inner cards (bg-gray-50 / bg-gray-100 panels) ── */
-.dark .dg-sidebar .rounded-xl.bg-gray-50,
-.dark .dg-sidebar .rounded-xl.bg-gray-100 {
+.dark .dg-sidebar .rounded-none.bg-gray-50,
+.dark .dg-sidebar .rounded-none.bg-gray-100 {
   background-color: rgb(31 41 55 / 0.5);
 }
 

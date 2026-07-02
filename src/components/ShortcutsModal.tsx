@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
-    <kbd className="inline-flex items-center justify-center px-1.5 h-[18px] min-w-[18px] rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-mono text-[10px] font-semibold leading-none shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(0,0,0,0.5)]">
+    <kbd className="inline-flex items-center justify-center px-1.5 h-[18px] min-w-[18px] rounded-none border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-500 dark:text-gray-300 font-mono text-[10px] font-semibold leading-none shadow-[0_1px_0_rgba(0,0,0,0.15)] dark:shadow-[0_1px_0_rgba(0,0,0,0.5)]">
       {children}
     </kbd>
   )

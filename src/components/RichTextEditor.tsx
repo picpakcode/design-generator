@@ -35,7 +35,7 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write d
   if (!editor) return null
 
   return (
-    <div className="rte-wrapper border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-800 focus-within:ring-2 focus-within:ring-accent-400 focus-within:border-transparent transition-all">
+    <div className="rte-wrapper border border-gray-200 dark:border-gray-600 rounded-none overflow-hidden bg-white dark:bg-gray-800 focus-within:ring-2 focus-within:ring-accent-400 focus-within:border-transparent transition-all">
       {/* Toolbar */}
       <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
         <ToolbarBtn
@@ -98,7 +98,7 @@ function ToolbarBtn({
     <button
       onMouseDown={onMouseDown}
       title={title}
-      className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
+      className={`w-7 h-7 rounded-none flex items-center justify-center transition-colors ${
         active ? 'bg-gray-800 dark:bg-gray-600 text-white' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
       }`}
     >

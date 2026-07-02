@@ -37,7 +37,7 @@ export default function CantoAssetPicker({ albumId, value, onChange, placeholder
   if (value) {
     return (
       <div className="flex items-center gap-2">
-        <div className="w-12 h-9 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 overflow-hidden shrink-0 flex items-center justify-center">
+        <div className="w-12 h-9 rounded-none border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 overflow-hidden shrink-0 flex items-center justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={value.previewUrl} alt={value.name} crossOrigin="anonymous"
             className={`max-w-full max-h-full ${thumbnailFit === 'contain' ? 'object-contain' : 'object-cover w-full h-full'}`} />
@@ -56,7 +56,7 @@ export default function CantoAssetPicker({ albumId, value, onChange, placeholder
       <button
         onClick={() => albumId && setOpen(o => !o)}
         disabled={!albumId}
-        className={`w-full h-8 rounded-lg border border-dashed text-[10px] flex items-center justify-center gap-1.5 transition-colors ${
+        className={`w-full h-8 rounded-none border border-dashed text-[10px] flex items-center justify-center gap-1.5 transition-colors ${
           albumId
             ? 'border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-500 hover:border-gray-400 dark:hover:border-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
             : 'border-gray-100 dark:border-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed'
@@ -77,7 +77,7 @@ export default function CantoAssetPicker({ albumId, value, onChange, placeholder
             <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
               {assets.map(a => (
                 <button key={a.id} onClick={() => { onChange(a); setOpen(false) }}
-                  className="shrink-0 w-[52px] h-[52px] rounded-lg border-2 border-transparent hover:border-gray-400 dark:hover:border-gray-500 overflow-hidden transition-colors bg-gray-100 dark:bg-gray-700 flex items-center justify-center"
+                  className="shrink-0 w-[52px] h-[52px] rounded-none border-2 border-transparent hover:border-gray-400 dark:hover:border-gray-500 overflow-hidden transition-colors bg-gray-100 dark:bg-gray-700 flex items-center justify-center"
                   title={a.name}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={a.previewUrl} alt={a.name} crossOrigin="anonymous"

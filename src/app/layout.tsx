@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   title: "Doc's Design Generator",
   description: 'Generate listing designs for Amazon, eBay, and Shopify',
   icons: {
-    icon: '/Favicon.png',
+    icon: '/Favicon.svg',
     apple: '/Favicon.png',
   },
   openGraph: {

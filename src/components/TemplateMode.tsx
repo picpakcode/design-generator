@@ -419,7 +419,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
       {/* Sheet — pointer-events-none wrapper lets backdrop clicks pass through */}
       <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none">
         <div
-          className={`pointer-events-auto w-full max-w-[1400px] flex flex-col rounded-t-[4px] overflow-hidden shadow-[0_-8px_48px_rgba(0,0,0,0.28)] ${panelBg} ${panelAnim}`}
+          className={`pointer-events-auto w-full max-w-[1400px] flex flex-col rounded-none overflow-hidden shadow-[0_-8px_48px_rgba(0,0,0,0.28)] ${panelBg} ${panelAnim}`}
           style={{ height: 'calc(100vh - 3rem)' }}
           onClick={e => e.stopPropagation()}
         >
@@ -442,7 +442,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
             </div>
             <div className="flex items-center gap-2">
               <span className={`text-[10px] hidden sm:block ${dimText}`}>Esc to close</span>
-              <button onClick={handleClose} className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${closeBtn}`}>
+              <button onClick={handleClose} className={`w-7 h-7 flex items-center justify-center rounded-none transition-colors ${closeBtn}`}>
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -461,7 +461,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
                       return (
                         <div key={label} className="mb-8">
                           <p style={{ fontSize: 10, fontWeight: 700, color: labelColor, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} — DESKTOP · 1464×600</p>
-                          <div className="overflow-hidden rounded-[2px] shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 600 * ds, position: 'relative' }}>
+                          <div className="overflow-hidden rounded-none shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 600 * ds, position: 'relative' }}>
                             <div style={{ width: 1464, height: 600, transform: `scale(${ds})`, transformOrigin: 'top left', position: 'absolute' }}>
                               {isIcons
                                 ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
@@ -489,7 +489,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
                       return (
                         <div key={label} className="mb-8">
                           <p style={{ fontSize: 10, fontWeight: 700, color: labelColor, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} — MOBILE · 600×450</p>
-                          <div className="overflow-hidden rounded-[2px] shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 450 * ms, position: 'relative' }}>
+                          <div className="overflow-hidden rounded-none shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 450 * ms, position: 'relative' }}>
                             <div style={{ width: 600, height: 450, transform: `scale(${ms})`, transformOrigin: 'top left', position: 'absolute' }}>
                               {isIcons
                                 ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
@@ -524,7 +524,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
                             return (
                               <div key={label}>
                                 <p style={{ fontSize: 10, fontWeight: 700, color: labelColor, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} · 1500×1500</p>
-                                <div className="overflow-hidden rounded-[2px] shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 1500 * gs, position: 'relative' }}>
+                                <div className="overflow-hidden rounded-none shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 1500 * gs, position: 'relative' }}>
                                   <div style={{ width: 1500, height: 1500, transform: `scale(${gs})`, transformOrigin: 'top left', position: 'absolute' }}>
                                     {isGIcons
                                       ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
@@ -548,7 +548,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
                             return (
                               <div key={label}>
                                 <p style={{ fontSize: 10, fontWeight: 700, color: '#16a34a', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} · 1500×1500</p>
-                                <div className="overflow-hidden rounded-[2px] shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 1500 * sgs, position: 'relative' }}>
+                                <div className="overflow-hidden rounded-none shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 1500 * sgs, position: 'relative' }}>
                                   <div style={{ width: 1500, height: 1500, transform: `scale(${sgs})`, transformOrigin: 'top left', position: 'absolute' }}>
                                     {isGIcons
                                       ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
@@ -573,7 +573,7 @@ function TemplateModePreviewModal({ open, onClose, aplusDesigns, galleryDesigns,
                           return (
                             <div key={label}>
                               <p style={{ fontSize: 10, fontWeight: 700, color: labelColor, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label} · 1500×1500</p>
-                              <div className="overflow-hidden rounded-[2px] shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 1500 * gs, position: 'relative' }}>
+                              <div className="overflow-hidden rounded-none shadow-[0_2px_12px_rgba(0,0,0,0.10)]" style={{ width: '100%', height: 1500 * gs, position: 'relative' }}>
                                 <div style={{ width: 1500, height: 1500, transform: `scale(${gs})`, transformOrigin: 'top left', position: 'absolute' }}>
                                   {isGIcons
                                     ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
@@ -1946,13 +1946,13 @@ export default function TemplateMode({
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`w-full rounded-xl border-2 p-8 flex flex-col items-center gap-3 cursor-pointer transition-all ${
+              className={`w-full rounded-none border-2 p-8 flex flex-col items-center gap-3 cursor-pointer transition-all ${
                 isDragging
                   ? 'border-accent-400 bg-accent-50 dark:bg-accent-950/30'
                   : 'border-gray-200 dark:border-gray-700 hover:border-accent-300 dark:hover:border-accent-700 bg-gray-50 dark:bg-gray-800/40 hover:bg-accent-50/40 dark:hover:bg-accent-950/20'
               }`}
             >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+              <div className={`w-12 h-12 rounded-none flex items-center justify-center transition-colors ${
                 isDragging ? 'bg-accent-100 dark:bg-accent-900/60' : 'bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700'
               }`}>
                 <svg className={`w-6 h-6 transition-colors ${isDragging ? 'text-accent-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -1972,26 +1972,26 @@ export default function TemplateMode({
             </div>
 
             {/* Column reference */}
-            <div className="mt-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
+            <div className="mt-4 p-3 rounded-none bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
               <p className="text-[11px] text-gray-400 dark:text-gray-500 leading-relaxed">
                 {!isShopify && <>
                   <span className="font-semibold text-gray-500 dark:text-gray-400">A+:</span>{' '}
-                  <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">a1_title</code>{' '}
-                  <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">a1_desc</code>{' '}
-                  <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">b1_title</code>…
+                  <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded-none border border-gray-200 dark:border-gray-700 text-[10px]">a1_title</code>{' '}
+                  <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded-none border border-gray-200 dark:border-gray-700 text-[10px]">a1_desc</code>{' '}
+                  <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded-none border border-gray-200 dark:border-gray-700 text-[10px]">b1_title</code>…
                   <br />
                 </>}
                 <span className="font-semibold text-gray-500 dark:text-gray-400">Gallery:</span>{' '}
-                <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">g1_title</code>{' '}
-                <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">g1_desc</code>{' '}
-                <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded border border-gray-200 dark:border-gray-700 text-[10px]">g2_title</code>…
+                <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded-none border border-gray-200 dark:border-gray-700 text-[10px]">g1_title</code>{' '}
+                <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded-none border border-gray-200 dark:border-gray-700 text-[10px]">g1_desc</code>{' '}
+                <code className="font-mono bg-white dark:bg-gray-900 px-1 py-px rounded-none border border-gray-200 dark:border-gray-700 text-[10px]">g2_title</code>…
               </p>
             </div>
 
             {/* Download template */}
             <button
               onClick={e => { e.stopPropagation(); downloadTemplate(platform) }}
-              className="mt-3 w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg text-[12px] font-semibold text-gray-500 dark:text-gray-400 hover:text-accent-600 dark:hover:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-950/30 border border-gray-200 dark:border-gray-700 hover:border-accent-200 dark:hover:border-accent-800 transition-all"
+              className="mt-3 w-full flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-none text-[12px] font-semibold text-gray-500 dark:text-gray-400 hover:text-accent-600 dark:hover:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-950/30 border border-gray-200 dark:border-gray-700 hover:border-accent-200 dark:hover:border-accent-800 transition-all"
             >
               <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17a9 9 0 1118 0H3z" />
@@ -2023,8 +2023,8 @@ export default function TemplateMode({
           <div className="relative flex flex-col items-center gap-4">
             {[0, 1, 2].map(i => (
               <div key={i} className="flex items-center gap-3" style={{ opacity: 1 - i * 0.22, transform: `scale(${1 - i * 0.06})` }}>
-                <div className="w-48 h-20 rounded-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border border-white/90 dark:border-gray-700/60 shadow-md flex items-center gap-3 px-3 overflow-hidden">
-                  <div className="w-14 h-14 rounded-md bg-accent-100 dark:bg-accent-900/50 shrink-0 flex items-center justify-center">
+                <div className="w-48 h-20 rounded-none bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border border-white/90 dark:border-gray-700/60 shadow-md flex items-center gap-3 px-3 overflow-hidden">
+                  <div className="w-14 h-14 rounded-none bg-accent-100 dark:bg-accent-900/50 shrink-0 flex items-center justify-center">
                     <svg className="w-6 h-6 text-accent-300 dark:text-accent-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
@@ -2035,7 +2035,7 @@ export default function TemplateMode({
                     <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 w-1/2" />
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border border-white/90 dark:border-gray-700/60 shadow-md flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-none bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm border border-white/90 dark:border-gray-700/60 shadow-md flex items-center justify-center shrink-0">
                   <svg className="w-5 h-5 text-accent-200 dark:text-accent-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
@@ -2066,7 +2066,7 @@ export default function TemplateMode({
             <button
               onClick={() => { setSelectedId(products[selectedIdx - 1]?.id ?? null); setActiveSlotIdx(0); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
               disabled={selectedIdx <= 0}
-              className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
+              className="w-6 h-6 flex items-center justify-center rounded-none border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
             >
               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
             </button>
@@ -2101,19 +2101,19 @@ export default function TemplateMode({
             <button
               onClick={() => { setSelectedId(products[selectedIdx + 1]?.id ?? null); setActiveSlotIdx(0); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
               disabled={selectedIdx >= products.length - 1 || !selected}
-              className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
+              className="w-6 h-6 flex items-center justify-center rounded-none border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
             >
               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
             </button>
             <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 shrink-0" />
             <button onClick={undo} disabled={!canUndo} title="Undo (⌘Z)"
-              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              className="w-6 h-6 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
               </svg>
             </button>
             <button onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)"
-              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+              className="w-6 h-6 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6" />
               </svg>
@@ -2130,7 +2130,7 @@ export default function TemplateMode({
                 value={productSearch}
                 onChange={e => setProductSearch(e.target.value)}
                 placeholder={`Search ${products.length} products…`}
-                className="w-full pl-7 pr-7 py-1.5 text-[11px] border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+                className="w-full pl-7 pr-7 py-1.5 text-[11px] border border-gray-200 dark:border-gray-600 rounded-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
               />
               {productSearch && (
                 <button onClick={() => setProductSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400">
@@ -2141,7 +2141,7 @@ export default function TemplateMode({
                 const q = productSearch.toLowerCase()
                 const matches = products.filter(p => (p.productName || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q))
                 return (
-                  <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-lg max-h-52 overflow-y-auto">
+                  <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-none shadow-lg max-h-52 overflow-y-auto">
                     {matches.length === 0 ? (
                       <p className="text-[10px] text-gray-400 text-center py-3">No matches</p>
                     ) : matches.map(p => {
@@ -2170,7 +2170,7 @@ export default function TemplateMode({
               value={productNames[selected.id] !== undefined ? productNames[selected.id] : (selected.productName || '')}
               onChange={e => setProductNames(prev => ({ ...prev, [selected.id]: e.target.value }))}
               placeholder={`Export name${selected.sku ? ` · ${selected.sku}` : '…'}`}
-              className="mt-1.5 w-full px-2.5 py-1 text-[11px] border border-dashed border-gray-200 dark:border-gray-700 rounded bg-transparent text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-gray-600 focus:border-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
+              className="mt-1.5 w-full px-2.5 py-1 text-[11px] border border-dashed border-gray-200 dark:border-gray-700 rounded-none bg-transparent text-gray-600 dark:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-gray-600 focus:border-gray-300 placeholder:text-gray-300 dark:placeholder:text-gray-600 transition-all"
             />
           )}
           {/* Progress bar — only the bar; count shown inline in subtext */}
@@ -2187,7 +2187,7 @@ export default function TemplateMode({
 
         {/* Remote conflict warning */}
         {remoteConflict && (
-          <div className="shrink-0 mx-4 my-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+          <div className="shrink-0 mx-4 my-2 rounded-none border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
             <div className="flex items-start gap-2">
               <svg className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9.303 3.376c.866 1.5-.217 3.374-1.948 3.374H4.645c-1.73 0-2.813-1.874-1.948-3.374L10.052 3.378c.866-1.5 3.032-1.5 3.898 0l7.303 12.748zM12 15.75h.007v.008H12v-.008z" />
@@ -2204,7 +2204,7 @@ export default function TemplateMode({
 
         {/* CSV parse warnings */}
         {csvWarnings.length > 0 && !csvWarningsDismissed && (
-          <div className="shrink-0 mx-4 my-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
+          <div className="shrink-0 mx-4 my-2 rounded-none border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2">
             <div className="flex items-start gap-2">
               <svg className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9.303 3.376c.866 1.5-.217 3.374-1.948 3.374H4.645c-1.73 0-2.813-1.874-1.948-3.374L10.052 3.378c.866-1.5 3.032-1.5 3.898 0l7.303 12.748zM12 15.75h.007v.008H12v-.008z" />
@@ -2228,7 +2228,7 @@ export default function TemplateMode({
 
         {/* Proxy image load warnings */}
         {renderBrokenCount > 0 && (
-          <div className="shrink-0 mx-4 my-2 rounded border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 px-3 py-2">
+          <div className="shrink-0 mx-4 my-2 rounded-none border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 px-3 py-2">
             <div className="flex items-start gap-2">
               <svg className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -2309,7 +2309,7 @@ export default function TemplateMode({
                     style={{ opacity: aplusDragIdx === idx ? 0.35 : 1 }}
                   >
                     <button onClick={() => { setActiveSlotIdx(idx); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
-                      className={`relative flex items-center justify-center w-8 h-6 rounded text-[10px] font-bold transition-all cursor-grab active:cursor-grabbing ${
+                      className={`relative flex items-center justify-center w-8 h-6 rounded-none text-[10px] font-bold transition-all cursor-grab active:cursor-grabbing ${
                         !activeIsGallery && idx === activeSlotIdx ? 'bg-accent-600 text-white'
                         : aplusDragOver === idx && aplusDragIdx !== idx ? 'bg-accent-100 dark:bg-accent-900/50 text-accent-700 ring-1 ring-accent-400'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
@@ -2320,7 +2320,7 @@ export default function TemplateMode({
                     </button>
                     {aplusSlots > 1 && (
                       <button onClick={e => { e.stopPropagation(); deleteAplusSlot(idx) }} title="Remove slot"
-                        className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors">
+                        className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-none bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors">
                         <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     )}
@@ -2328,7 +2328,7 @@ export default function TemplateMode({
                 ))}
                 {aplusSlots < 10 && (
                   <button onClick={() => setAplusSlots(n => Math.min(10, n + 1))} title="Add A+ slot"
-                    className="shrink-0 flex items-center justify-center w-6 h-6 rounded text-[11px] font-bold bg-accent-50 dark:bg-accent-950/40 text-accent-600 dark:text-accent-400 hover:bg-accent-100 border border-accent-200 dark:border-accent-800 transition-all">+</button>
+                    className="shrink-0 flex items-center justify-center w-6 h-6 rounded-none text-[11px] font-bold bg-accent-50 dark:bg-accent-950/40 text-accent-600 dark:text-accent-400 hover:bg-accent-100 border border-accent-200 dark:border-accent-800 transition-all">+</button>
                 )}
               </div>
               {selected && (() => {
@@ -2352,7 +2352,7 @@ export default function TemplateMode({
                   style={{ opacity: galleryDragIdx === idx ? 0.35 : 1 }}
                 >
                   <button onClick={() => { setActiveGalleryIdx(idx); setActiveIsGallery(true); setActiveIsShopifyGallery(false) }}
-                    className={`relative flex items-center justify-center w-8 h-6 rounded text-[10px] font-bold transition-all cursor-grab active:cursor-grabbing ${
+                    className={`relative flex items-center justify-center w-8 h-6 rounded-none text-[10px] font-bold transition-all cursor-grab active:cursor-grabbing ${
                       activeIsGallery && idx === activeGalleryIdx ? 'bg-accent-600 text-white'
                       : galleryDragOver === idx && galleryDragIdx !== idx ? 'bg-accent-100 dark:bg-accent-900/50 text-accent-700 ring-1 ring-accent-400'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
@@ -2363,7 +2363,7 @@ export default function TemplateMode({
                   </button>
                   {galleryCount > 1 && (
                     <button onClick={e => { e.stopPropagation(); deleteGallerySlot(idx) }} title="Remove slide"
-                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors">
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-none bg-gray-400 dark:bg-gray-500 text-white items-center justify-center hidden group-hover:flex hover:bg-red-500 transition-colors">
                       <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   )}
@@ -2371,7 +2371,7 @@ export default function TemplateMode({
               ))}
               {galleryCount < 10 && (
                 <button onClick={() => setGalleryCount(n => Math.min(10, n + 1))} title="Add gallery slide"
-                  className="shrink-0 flex items-center justify-center w-6 h-6 rounded text-[11px] font-bold bg-accent-50 dark:bg-accent-950/40 text-accent-600 dark:text-accent-400 hover:bg-accent-100 border border-accent-200 dark:border-accent-800 transition-all">+</button>
+                  className="shrink-0 flex items-center justify-center w-6 h-6 rounded-none text-[11px] font-bold bg-accent-50 dark:bg-accent-950/40 text-accent-600 dark:text-accent-400 hover:bg-accent-100 border border-accent-200 dark:border-accent-800 transition-all">+</button>
               )}
             </div>
             {selected && (() => {
@@ -2395,7 +2395,7 @@ export default function TemplateMode({
                     style={{ opacity: shopifyDragIdx === idx ? 0.35 : 1 }}
                   >
                     <button onClick={() => { setActiveShopifyGalleryIdx(idx); setActiveIsShopifyGallery(true); setActiveIsGallery(false) }}
-                      className={`relative flex items-center justify-center w-8 h-6 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                      className={`relative flex items-center justify-center w-8 h-6 rounded-none text-[10px] font-bold transition-all cursor-pointer ${
                         activeIsShopifyGallery && idx === activeShopifyGalleryIdx ? 'bg-green-600 text-white'
                         : shopifyDragOver === idx && shopifyDragIdx !== idx ? 'bg-green-100 dark:bg-green-900/50 text-green-700 ring-1 ring-green-400'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
@@ -2425,7 +2425,7 @@ export default function TemplateMode({
                       {(['gallery-hero', 'gallery-icons', 'gallery-icons-text'] as const).map(t => (
                         <button key={t}
                           onClick={() => setGalleryConfigs(prev => prev.map((c, i) => i === activeGalleryIdx ? { template: t } : c))}
-                          className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${activeCfgGallery.template === t ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200'}`}
+                          className={`flex-1 py-1.5 rounded-none text-[10px] font-bold transition-all ${activeCfgGallery.template === t ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200'}`}
                         >
                           {GALLERY_LABELS[t]}
                         </button>
@@ -2479,7 +2479,7 @@ export default function TemplateMode({
                       <div className="flex gap-1">
                         {([2, 3, 4] as const).map(n => (
                           <button key={n} onClick={() => patchActive({ iconCount: n })}
-                            className={`w-6 h-6 rounded text-[10px] font-bold transition-all ${activeSlot.iconCount === n ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200'}`}
+                            className={`w-6 h-6 rounded-none text-[10px] font-bold transition-all ${activeSlot.iconCount === n ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200'}`}
                           >{n}</button>
                         ))}
                       </div>
@@ -2496,7 +2496,7 @@ export default function TemplateMode({
                               <button
                                 onClick={() => { setIconPickerSlotIdx(i); setIconPickerOpen(true) }}
                                 title="Change icon"
-                                className="w-7 h-7 rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 overflow-hidden shrink-0 flex items-center justify-center hover:border-gray-400 transition-colors"
+                                className="w-7 h-7 rounded-none border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 overflow-hidden shrink-0 flex items-center justify-center hover:border-gray-400 transition-colors"
                               >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={iconAsset.url} alt={iconAsset.name} className="max-w-full max-h-full object-contain p-0.5" />
@@ -2506,7 +2506,7 @@ export default function TemplateMode({
                                 onClick={() => { setIconPickerSlotIdx(i); setIconPickerOpen(true) }}
                                 disabled={!folderConfig.iconsAlbumId}
                                 title="Pick icon"
-                                className="w-7 h-7 rounded border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 flex items-center justify-center transition-all"
+                                className="w-7 h-7 rounded-none border border-dashed border-gray-300 dark:border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 flex items-center justify-center transition-all"
                               >
                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                               </button>
@@ -2520,7 +2520,7 @@ export default function TemplateMode({
                                 patchActive({ iconLabels: next })
                               }}
                               placeholder={`Callout ${i + 1}…`}
-                              className="flex-1 min-w-0 px-2.5 py-1.5 text-[11px] border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 transition-all"
+                              className="flex-1 min-w-0 px-2.5 py-1.5 text-[11px] border border-gray-200 dark:border-gray-600 rounded-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-400 placeholder:text-gray-300 transition-all"
                             />
                             {iconAsset && (
                               <button
@@ -2529,7 +2529,7 @@ export default function TemplateMode({
                                   newIcons[i] = undefined
                                   patchActive({ iconAssets: newIcons })
                                 }}
-                                className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0"
+                                className="w-5 h-5 flex items-center justify-center rounded-none text-gray-300 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0"
                               >
                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                               </button>
@@ -2555,19 +2555,19 @@ export default function TemplateMode({
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Product Photo</p>
                   {activeSlot.photoAsset ? (
                     <div className="flex items-center gap-1.5">
-                      <div className="w-12 h-8 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
+                      <div className="w-12 h-8 rounded-none bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={activeSlot.photoAsset.url} alt={activeSlot.photoAsset.name} className="w-full h-full object-cover" />
                       </div>
                       <button onClick={() => { setPhotoPickerFor('main'); setPhotoPickerOpen(true) }} className="flex-1 text-left text-[10px] text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 truncate transition-colors" title={activeSlot.photoAsset.name}>{activeSlot.photoAsset.name}</button>
                       <button onClick={() => patchActive({ photoAsset: undefined })}
-                        className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
+                        className="w-5 h-5 flex items-center justify-center rounded-none text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
                   ) : (
                     <button onClick={() => { setPhotoPickerFor('main'); setPhotoPickerOpen(true) }}
-                      className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
+                      className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-none border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
                       <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                       Pick from library
                     </button>
@@ -2580,7 +2580,7 @@ export default function TemplateMode({
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Photo 2 (Bottom)</p>
                     {activeSlot.iconAssets[0] ? (
                       <div className="flex items-center gap-1.5">
-                        <div className="w-12 h-8 rounded bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
+                        <div className="w-12 h-8 rounded-none bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={activeSlot.iconAssets[0].url} alt={activeSlot.iconAssets[0].name} className="w-full h-full object-cover" />
                         </div>
@@ -2589,13 +2589,13 @@ export default function TemplateMode({
                           const newIcons = [...activeSlot.iconAssets] as (UploadedAsset | undefined)[]
                           newIcons[0] = undefined
                           patchActive({ iconAssets: newIcons })
-                        }} className="w-5 h-5 flex items-center justify-center rounded text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
+                        }} className="w-5 h-5 flex items-center justify-center rounded-none text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0">
                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                       </div>
                     ) : (
                       <button onClick={() => { setPhotoPickerFor('split2'); setPhotoPickerOpen(true) }}
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 rounded-none border border-dashed border-gray-300 dark:border-gray-600 text-[10px] text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
                         <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                         Pick from library
                       </button>
@@ -2622,10 +2622,10 @@ export default function TemplateMode({
                 <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">A+ Slots</label>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => setAplusSlots(n => Math.max(1, n - 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors font-bold">−</button>
+                    className="w-7 h-7 flex items-center justify-center rounded-none border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors font-bold">−</button>
                   <span className="w-6 text-center text-[13px] font-bold text-gray-700 dark:text-gray-300 tabular-nums">{aplusSlots}</span>
                   <button onClick={() => setAplusSlots(n => Math.min(10, n + 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors font-bold">+</button>
+                    className="w-7 h-7 flex items-center justify-center rounded-none border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors font-bold">+</button>
                 </div>
               </div>}
 
@@ -2635,11 +2635,11 @@ export default function TemplateMode({
                   <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Shopify Gallery</label>
                   <div className="flex gap-1">
                     <button onClick={() => setIncludeGallery(true)}
-                      className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${includeGallery ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                      className={`flex-1 py-1.5 rounded-none text-[10px] font-bold transition-all ${includeGallery ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
                       On
                     </button>
                     <button onClick={() => setIncludeGallery(false)}
-                      className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${!includeGallery ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                      className={`flex-1 py-1.5 rounded-none text-[10px] font-bold transition-all ${!includeGallery ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
                       Off
                     </button>
                   </div>
@@ -2651,10 +2651,10 @@ export default function TemplateMode({
                 <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">Gallery Slides</label>
                 <div className="flex items-center gap-1.5">
                   <button onClick={() => setGalleryCount(n => Math.max(0, n - 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors font-bold">−</button>
+                    className="w-7 h-7 flex items-center justify-center rounded-none border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors font-bold">−</button>
                   <span className="w-6 text-center text-[13px] font-bold text-gray-700 dark:text-gray-300 tabular-nums">{galleryCount}</span>
                   <button onClick={() => setGalleryCount(n => Math.min(10, n + 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors font-bold">+</button>
+                    className="w-7 h-7 flex items-center justify-center rounded-none border border-gray-200 dark:border-gray-700 text-gray-500 hover:text-gray-800 hover:border-gray-400 transition-colors font-bold">+</button>
                 </div>
               </div>}
 
@@ -2664,7 +2664,7 @@ export default function TemplateMode({
                 <div className="flex gap-1">
                   {(['png', 'jpeg'] as const).map(f => (
                     <button key={f} onClick={() => setOutputFormat(f)}
-                      className={`flex-1 py-1.5 rounded text-[10px] font-bold transition-all ${outputFormat === f ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
+                      className={`flex-1 py-1.5 rounded-none text-[10px] font-bold transition-all ${outputFormat === f ? 'bg-gray-900 dark:bg-gray-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>
                       {f.toUpperCase()}
                     </button>
                   ))}
@@ -2674,7 +2674,7 @@ export default function TemplateMode({
               {/* CSV info + edit + clear */}
               <div>
                 <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">CSV File</label>
-                <div className="flex items-center gap-2 p-2.5 rounded bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
+                <div className="flex items-center gap-2 p-2.5 rounded-none bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
                   <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   <span className="flex-1 min-w-0 text-[10px] text-gray-600 dark:text-gray-400 truncate">{csvFilename}</span>
                   <button
@@ -2715,7 +2715,7 @@ export default function TemplateMode({
         <button
           onClick={() => setSidebarOpen(o => !o)}
           title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-4 h-10 flex items-center justify-center bg-white dark:bg-gray-900 border border-l-0 border-gray-200 dark:border-gray-700 rounded-r shadow-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-4 h-10 flex items-center justify-center bg-white dark:bg-gray-900 border border-l-0 border-gray-200 dark:border-gray-700 rounded-none shadow-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
         >
           <svg className={`w-2.5 h-2.5 transition-transform duration-200 ${sidebarOpen ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -3001,7 +3001,7 @@ export default function TemplateMode({
           )}
 
           {/* Zoom HUD — matches Design mode style */}
-          <div className="absolute bottom-4 right-4 z-10 flex items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow-sm overflow-hidden">
+          <div className="absolute bottom-4 right-4 z-10 flex items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-none shadow-sm overflow-hidden">
             <button onClick={() => adjustZoom(1 / 1.25)}
               className="w-7 h-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold transition-colors"
               title="Zoom out">−</button>
@@ -3082,7 +3082,7 @@ export default function TemplateMode({
             onClick={dismissClear}
           >
             <div
-              className={`relative w-full max-w-sm bg-white dark:bg-gray-900 rounded border border-gray-100 dark:border-gray-700 overflow-hidden shadow-2xl mx-4 ${clearConfirmClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
+              className={`relative w-full max-w-sm bg-white dark:bg-gray-900 rounded-none border border-gray-100 dark:border-gray-700 overflow-hidden shadow-2xl mx-4 ${clearConfirmClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
               onClick={e => e.stopPropagation()}
             >
               <div className="px-5 pt-5 pb-4 flex items-start gap-4">
@@ -3101,13 +3101,13 @@ export default function TemplateMode({
               <div className="px-5 pb-5 flex gap-2.5">
                 <button
                   onClick={dismissClear}
-                  className="flex-1 h-9 rounded border border-gray-200 dark:border-gray-700 text-[13px] font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  className="flex-1 h-9 rounded-none border border-gray-200 dark:border-gray-700 text-[13px] font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmClear}
-                  className="flex-1 h-9 rounded bg-red-500 hover:bg-red-600 text-white text-[13px] font-semibold transition-colors flex items-center justify-center gap-1.5"
+                  className="flex-1 h-9 rounded-none bg-red-500 hover:bg-red-600 text-white text-[13px] font-semibold transition-colors flex items-center justify-center gap-1.5"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
