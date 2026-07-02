@@ -147,7 +147,7 @@
   padding: 8px 12px;
   font-size: 13px;
   line-height: 1.55;
-  color: #374151;
+  color: #3f3f46;
   outline: none;
 }
 .rte-prosemirror p { margin: 0 0 0.35em; }
@@ -158,7 +158,7 @@
 .rte-prosemirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
-  color: #9ca3af;
+  color: #a1a1aa;
   pointer-events: none;
   height: 0;
 }
@@ -191,13 +191,13 @@
   background-color: rgb(39 39 42);
 }
 .dark .rte-prosemirror p.is-editor-empty:first-child::before {
-  color: rgb(107 114 128);
+  color: rgb(113 113 122);
 }
 
 /* ── Dark mode: dropdown popup panels ───────────────────── */
 .dark .dg-dropdown {
-  background-color: rgb(17 24 39);
-  border-color: rgb(55 65 81);
+  background-color: rgb(24 24 27);
+  border-color: rgb(63 63 70);
 }
 .dark .dg-dropdown * {
   border-color: inherit;
@@ -205,27 +205,27 @@
 
 /* ── Dark mode: range inputs ────────────────────────────── */
 .dark input[type="range"] {
-  accent-color: rgb(209 213 219);
+  accent-color: rgb(212 212 216);
 }
 
 /* ── Dark mode: sidebar inner cards (bg-gray-50 / bg-gray-100 panels) ── */
 .dark .dg-sidebar .rounded-none.bg-gray-50,
 .dark .dg-sidebar .rounded-none.bg-gray-100 {
-  background-color: rgb(31 41 55 / 0.5);
+  background-color: rgb(39 39 42 / 0.5);
 }
 
 /* ── Dark mode: sidebar small secondary text ───────────── */
-.dark .dg-sidebar .text-gray-600 { color: rgb(156 163 175); }
-.dark .dg-sidebar p.text-gray-400 { color: rgb(107 114 128); }
-.dark .dg-sidebar span.text-gray-400 { color: rgb(107 114 128); }
+.dark .dg-sidebar .text-gray-600 { color: rgb(161 161 170); }
+.dark .dg-sidebar p.text-gray-400 { color: rgb(113 113 122); }
+.dark .dg-sidebar span.text-gray-400 { color: rgb(113 113 122); }
 
 /* ── Dark mode: sidebar dashed-border pick buttons ──────── */
 .dark .dg-sidebar button.border-dashed {
-  border-color: rgb(75 85 99);
-  color: rgb(107 114 128);
+  border-color: rgb(82 82 91);
+  color: rgb(113 113 122);
 }
 .dark .dg-sidebar button.border-dashed:hover {
-  border-color: rgb(107 114 128);
-  background-color: rgb(31 41 55 / 0.5);
-  color: rgb(156 163 175);
+  border-color: rgb(113 113 122);
+  background-color: rgb(39 39 42 / 0.5);
+  color: rgb(161 161 170);
 }

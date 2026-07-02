@@ -1025,18 +1025,29 @@ export default function Dashboard() {
             <span className="heading-sm truncate">Doc&rsquo;s Design Generator</span>
           </div>
         </aside>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-xs">
-            <div className="w-10 h-10 rounded-none bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
+        <div className="flex-1 relative overflow-hidden">
+          {/* Background video */}
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+            src="/Sign in video.mov"
+          />
+          <div className="absolute inset-0 bg-black/30" />
+          {/* Sign-in card */}
+          <div className="relative z-10 flex items-center justify-center h-full">
+            <div className="text-center max-w-xs bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-gray-100 dark:border-gray-700 shadow-2xl px-8 py-8">
+              <div className="w-10 h-10 rounded-none bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
+                <img src="/Favicon.svg" alt="" className="w-6 h-6 object-contain" />
+              </div>
+              <p className="heading-sm mb-1">Welcome back</p>
+              <p className="body-sm mb-5">Sign in to access your projects.</p>
+              <button onClick={() => setAuthModalOpen(true)} className="btn btn-md btn-primary">
+                Sign in
+              </button>
             </div>
-            <p className="heading-sm mb-1">Welcome back</p>
-            <p className="body-sm mb-5">Sign in to access your projects.</p>
-            <button onClick={() => setAuthModalOpen(true)} className="btn btn-md btn-primary">
-              Sign in
-            </button>
           </div>
         </div>
         <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />

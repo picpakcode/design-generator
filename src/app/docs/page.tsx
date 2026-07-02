@@ -86,7 +86,7 @@ function Cards({ items }: { items: { icon: string; title: string; body: string; 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
       {items.map(item => (
-        <div key={item.title} className="rounded-none border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900 px-4 py-3 flex gap-3">
+        <div key={item.title} className="rounded-none border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-4 py-3 flex gap-3">
           <span className="text-base shrink-0 mt-0.5">{item.icon}</span>
           <div>
             <p className="text-[12px] font-bold text-gray-900 dark:text-white mb-0.5">{item.title}</p>
@@ -100,10 +100,10 @@ function Cards({ items }: { items: { icon: string; title: string; body: string; 
 
 function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
   return (
-    <div className="overflow-x-auto rounded-none border border-gray-200 dark:border-white/8 mb-4">
+    <div className="overflow-x-auto rounded-none border border-gray-200 dark:border-gray-800 mb-4">
       <table className="w-full text-[12px]">
         <thead>
-          <tr className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-white/8">
+          <tr className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
             {headers.map(h => (
               <th key={h} className="text-left px-3 py-2 font-bold text-gray-700 dark:text-gray-300 text-[11px] uppercase tracking-wide">
                 {h}
@@ -113,7 +113,7 @@ function Table({ headers, rows }: { headers: string[]; rows: string[][] }) {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className={i < rows.length - 1 ? 'border-b border-gray-100 dark:border-white/6' : ''}>
+            <tr key={i} className={i < rows.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''}>
               {row.map((cell, j) => (
                 <td key={j} className="px-3 py-2 text-gray-600 dark:text-gray-400 align-top">
                   {cell}
@@ -136,7 +136,7 @@ function Code({ children }: { children: string }) {
 }
 
 function Divider() {
-  return <hr className="border-gray-100 dark:border-white/8 my-10" />
+  return <hr className="border-gray-100 dark:border-gray-800 my-10" />
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -483,7 +483,7 @@ Recovery Snatch Block,SB-002,Maximum Pull,Rated for 8,000 lb working load`}</Cod
           <SubHeading>Session data</SubHeading>
           <P>A design session (the current editor state) is also saved as a separate auto-save record tied to your user account. This allows the editor to restore your last-open state even if you navigate away before the project saves.</P>
 
-          <div className="mt-12 rounded-none border border-gray-200 dark:border-white/8 bg-gray-50 dark:bg-gray-900 px-6 py-5 flex items-start gap-4">
+          <div className="mt-12 rounded-none border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 px-6 py-5 flex items-start gap-4">
             <div className="w-8 h-8 rounded-full bg-accent-100 dark:bg-accent-900/50 flex items-center justify-center shrink-0">
               <svg className="w-4 h-4 text-accent-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

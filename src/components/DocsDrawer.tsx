@@ -88,10 +88,10 @@ function Steps({ items }: { items: { title: string; body: string }[] }) {
 
 function DataTable({ headers, rows }: { headers: string[]; rows: (string | React.ReactNode)[][] }) {
   return (
-    <div className="overflow-x-auto rounded-none border border-gray-200 dark:border-white/8 mb-3">
+    <div className="overflow-x-auto rounded-none border border-gray-200 dark:border-gray-800 mb-3">
       <table className="w-full text-[11px]">
         <thead>
-          <tr className="bg-gray-50 dark:bg-gray-900/80 border-b border-gray-200 dark:border-white/8">
+          <tr className="bg-gray-50 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-800">
             {headers.map(h => (
               <th key={h} className="text-left px-3 py-2 font-bold text-gray-600 dark:text-gray-400 text-[10px] uppercase tracking-wide">
                 {h}
@@ -101,7 +101,7 @@ function DataTable({ headers, rows }: { headers: string[]; rows: (string | React
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className={i < rows.length - 1 ? 'border-b border-gray-100 dark:border-white/6' : ''}>
+            <tr key={i} className={i < rows.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''}>
               {row.map((cell, j) => (
                 <td key={j} className="px-3 py-2 text-gray-600 dark:text-gray-400 align-top">
                   {cell}
@@ -124,7 +124,7 @@ function CodeBlock({ children }: { children: string }) {
 }
 
 function Hr() {
-  return <hr className="border-gray-100 dark:border-white/8 my-8" />
+  return <hr className="border-gray-100 dark:border-gray-800 my-8" />
 }
 
 // ─── DocsDrawer ───────────────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
         style={{ height: 'calc(100vh - 3rem)' }}
       >
         {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-white/8 bg-white dark:bg-gray-950">
+        <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-none flex items-center justify-center bg-accent-100 dark:bg-accent-900/50">
               <svg className="w-3.5 h-3.5 text-accent-600 dark:text-accent-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -213,7 +213,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
             <span className="text-[10px] text-gray-400 dark:text-gray-600 hidden sm:block">Esc to close</span>
             <button
               onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/8 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-none text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -226,7 +226,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
         <div className="flex flex-1 min-h-0">
 
           {/* Sidebar nav */}
-          <aside className="hidden md:flex flex-col shrink-0 w-44 border-r border-gray-100 dark:border-white/6 py-5 px-3 bg-gray-50/60 dark:bg-gray-900/40">
+          <aside className="hidden md:flex flex-col shrink-0 w-44 border-r border-gray-100 dark:border-gray-800 py-5 px-3 bg-gray-50/60 dark:bg-gray-900/40">
             <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600 mb-2 px-2">Contents</p>
             <nav className="space-y-0.5">
               {SECTIONS.map(s => (
@@ -236,7 +236,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
                   className={`w-full text-left px-2 py-1.5 rounded-none text-[11px] font-medium transition-colors ${
                     active === s.id
                       ? 'bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300 font-semibold'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/6'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
                   {s.label}
@@ -244,7 +244,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
               ))}
             </nav>
 
-            <div className="mt-auto pt-4 border-t border-gray-100 dark:border-white/6">
+            <div className="mt-auto pt-4 border-t border-gray-100 dark:border-gray-800">
               <button
                 onClick={() => downloadTemplate()}
                 className="w-full flex items-center justify-center gap-1.5 h-8 rounded-none border border-accent-200 dark:border-accent-800 text-[11px] font-semibold text-accent-600 dark:text-accent-400 hover:bg-accent-50 dark:hover:bg-accent-900/30 hover:border-accent-300 dark:hover:border-accent-700 transition-colors"
@@ -316,7 +316,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
                     { l: 'Icons',     d: 'Icon grid only, no description.' },
                     { l: 'Icn+Txt',  d: 'Icon callouts + headline + description.' },
                   ].map(t => (
-                    <div key={t.l} className="rounded-none border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900/60 px-2.5 py-2">
+                    <div key={t.l} className="rounded-none border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60 px-2.5 py-2">
                       <p className="text-[11px] font-bold text-gray-800 dark:text-gray-200">{t.l}</p>
                       <p className="text-[10px] text-gray-400 dark:text-gray-500">{t.d}</p>
                     </div>
@@ -331,7 +331,7 @@ export default function DocsDrawer({ open, onClose }: DocsDrawerProps) {
                     { l: 'Icons',    d: 'Icon grid with callout labels.' },
                     { l: 'Icn+Txt', d: 'Icon grid plus a title and description.' },
                   ].map(t => (
-                    <div key={t.l} className="rounded-none border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900/60 px-2.5 py-2">
+                    <div key={t.l} className="rounded-none border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60 px-2.5 py-2">
                       <p className="text-[11px] font-bold text-gray-800 dark:text-gray-200">{t.l}</p>
                       <p className="text-[10px] text-gray-400 dark:text-gray-500">{t.d}</p>
                     </div>
@@ -417,7 +417,7 @@ SB-002,Recovery Snatch Block,Maximum Pull,Rated for 8000 lb working load,High st
                 { icon: '🔁', t: 'Flip layout', d: 'Mirror image-left / text-right arrangement' },
                 { icon: '📝', t: 'Text edit', d: 'Edit title and body copy directly in the sidebar' },
               ].map(c => (
-                <div key={c.t} className="rounded-none border border-gray-100 dark:border-white/8 bg-gray-50 dark:bg-gray-900/60 px-3 py-2.5 flex gap-2">
+                <div key={c.t} className="rounded-none border border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60 px-3 py-2.5 flex gap-2">
                   <span className="text-sm shrink-0">{c.icon}</span>
                   <div>
                     <p className="text-[11px] font-bold text-gray-800 dark:text-gray-200">{c.t}</p>
