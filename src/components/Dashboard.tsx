@@ -44,7 +44,6 @@ import {
   deleteProject,
 } from '@/lib/db'
 import type { DbProject } from '@/lib/db'
-import AuthModal from './AuthModal'
 import type { DesignState } from '@/types'
 
 // ─── Platform brand marks ─────────────────────────────────────────────────────
@@ -708,12 +707,183 @@ function NewProjectCard({ creating, user, onNewProject }: NewProjectCardProps) {
   )
 }
 
+// ─── Sign-in page (shown before auth) ────────────────────────────────────────
+
+type SignInMode = 'signin' | 'signup' | 'magic' | 'reset'
+
+function SignInPage() {
+  const [mode, setMode]         = useState<SignInMode>('signin')
+  const [email, setEmail]       = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError]       = useState<string | null>(null)
+  const [info, setInfo]         = useState<string | null>(null)
+  const [busy, setBusy]         = useState(false)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const supabase = createClient()
+
+  useEffect(() => {
+    setTimeout(() => emailRef.current?.focus(), 80)
+  }, [mode])
+
+  const switchMode = (m: SignInMode) => { setMode(m); setError(null); setInfo(null) }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null); setInfo(null); setBusy(true)
+    const callbackUrl = `${window.location.origin}/auth/callback`
+    try {
+      if (mode === 'reset') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+        })
+        if (error) throw error
+        setInfo('Check your email for a reset link.')
+        return
+      }
+      if (mode === 'magic') {
+        const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: callbackUrl } })
+        if (error) throw error
+        setInfo('Link sent — check your inbox.')
+        return
+      }
+      if (mode === 'signup') {
+        const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: callbackUrl } })
+        if (error) throw error
+        setInfo('Check your email to confirm your account.')
+        return
+      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const heading = mode === 'reset' ? 'Reset password' : mode === 'magic' ? 'Magic link' : mode === 'signup' ? 'Create account' : 'Welcome back'
+  const subheading = mode === 'reset' ? "We'll send a reset link to your email." : mode === 'magic' ? "We'll email you a one-click sign-in link." : mode === 'signup' ? 'Set up your DocsDiesel workspace.' : 'Sign in to your DocsDiesel workspace.'
+
+  return (
+    <div className="flex h-screen overflow-hidden">
+
+      {/* ── Left — form panel ── */}
+      <div className="w-[480px] shrink-0 flex flex-col bg-white dark:bg-gray-950 border-r border-gray-100 dark:border-gray-800">
+
+        {/* Brand */}
+        <div className="flex items-center gap-2.5 px-10 pt-9">
+          <img src="/Favicon.svg" alt="" className="w-5 h-5 object-contain shrink-0" />
+          <span className="text-[13px] font-semibold text-gray-900 dark:text-white tracking-tight">Doc&rsquo;s Design Generator</span>
+        </div>
+
+        {/* Form block — vertically centered */}
+        <div className="flex-1 flex items-center justify-center px-10">
+          <div className="w-full max-w-sm">
+            <h1 className="text-[26px] font-bold text-gray-900 dark:text-white tracking-tight mb-1">{heading}</h1>
+            <p className="text-[13px] text-gray-400 dark:text-gray-500 mb-8">{subheading}</p>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">Email</label>
+                <input
+                  ref={emailRef}
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  placeholder="you@docsdiesel.com"
+                  className="w-full h-10 px-3 text-[13px] border border-gray-200 dark:border-gray-700 rounded-none bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-gray-500 transition-all"
+                />
+              </div>
+
+              {mode !== 'magic' && mode !== 'reset' && (
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1.5">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    required
+                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                    placeholder="••••••••"
+                    className="w-full h-10 px-3 text-[13px] border border-gray-200 dark:border-gray-700 rounded-none bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-900/10 dark:focus:ring-white/10 focus:border-gray-400 dark:focus:border-gray-500 transition-all"
+                  />
+                </div>
+              )}
+
+              {error && (
+                <div className="flex items-start gap-2 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 px-3 py-2.5 rounded-none">
+                  <svg className="w-3.5 h-3.5 text-red-400 mt-px shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-[12px] text-red-500 dark:text-red-400">{error}</p>
+                </div>
+              )}
+              {info && (
+                <div className="flex items-start gap-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/40 px-3 py-2.5 rounded-none">
+                  <svg className="w-3.5 h-3.5 text-emerald-500 mt-px shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-[12px] text-emerald-600 dark:text-emerald-400">{info}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={busy || !!info}
+                className="w-full h-10 rounded-none bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[12px] font-bold uppercase tracking-widest hover:bg-gray-700 dark:hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors mt-1"
+              >
+                {busy ? 'Please wait…' : mode === 'reset' ? 'Send reset link' : mode === 'magic' ? 'Send magic link' : mode === 'signup' ? 'Create account' : 'Sign in'}
+              </button>
+            </form>
+
+            {/* Secondary links */}
+            <div className="mt-5 space-y-2 text-center">
+              {mode === 'signin' && (
+                <>
+                  <div>
+                    <button type="button" onClick={() => switchMode('reset')} className="text-[12px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Forgot password?</button>
+                  </div>
+                  <div>
+                    <button type="button" onClick={() => switchMode('magic')} className="text-[12px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Send a magic link instead →</button>
+                  </div>
+                </>
+              )}
+              {mode === 'signup' && (
+                <button type="button" onClick={() => switchMode('magic')} className="text-[12px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Send a magic link instead →</button>
+              )}
+              {(mode === 'magic' || mode === 'reset') && (
+                <button type="button" onClick={() => switchMode('signin')} className="text-[12px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">← Back to sign in</button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <p className="px-10 pb-9 text-[11px] text-gray-300 dark:text-gray-700">DocsDiesel internal tool · Not for distribution</p>
+      </div>
+
+      {/* ── Right — video panel ── */}
+      <div className="flex-1 relative overflow-hidden bg-gray-100 dark:bg-gray-900">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+          src="/Sign in video.mov"
+        />
+      </div>
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
   const router = useRouter()
   const { user, loading: authLoading, signOut } = useAuth()
-  const [authModalOpen, setAuthModalOpen] = useState(false)
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [loading, setLoading] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -1015,44 +1185,7 @@ export default function Dashboard() {
 
   // ── Not signed in ──────────────────────────────────────────────────────────
   if (!authLoading && !user) {
-    return (
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
-        <aside className="w-72 shrink-0 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-700 shadow-sm">
-          <div className="h-12 flex items-center gap-2.5 px-4 border-b border-gray-100 dark:border-gray-800">
-            <div className="w-6 h-6 rounded-none overflow-hidden shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-              <img src="/Favicon.svg" alt="" className="w-5 h-5 object-contain" />
-            </div>
-            <span className="heading-sm truncate">Doc&rsquo;s Design Generator</span>
-          </div>
-        </aside>
-        <div className="flex-1 relative overflow-hidden">
-          {/* Background video */}
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-            src="/Sign in video.mov"
-          />
-          <div className="absolute inset-0 bg-black/30" />
-          {/* Sign-in card */}
-          <div className="relative z-10 flex items-center justify-center h-full">
-            <div className="text-center max-w-xs bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-gray-100 dark:border-gray-700 shadow-2xl px-8 py-8">
-              <div className="w-10 h-10 rounded-none bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
-                <img src="/Favicon.svg" alt="" className="w-6 h-6 object-contain" />
-              </div>
-              <p className="heading-sm mb-1">Welcome back</p>
-              <p className="body-sm mb-5">Sign in to access your projects.</p>
-              <button onClick={() => setAuthModalOpen(true)} className="btn btn-md btn-primary">
-                Sign in
-              </button>
-            </div>
-          </div>
-        </div>
-        <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
-      </div>
-    )
+    return <SignInPage />
   }
 
   // ── Main dashboard ─────────────────────────────────────────────────────────
