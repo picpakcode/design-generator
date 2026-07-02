@@ -172,9 +172,13 @@ export default function DocsPage() {
           <span className="text-[11px] font-semibold">Dashboard</span>
         </Link>
         <span className="w-px h-4 bg-gray-200 dark:bg-gray-700" />
-        <img src="/Favicon.png" alt="" className="w-5 h-5 rounded-none object-contain shrink-0" />
+        <img src="/Favicon.svg" alt="" className="w-5 h-5 rounded-none object-contain shrink-0" />
         <span className="font-bold text-gray-900 dark:text-white text-sm tracking-tight">Docs</span>
         <span className="ml-1 shrink-0 px-1.5 py-0.5 rounded-none text-[9px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-700">Beta</span>
+        <div className="flex-1" />
+        <Link href="/changelog" className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
+          Changelog
+        </Link>
       </header>
 
       <div className="flex flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6">
