@@ -177,18 +177,18 @@
 
 /* ── Dark mode: sidebar text inputs ─────────────────────── */
 .dark .dg-sidebar input:not([type="color"]):not([type="range"]):not([type="checkbox"]) {
-  background-color: rgb(31 41 55);
-  border-color: rgb(55 65 81);
-  color: rgb(229 231 235);
+  background-color: rgb(39 39 42);
+  border-color: rgb(63 63 70);
+  color: rgb(228 228 231);
 }
 .dark .dg-sidebar input:not([type="color"]):not([type="range"])::placeholder {
-  color: rgb(107 114 128);
+  color: rgb(113 113 122);
 }
 
 /* ── Dark mode: rich-text editor ────────────────────────── */
 .dark .rte-prosemirror {
-  color: rgb(209 213 219);
-  background-color: rgb(31 41 55);
+  color: rgb(212 212 216);
+  background-color: rgb(39 39 42);
 }
 .dark .rte-prosemirror p.is-editor-empty:first-child::before {
   color: rgb(107 114 128);

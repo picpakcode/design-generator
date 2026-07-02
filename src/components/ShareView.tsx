@@ -85,7 +85,7 @@ function PeerAvatars({ peers }: { peers: Peer[] }) {
         </div>
       ))}
       {overflow > 0 && (
-        <div className="w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 text-[9px] font-bold ring-2 ring-white">
+        <div className="w-7 h-7 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-gray-700 dark:text-gray-200 text-[9px] font-bold ring-2 ring-white dark:ring-gray-800">
           +{overflow}
         </div>
       )}
@@ -669,7 +669,7 @@ function CommentsSidebar({
                 onClick={() => onSelectBlock(block.id)}
                 title={block.label}
                 className={`relative shrink-0 h-[26px] px-2.5 rounded-none text-[10px] font-semibold transition-all whitespace-nowrap ${
-                  isActive ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                  isActive ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
               >
                 {block.label}

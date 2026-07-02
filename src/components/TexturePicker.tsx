@@ -174,7 +174,7 @@ export default function TexturePicker({ albumId, value, onChange, placeholder = 
                     <img
                       src={t.previewUrl}
                       alt={t.name}
-                      className={`w-full h-full ${thumbnailFit === 'contain' ? 'object-contain p-1 bg-white' : 'object-cover'}`}
+                      className={`w-full h-full ${thumbnailFit === 'contain' ? 'object-contain p-1 bg-white dark:bg-gray-800' : 'object-cover'}`}
                       onError={e => { const btn = e.currentTarget.closest('button'); if (btn) btn.style.display = 'none' }}
                     />
                     <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">

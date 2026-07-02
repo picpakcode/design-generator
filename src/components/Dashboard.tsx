@@ -1120,7 +1120,7 @@ export default function Dashboard() {
             {([
               {
                 key: 'all' as const, label: 'All Projects', count: projects.length,
-                icon: <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
+                icon: <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>,
               },
               {
                 key: 'amazon' as const, label: 'Amazon', count: amazonCount,
@@ -1154,8 +1154,13 @@ export default function Dashboard() {
             title="Sort"
             defaultOpen
             icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M6 12h12M9 17h6" /></svg>}
-            contentPadding="py-1 pb-2"
+            contentPadding="relative py-1 pb-2"
           >
+            {/* sliding accent bar — translates by item index × item height (h-8 = 32px) */}
+            <span
+              className="absolute left-4 w-0.5 h-3.5 bg-accent-500 transition-transform duration-200 ease-out pointer-events-none"
+              style={{ top: 13, transform: `translateY(${['updated','name','type'].indexOf(sortBy) * 32}px)` }}
+            />
             {([
               { value: 'updated' as const, label: 'Last modified' },
               { value: 'name' as const, label: 'Name A–Z' },
@@ -1164,13 +1169,13 @@ export default function Dashboard() {
               <button
                 key={opt.value}
                 onClick={() => setSortBy(opt.value)}
-                className={`w-full flex items-center gap-3 px-4 py-1.5 text-[12px] transition-colors ${
+                className={`w-full flex items-center gap-3 px-4 h-8 text-[12px] transition-colors ${
                   sortBy === opt.value
                     ? 'text-gray-900 dark:text-white font-medium'
                     : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
-                <span className={`w-0.5 h-3.5 rounded-full shrink-0 transition-colors ${sortBy === opt.value ? 'bg-accent-500' : 'bg-transparent'}`} />
+                <span className="w-0.5 shrink-0" />{/* layout spacer matching indicator width */}
                 {opt.label}
               </button>
             ))}
@@ -1204,7 +1209,7 @@ export default function Dashboard() {
           {/* Settings */}
           <DashboardSection
             title="Settings"
-            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" /></svg>}
           >
             <div className="space-y-3">
               <div>
@@ -1240,7 +1245,7 @@ export default function Dashboard() {
           {/* Help */}
           <DashboardSection
             title="Help"
-            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>}
+            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
             contentPadding="py-1 pb-2"
           >
             <Link href="/docs" className="w-full flex items-center gap-2 px-4 py-1.5 text-[12px] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white transition-colors">

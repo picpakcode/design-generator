@@ -2779,23 +2779,23 @@ export default function TemplateMode({
                                 <>
                                   {st.approval === 'approved' && (
                                     <button onClick={e => { e.stopPropagation(); onOpenFeedback?.() }} title="Approved"
-                                      style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 5, background: '#ECFDF5', border: '1px solid #A7F3D0', cursor: 'pointer' }}>
-                                      <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#059669" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                      <span style={{ fontSize: 9, fontWeight: 700, color: '#059669', lineHeight: 1 }}>Approved</span>
+                                      style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 5, background: isDark ? 'rgba(16,185,129,0.12)' : '#ECFDF5', border: `1px solid ${isDark ? 'rgba(52,211,153,0.25)' : '#A7F3D0'}`, cursor: 'pointer' }}>
+                                      <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke={isDark ? '#34d399' : '#059669'} strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                      <span style={{ fontSize: 9, fontWeight: 700, color: isDark ? '#34d399' : '#059669', lineHeight: 1 }}>Approved</span>
                                     </button>
                                   )}
                                   {st.approval === 'changes_requested' && (
                                     <button onClick={e => { e.stopPropagation(); onOpenFeedback?.() }} title="Changes requested"
-                                      style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 5, background: '#FFF7ED', border: '1px solid #FED7AA', cursor: 'pointer' }}>
-                                      <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#EA580C" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
-                                      <span style={{ fontSize: 9, fontWeight: 700, color: '#EA580C', lineHeight: 1 }}>Revisions</span>
+                                      style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 5, background: isDark ? 'rgba(234,88,12,0.12)' : '#FFF7ED', border: `1px solid ${isDark ? 'rgba(251,146,60,0.25)' : '#FED7AA'}`, cursor: 'pointer' }}>
+                                      <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke={isDark ? '#fb923c' : '#EA580C'} strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                                      <span style={{ fontSize: 9, fontWeight: 700, color: isDark ? '#fb923c' : '#EA580C', lineHeight: 1 }}>Revisions</span>
                                     </button>
                                   )}
                                   {st.open > 0 && (
                                     <button onClick={e => { e.stopPropagation(); onOpenFeedback?.() }} title={`${st.open} open comment${st.open !== 1 ? 's' : ''}`}
-                                      style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 5, background: '#FEF3C7', border: '1px solid #FDE68A', cursor: 'pointer' }}>
-                                      <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="#D97706" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                                      <span style={{ fontSize: 9, fontWeight: 700, color: '#D97706', lineHeight: 1 }}>{st.open}</span>
+                                      style={{ display: 'flex', alignItems: 'center', gap: 3, height: 18, paddingLeft: 6, paddingRight: 6, borderRadius: 5, background: isDark ? 'rgba(217,119,6,0.12)' : '#FEF3C7', border: `1px solid ${isDark ? 'rgba(251,191,36,0.25)' : '#FDE68A'}`, cursor: 'pointer' }}>
+                                      <svg width="9" height="9" fill="none" viewBox="0 0 24 24" stroke={isDark ? '#fbbf24' : '#D97706'} strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                      <span style={{ fontSize: 9, fontWeight: 700, color: isDark ? '#fbbf24' : '#D97706', lineHeight: 1 }}>{st.open}</span>
                                     </button>
                                   )}
                                 </>
