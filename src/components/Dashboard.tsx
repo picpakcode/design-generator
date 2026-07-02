@@ -1545,7 +1545,7 @@ export default function Dashboard() {
               {/* Grid or List */}
               {filteredProjects.length > 0 && (
                 viewMode === 'grid' ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                     {filteredProjects.map((project, idx) => (
                       <ProjectCard
                         key={project.id} project={project}
