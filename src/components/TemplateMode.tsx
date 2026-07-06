@@ -945,7 +945,10 @@ export default function TemplateMode({
   // ── Init ──────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (isShopify) setAplusSlots(0)
+    if (isShopify) {
+      setAplusSlots(0)
+      setLogoAsset(null) // never pre-populate Doc's logo on Shopify projects
+    }
   }, [isShopify])
 
   useEffect(() => {

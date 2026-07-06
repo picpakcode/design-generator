@@ -549,7 +549,17 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           return { ...block, assets: restoredAssets as UploadedAsset[] }
         })
       )
-      const loaded = { ...state, blocks }
+      const isShopifyProject = (project.project_type ?? 'amazon') === 'shopify'
+      const stripLogo = <T extends { assets?: UploadedAsset[] }>(b: T): T => {
+        const assets = [...(b.assets ?? [])] as (UploadedAsset | undefined)[]
+        if (assets[2]?.id === DEFAULT_LOGO_ID) assets[2] = undefined
+        return { ...b, assets: assets as UploadedAsset[] }
+      }
+      const loaded = {
+        ...state,
+        blocks: isShopifyProject ? blocks.map(stripLogo) : blocks,
+        galleryBlocks: isShopifyProject ? (state.galleryBlocks ?? []).map(stripLogo) : (state.galleryBlocks ?? []),
+      }
       setDesign(loaded)
       histRef.current = [loaded]
       histIdxRef.current = 0
