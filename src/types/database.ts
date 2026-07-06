@@ -43,6 +43,10 @@ export type Database = {
           thumbnail_url: string | null
           created_at: string
           updated_at: string
+          locked_by: string | null
+          locked_at: string | null
+          lock_expires_at: string | null
+          locked_by_email: string | null
         }
         Insert: {
           id?: string
@@ -60,6 +64,10 @@ export type Database = {
           template_state?: unknown | null
           thumbnail_url?: string | null
           updated_at?: string
+          locked_by?: string | null
+          locked_at?: string | null
+          lock_expires_at?: string | null
+          locked_by_email?: string | null
         }
         Relationships: []
       }

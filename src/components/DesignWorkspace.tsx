@@ -7,6 +7,7 @@ import { Category, DesignBlock, DesignState, Format, FormatSettings, GalleryBloc
 import { createClient } from '@/lib/supabase/client'
 import { loadProject, saveProject, saveProjectThumbnail, renameProject, createProject, loadProjectShare } from '@/lib/db'
 import { usePresence, presenceColor } from '@/hooks/usePresence'
+import { useLock } from '@/hooks/useLock'
 import ShareModal from './ShareModal'
 import FeedbackPanel, { type BlockCommentStatus } from './FeedbackPanel'
 import Btn from './ui/Btn'
@@ -368,6 +369,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     },
   })
 
+  const { lockState, holderEmail, takeover, isEditor } = useLock(projectId, user?.id, user?.email)
+
   const patchSettings = (patch: Partial<FormatSettings>) =>
     setDesign(d => {
       if (d.activeCategory === 'gallery') return { ...d, gallery: { ...d.gallery, ...patch } }
@@ -591,6 +594,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   useEffect(() => {
     if (!projectId || !user) return
     if (!appSettings.autosaveInterval) return
+    if (!isEditor) return  // don't overwrite another user's session
     setSaveStatus('pending')
     const supabase = createClient()
     const t = setTimeout(async () => {
@@ -2153,6 +2157,25 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
         </>
         )}
       </header>
+
+      {/* ── Session lock banner ── */}
+      {lockState === 'taken' && (
+        <div className="shrink-0 flex items-center gap-3 px-5 py-2 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-100 dark:border-amber-900/60 z-10">
+          <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          <p className="text-[12px] text-amber-800 dark:text-amber-200 flex-1">
+            <span className="font-semibold">{holderEmail ?? 'Someone'}</span>
+            {' '}is currently editing — your changes won&rsquo;t be saved.
+          </p>
+          <button
+            onClick={takeover}
+            className="shrink-0 h-7 px-3 rounded-none border border-amber-300 dark:border-amber-700 text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors"
+          >
+            Take over editing
+          </button>
+        </div>
+      )}
 
       {/* ── Body ── */}
       {/* Template mode — always mounted, CSS-hidden when inactive to preserve state across tab switches */}

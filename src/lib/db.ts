@@ -163,6 +163,88 @@ export async function deleteProject(db: Client, id: string): Promise<void> {
   await db.from('projects').delete().eq('id', id)
 }
 
+// ── Project session locks ─────────────────────────────────────────────────────
+
+const LOCK_TTL_SECONDS = 45
+
+/**
+ * Try to acquire the edit lock for projectId.
+ * Succeeds if: lock is unclaimed, expired, or already held by this user.
+ * Returns whether acquired and, on failure, who holds it.
+ */
+export async function acquireLock(
+  db: Client,
+  projectId: string,
+  userId: string,
+  email: string,
+): Promise<{ acquired: boolean; holderEmail: string | null }> {
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + LOCK_TTL_SECONDS * 1000)
+
+  const { data } = await db
+    .from('projects')
+    .update({
+      locked_by:       userId,
+      locked_at:       now.toISOString(),
+      lock_expires_at: expiresAt.toISOString(),
+      locked_by_email: email,
+    })
+    .eq('id', projectId)
+    .or(`locked_by.is.null,locked_by.eq.${userId},lock_expires_at.lt.${now.toISOString()}`)
+    .select('locked_by')
+
+  if (Array.isArray(data) && data.length > 0 && data[0]?.locked_by === userId) {
+    return { acquired: true, holderEmail: null }
+  }
+
+  // Acquire failed — fetch who holds it for the UI
+  const { data: cur } = await db
+    .from('projects')
+    .select('locked_by_email')
+    .eq('id', projectId)
+    .single()
+  return { acquired: false, holderEmail: cur?.locked_by_email ?? null }
+}
+
+/** Extend the lock TTL (heartbeat — call every ~20 s while editing). */
+export async function renewLock(db: Client, projectId: string, userId: string): Promise<void> {
+  const expiresAt = new Date(Date.now() + LOCK_TTL_SECONDS * 1000)
+  await db
+    .from('projects')
+    .update({ lock_expires_at: expiresAt.toISOString() })
+    .eq('id', projectId)
+    .eq('locked_by', userId)
+}
+
+/** Release the lock (called on unmount / beforeunload). */
+export async function releaseLock(db: Client, projectId: string, userId: string): Promise<void> {
+  await db
+    .from('projects')
+    .update({ locked_by: null, locked_at: null, lock_expires_at: null, locked_by_email: null })
+    .eq('id', projectId)
+    .eq('locked_by', userId)
+}
+
+/** Unconditionally steal the lock (take-over flow). */
+export async function forceLock(
+  db: Client,
+  projectId: string,
+  userId: string,
+  email: string,
+): Promise<void> {
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + LOCK_TTL_SECONDS * 1000)
+  await db
+    .from('projects')
+    .update({
+      locked_by:       userId,
+      locked_at:       now.toISOString(),
+      lock_expires_at: expiresAt.toISOString(),
+      locked_by_email: email,
+    })
+    .eq('id', projectId)
+}
+
 export async function saveProjectThumbnail(db: Client, id: string, thumbnailUrl: string): Promise<void> {
   await db
     .from('projects')
