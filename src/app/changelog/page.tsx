@@ -22,6 +22,22 @@ interface Release {
 
 const RELEASES: Release[] = [
   {
+    id: 'jul-6-2026',
+    date: 'Jul 6, 2026',
+    label: 'Micro-interactions & share page polish',
+    changes: [
+      { kind: 'new',      text: 'Canvas block selection ring animates in with a subtle scale-pop — blocks spring from 99.5% to 100% on click.' },
+      { kind: 'new',      text: 'Sidebar panels crossfade when switching between slots in Template Mode.' },
+      { kind: 'new',      text: 'Asset thumbnail bounces when a photo or icon is assigned to a slot.' },
+      { kind: 'new',      text: 'Save status indicator now draws the checkmark in with an SVG stroke animation instead of a static icon.' },
+      { kind: 'new',      text: 'Zoom +/− buttons and the percentage display have a tactile press-down feel on the canvas HUD.' },
+      { kind: 'improved', text: 'Share link product selector is now a compact dropdown with the current product name truncated — replaces the scrolling wall of full-name pills.' },
+      { kind: 'improved', text: 'Dashboard project cards zoom and show a dark scrim on hover for a cleaner browse experience.' },
+      { kind: 'improved', text: 'Dashboard format and sort toggles animate with a sliding pill instead of an instant colour swap.' },
+      { kind: 'fixed',    text: 'Canto gallery (1500×1500 px) uploads failing with HTTP 413 — images are now converted to JPEG client-side before upload, keeping payloads under Vercel\'s 4.5 MB body limit.' },
+    ],
+  },
+  {
     id: 'jul-2026',
     date: 'Jul 2, 2026',
     label: 'Design system overhaul',
@@ -29,10 +45,14 @@ const RELEASES: Release[] = [
       { kind: 'improved', text: 'Switched to 0 px border radius across all controls, menus, and modals for a sharper, more editorial feel.' },
       { kind: 'improved', text: 'Dark theme now uses a true-neutral (zinc) palette — no more blue cast on dark backgrounds.' },
       { kind: 'improved', text: 'Dashboard sidebar redesigned to match the canvas sidebar: collapsible sections, consistent header hierarchy, and smooth section toggles.' },
-      { kind: 'new',      text: 'Sort indicator in the sidebar now slides smoothly between options instead of toggling.' },
+      { kind: 'improved', text: 'Dashboard project grid is now full-width with a responsive column count — 2 on mobile up to 5 on wide screens.' },
+      { kind: 'new',      text: 'Sign-in page redesigned with a 50/50 split layout and a looping video background.' },
+      { kind: 'new',      text: 'Docs and Changelog open in slide-in drawers, keeping the dashboard visible in the background.' },
       { kind: 'new',      text: 'SVG favicon replaces the PNG version for crisp rendering at all sizes.' },
+      { kind: 'improved', text: 'Docs drawer redesigned with a neutral palette and left-border section navigation — consistent with the editor sidebar.' },
       { kind: 'fixed',    text: 'Status badge colours (Approved, Revisions, Comments) now adapt correctly to dark mode.' },
       { kind: 'fixed',    text: 'Sidebar inputs and the rich-text editor use correct neutral colours in dark mode.' },
+      { kind: 'fixed',    text: 'Logo auto-populate is now skipped for Shopify projects to prevent the Doc\'s wordmark from appearing on Shopify gallery frames.' },
     ],
   },
   {
