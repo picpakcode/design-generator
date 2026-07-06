@@ -848,6 +848,9 @@ function SignInPage() {
               {mode === 'signin' && (
                 <>
                   <div>
+                    <button type="button" onClick={() => switchMode('signup')} className="text-[12px] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors font-medium">New here? Create an account →</button>
+                  </div>
+                  <div>
                     <button type="button" onClick={() => switchMode('reset')} className="text-[12px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Forgot password?</button>
                   </div>
                   <div>
@@ -856,7 +859,14 @@ function SignInPage() {
                 </>
               )}
               {mode === 'signup' && (
-                <button type="button" onClick={() => switchMode('magic')} className="text-[12px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Send a magic link instead →</button>
+                <>
+                  <div>
+                    <button type="button" onClick={() => switchMode('signin')} className="text-[12px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">← Already have an account?</button>
+                  </div>
+                  <div>
+                    <button type="button" onClick={() => switchMode('magic')} className="text-[12px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">Send a magic link instead →</button>
+                  </div>
+                </>
               )}
               {(mode === 'magic' || mode === 'reset') && (
                 <button type="button" onClick={() => switchMode('signin')} className="text-[12px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">← Back to sign in</button>
