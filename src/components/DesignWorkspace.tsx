@@ -1590,7 +1590,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
             {saveStatus === 'pending' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />}
             {saveStatus === 'saved'   && (
               <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                <path className="animate-draw-check" strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             )}
             {saveStatus === 'error'   && <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />}
@@ -3105,7 +3105,8 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
                                       ? `0 0 0 4px ${peer.color}22, 0 2px 12px rgba(0,0,0,0.10)`
                                       : '0 2px 12px rgba(0,0,0,0.10)',
                                   cursor: isSelected && photoEditMode && isOverPhoto ? 'grab' : 'pointer',
-                                  transition: 'box-shadow 180ms ease, outline-color 180ms ease',
+                                  transform: isSelected ? 'scale(1)' : 'scale(0.995)',
+                                  transition: 'box-shadow 180ms ease, outline-color 180ms ease, transform 180ms ease-out',
                                 }}
                               >
                                 <div
@@ -3169,17 +3170,17 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
           <div className="absolute bottom-4 right-4 z-10 flex items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-none shadow-sm overflow-hidden">
             <button
               onClick={() => adjustZoom(1 / 1.25)}
-              className="w-7 h-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold transition-colors"
+              className="w-7 h-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold transition active:scale-90"
               title="Zoom out"
             >−</button>
             <button
               onClick={fitView}
-              className="h-7 px-2 text-[11px] font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors tabular-nums min-w-[44px] text-center"
+              className="h-7 px-2 text-[11px] font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition tabular-nums min-w-[44px] text-center active:scale-90"
               title="Reset zoom (F)"
             >{Math.round(zoom * 100)}%</button>
             <button
               onClick={() => adjustZoom(1.25)}
-              className="w-7 h-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold transition-colors"
+              className="w-7 h-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold transition active:scale-90"
               title="Zoom in"
             >+</button>
           </div>

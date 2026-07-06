@@ -183,6 +183,26 @@ function FileRow({ filename, state }: { filename: string; state: 'pending' | 'up
   )
 }
 
+// ─── PNG → JPEG conversion (keeps Canto uploads under Vercel's 4.5 MB body limit) ──
+function pngToJpeg(dataUrl: string, quality = 0.92): Promise<string> {
+  if (!dataUrl.startsWith('data:image/png')) return Promise.resolve(dataUrl)
+  return new Promise(resolve => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width  = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')!
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.onerror = () => resolve(dataUrl)
+    img.src = dataUrl
+  })
+}
+
 // ─── Main modal ───────────────────────────────────────────────────────────────
 
 interface Props {
@@ -252,12 +272,14 @@ export default function CantoExportModal({ open, onClose, files }: Props) {
       setFileRows(prev => prev.map((r, idx) => idx === i ? { ...r, state: 'uploading' } : r))
 
       try {
+        const converted = await pngToJpeg(dataUrl)
+        const uploadFilename = converted !== dataUrl ? filename.replace(/\.png$/i, '.jpg') : filename
         const res = await fetch('/api/canto/upload', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({
-            dataUrl,
-            filename,
+            dataUrl:     converted,
+            filename:    uploadFilename,
             albumId:     selectedAlbum.id,
             tags:        tags.length ? tags : undefined,
             keywords:    keywords.length ? keywords : undefined,

@@ -2413,6 +2413,7 @@ export default function TemplateMode({
 
         {/* Scrollable sections */}
         <div className="flex-1 min-h-0 overflow-y-auto">
+          <div key={activeIsGallery ? `g${activeGalleryIdx}` : activeIsShopifyGallery ? `sg${activeShopifyGalleryIdx}` : `a${activeSlotIdx}`} className="animate-fade-in">
 
           {/* Content */}
           <Section title="Content" defaultOpen>
@@ -2558,7 +2559,7 @@ export default function TemplateMode({
                   <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-1.5">Product Photo</p>
                   {activeSlot.photoAsset ? (
                     <div className="flex items-center gap-1.5">
-                      <div className="w-12 h-8 rounded-none bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0">
+                      <div key={activeSlot.photoAsset.id} className="w-12 h-8 rounded-none bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 overflow-hidden shrink-0 animate-bounce-once">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={activeSlot.photoAsset.url} alt={activeSlot.photoAsset.name} className="w-full h-full object-cover" />
                       </div>
@@ -2696,6 +2697,7 @@ export default function TemplateMode({
               </div>
             </div>
           </Section>
+          </div>
         </div>
         {/* Sidebar footer — docs */}
         <div className="shrink-0 border-t border-gray-100 dark:border-gray-700">
@@ -2838,7 +2840,7 @@ export default function TemplateMode({
                         {/* Desktop + Mobile frames */}
                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: FRAME_GAP }}>
                           <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
-                            style={{ width: 1464, height: 600, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
+                            style={{ width: 1464, height: 600, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer', transform: isActive ? 'scale(1)' : 'scale(0.995)', transition: 'outline-color 150ms ease, box-shadow 150ms ease, transform 150ms ease-out' }}>
                             {isIcons
                               ? <CanvasContentIcons design={{ ...sd, activeFormat: 'desktop' }} settings={{ ...designState.desktop, layoutFlipped: flip }} />
                               : isSplit
@@ -2847,7 +2849,7 @@ export default function TemplateMode({
                             }
                           </div>
                           <div onClick={() => { setActiveSlotIdx(slotIdx); setActiveIsGallery(false); setActiveIsShopifyGallery(false) }}
-                            style={{ width: 600, height: 450, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
+                            style={{ width: 600, height: 450, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer', transform: isActive ? 'scale(1)' : 'scale(0.995)', transition: 'outline-color 150ms ease, box-shadow 150ms ease, transform 150ms ease-out' }}>
                             {isIcons
                               ? <CanvasContentIcons design={{ ...sd, activeFormat: 'mobile' }} settings={{ ...designState.mobile, layoutFlipped: flip }} />
                               : isSplit
@@ -2946,7 +2948,7 @@ export default function TemplateMode({
 
                             {/* Gallery frame */}
                             <div onClick={() => { setActiveGalleryIdx(gIdx); setActiveIsGallery(true); setActiveIsShopifyGallery(false) }}
-                              style={{ width: 1500, height: 1500, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
+                              style={{ width: 1500, height: 1500, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer', transform: isActive ? 'scale(1)' : 'scale(0.995)', transition: 'outline-color 150ms ease, box-shadow 150ms ease, transform 150ms ease-out' }}>
                               {isGIcons
                                 ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
                                 : <CanvasContentGallery      design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
@@ -2987,7 +2989,7 @@ export default function TemplateMode({
                             </div>
                             {/* Shopify Gallery frame */}
                             <div onClick={() => { setActiveShopifyGalleryIdx(gIdx); setActiveIsShopifyGallery(true); setActiveIsGallery(false) }}
-                              style={{ width: 1500, height: 1500, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer' }}>
+                              style={{ width: 1500, height: 1500, position: 'relative', overflow: 'hidden', borderRadius: 4, flexShrink: 0, outline: isActive ? activeOutline : inactiveOutline, outlineOffset: 0, boxShadow: isActive ? activeShadow : inactiveShadow, cursor: 'pointer', transform: isActive ? 'scale(1)' : 'scale(0.995)', transition: 'outline-color 150ms ease, box-shadow 150ms ease, transform 150ms ease-out' }}>
                               {isGIcons
                                 ? <CanvasContentGalleryIcons design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
                                 : <CanvasContentGallery      design={gd} settings={{ ...designState.gallery, layoutFlipped: false }} />
@@ -3006,13 +3008,13 @@ export default function TemplateMode({
           {/* Zoom HUD — matches Design mode style */}
           <div className="absolute bottom-4 right-4 z-10 flex items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-none shadow-sm overflow-hidden">
             <button onClick={() => adjustZoom(1 / 1.25)}
-              className="w-7 h-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold transition-colors"
+              className="w-7 h-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold transition active:scale-90"
               title="Zoom out">−</button>
             <button onClick={fitView}
-              className="h-7 px-2 text-[11px] font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors tabular-nums min-w-[44px] text-center"
+              className="h-7 px-2 text-[11px] font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition tabular-nums min-w-[44px] text-center active:scale-90"
               title="Fit view (F)">{Math.round(zoom * 100)}%</button>
             <button onClick={() => adjustZoom(1.25)}
-              className="w-7 h-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold transition-colors"
+              className="w-7 h-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm font-bold transition active:scale-90"
               title="Zoom in">+</button>
           </div>
         </main>
