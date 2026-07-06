@@ -59,12 +59,13 @@ export default function AuthModal({ open, onClose }: Props) {
         return
       }
       if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email, password,
           options: { emailRedirectTo: callbackUrl },
         })
         if (error) throw error
-        setInfo('Check your email to confirm your account.')
+        if (!data.session) setInfo('Check your email to confirm your account.')
+        else onClose()
         return
       }
       const { error } = await supabase.auth.signInWithPassword({ email, password })

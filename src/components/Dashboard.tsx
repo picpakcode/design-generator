@@ -752,9 +752,11 @@ function SignInPage() {
         return
       }
       if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: callbackUrl } })
+        const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: callbackUrl } })
         if (error) throw error
-        setInfo('Check your email to confirm your account.')
+        // If email confirmation is off, Supabase returns a session immediately — just proceed.
+        // If confirmation is on, session is null and the user needs to check their email.
+        if (!data.session) setInfo('Check your email to confirm your account.')
         return
       }
       const { error } = await supabase.auth.signInWithPassword({ email, password })
