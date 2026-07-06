@@ -163,6 +163,33 @@ export async function deleteProject(db: Client, id: string): Promise<void> {
   await db.from('projects').delete().eq('id', id)
 }
 
+// ── Project visits (collaborator tracking) ────────────────────────────────────
+
+/** Record (or refresh) that userId visited a project they don't own. */
+export async function recordProjectVisit(db: Client, projectId: string, userId: string): Promise<void> {
+  await db
+    .from('project_visits')
+    .upsert({ project_id: projectId, user_id: userId, last_visited_at: new Date().toISOString() },
+             { onConflict: 'project_id,user_id' })
+}
+
+/** List projects owned by other users that this user has visited. */
+export async function listVisitedProjects(db: Client, userId: string): Promise<Omit<DbProject, 'state'>[]> {
+  const { data: visits } = await db
+    .from('project_visits')
+    .select('project_id')
+    .eq('user_id', userId)
+  if (!visits || visits.length === 0) return []
+  const ids = visits.map((v: { project_id: string }) => v.project_id)
+  const { data } = await db
+    .from('projects')
+    .select('id, user_id, name, project_type, thumbnail_url, created_at, updated_at, template_state')
+    .in('id', ids)
+    .neq('user_id', userId)
+    .order('updated_at', { ascending: false })
+  return (data ?? []) as Omit<DbProject, 'state'>[]
+}
+
 // ── Project session locks ─────────────────────────────────────────────────────
 
 const LOCK_TTL_SECONDS = 45

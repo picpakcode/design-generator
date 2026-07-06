@@ -5,7 +5,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { Category, DesignBlock, DesignState, Format, FormatSettings, GalleryBlock, GalleryTemplateId, PhotoComposition, DEFAULT_PHOTO_COMP, TemplateId, TextTransform, UploadedAsset } from '@/types'
 import { createClient } from '@/lib/supabase/client'
-import { loadProject, saveProject, saveProjectThumbnail, renameProject, createProject, loadProjectShare } from '@/lib/db'
+import { loadProject, saveProject, saveProjectThumbnail, renameProject, createProject, loadProjectShare, recordProjectVisit } from '@/lib/db'
 import { usePresence, presenceColor } from '@/hooks/usePresence'
 import { useLock } from '@/hooks/useLock'
 import ShareModal from './ShareModal'
@@ -371,6 +371,15 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
 
   const { lockState, holderEmail, takeover, isEditor } = useLock(projectId, user?.id, user?.email)
 
+  // Keep a ref so the autosave setTimeout can read the current value without a stale closure
+  const isEditorRef = useRef(isEditor)
+  useEffect(() => { isEditorRef.current = isEditor }, [isEditor])
+
+  // When we lose the edit lock mid-save, clear any stuck "Saving…" status immediately
+  useEffect(() => {
+    if (!isEditor) setSaveStatus(s => s === 'pending' ? 'idle' : s)
+  }, [isEditor])
+
   const patchSettings = (patch: Partial<FormatSettings>) =>
     setDesign(d => {
       if (d.activeCategory === 'gallery') return { ...d, gallery: { ...d.gallery, ...patch } }
@@ -567,6 +576,9 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       histRef.current = [loaded]
       histIdxRef.current = 0
       skipHistRef.current = true
+      if (project.user_id !== user.id) {
+        recordProjectVisit(supabase, projectId!, user.id).catch(() => {})
+      }
     }).catch(console.error).finally(() => setProjectLoading(false))
   }, [projectId, user]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -598,6 +610,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
     setSaveStatus('pending')
     const supabase = createClient()
     const t = setTimeout(async () => {
+      if (!isEditorRef.current) { setSaveStatus('idle'); return }
       try {
         await saveProject(supabase, projectId, design)
         clearTimeout(savedTimerRef.current)

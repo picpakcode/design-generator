@@ -71,6 +71,12 @@ export type Database = {
         }
         Relationships: []
       }
+      project_visits: {
+        Row:    { project_id: string; user_id: string; last_visited_at: string }
+        Insert: { project_id: string; user_id: string; last_visited_at?: string }
+        Update: { last_visited_at?: string }
+        Relationships: []
+      }
       project_shares: {
         Row: {
           id: string

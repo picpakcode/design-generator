@@ -40,6 +40,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ShortcutsModal } from './ShortcutsModal'
 import {
   listProjects,
+  listVisitedProjects,
   createProject,
   renameProject,
   deleteProject,
@@ -346,6 +347,57 @@ const ProjectCard = React.memo(function ProjectCard({
     </div>
   )
 })
+
+// ─── Shared-with-me card (read-only, no actions) ─────────────────────────────
+
+function SharedProjectCard({ project }: { project: ProjectRow }) {
+  const timeStr = useMemo(() => timeAgo(project.updated_at), [project.updated_at])
+  const placeholder = (
+    <div className={`w-full h-full flex items-center justify-center ${
+      project.project_type === 'amazon' ? 'bg-orange-50 dark:bg-orange-950/30' : 'bg-green-50 dark:bg-green-950/30'
+    }`}>
+      {project.project_type === 'amazon' ? (
+        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="#FF9900" opacity="0.2"/>
+          <path d="M6.5 12.5c0 0 1.2 2.5 5.5 2.5s5.5-2.5 5.5-2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M15.5 11l2 1.5-2 1.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M8 7.5h8M12 7.5v2.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      ) : (
+        <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none">
+          <path d="M16 7c-.5-1.5-2-2.5-3.5-2.5-1 0-2 .5-2.5 1.5C9.5 7 9 7 9 7L7.5 17.5l9 1.5L18 9c0 0-1.5-.5-2-2z" fill="#96BF48" opacity="0.2"/>
+          <path d="M9 7s.5-1.5 2-2 2.5 0 3 1M7.5 17.5l9 1.5L18 9" stroke="#5A8A3C" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="9" cy="20" r="1.2" fill="#5A8A3C"/>
+          <circle cx="15" cy="20" r="1.2" fill="#5A8A3C"/>
+        </svg>
+      )}
+    </div>
+  )
+  return (
+    <a
+      href={`/project/${project.id}`}
+      className="group flex flex-col bg-white dark:bg-gray-900 rounded-none border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300 dark:hover:border-gray-600 transition-all overflow-hidden animate-fade-in"
+    >
+      <div className="relative aspect-video overflow-hidden bg-gray-50 dark:bg-gray-800">
+        {project.thumbnail_url ? (
+          <img src={project.thumbnail_url} alt={project.name || 'Untitled'} className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]" />
+        ) : placeholder}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/12 transition-colors duration-200 pointer-events-none" />
+      </div>
+      <div className="px-3 pt-2.5 pb-3">
+        <p className="text-[13px] font-semibold text-gray-900 dark:text-white truncate leading-snug group-hover:text-accent-600 dark:group-hover:text-accent-400 transition-colors">
+          {project.name || 'Untitled'}
+        </p>
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <span className={`badge shrink-0 ${project.project_type === 'shopify' ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-orange-50 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'}`}>
+            {project.project_type === 'shopify' ? 'Shopify' : 'Amazon'}
+          </span>
+          <span className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">{timeStr}</span>
+        </div>
+      </div>
+    </a>
+  )
+}
 
 // ─── Project guide modal ──────────────────────────────────────────────────────
 
@@ -904,6 +956,7 @@ export default function Dashboard() {
   const [docsOpen, setDocsOpen]           = useState(false)
   const [changelogOpen, setChangelogOpen] = useState(false)
   const [projects, setProjects] = useState<ProjectRow[]>([])
+  const [visitedProjects, setVisitedProjects] = useState<ProjectRow[]>([])
   const [loading, setLoading] = useState(false)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -938,6 +991,9 @@ export default function Dashboard() {
       .then(setProjects)
       .catch(console.error)
       .finally(() => setLoading(false))
+    listVisitedProjects(supabase, user.id)
+      .then(setVisitedProjects)
+      .catch(console.error)
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -1593,6 +1649,23 @@ export default function Dashboard() {
                     ))}
                   </div>
                 )
+              )}
+
+              {/* Shared with me */}
+              {visitedProjects.length > 0 && (
+                <div className="mt-8">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Shared with me</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {visitedProjects.map(project => (
+                      <SharedProjectCard key={project.id} project={project} />
+                    ))}
+                  </div>
+                </div>
               )}
             </>
           )}
