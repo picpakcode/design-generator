@@ -315,7 +315,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
   const defaultLogoRef = useRef<UploadedAsset | null>(null)
 
   const [projectName, setProjectName] = useState<string>('')
-  const [projectType, setProjectType] = useState<'amazon' | 'shopify'>('amazon')
+  const [projectType, setProjectType] = useState<'amazon' | 'shopify' | null>(null)
   const [isRenamingProject, setIsRenamingProject] = useState(false)
   const [projectNameDraft, setProjectNameDraft] = useState('')
   const projectNameInputRef = useRef<HTMLInputElement>(null)
@@ -668,8 +668,9 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       .catch(() => {})
   }, [])
 
-  // Fetch default logo once on mount — backfills slot 2 in all blocks that lack a logo
+  // Fetch default logo once projectType is known — skipped entirely for Shopify projects
   useEffect(() => {
+    if (projectType === null || projectType === 'shopify') return
     fetch(`/api/canto/folder?albumId=${DEFAULT_LOGO_ALBUM}`)
       .then(r => r.json())
       .then((items: Array<{ id: string; name: string; previewUrl: string }>) => {
@@ -695,10 +696,11 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
         }))
       })
       .catch(() => {})
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectType]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Whenever a gallery block is added without a logo, backfill it automatically
+  // Whenever a gallery block is added without a logo, backfill it automatically (Amazon only)
   useEffect(() => {
+    if (projectType === 'shopify') return
     if (!defaultLogoRef.current) return
     if (!(design.galleryBlocks ?? []).some(b => !b.assets?.[2])) return
     const logo = defaultLogoRef.current
@@ -2147,7 +2149,7 @@ export default function DesignWorkspace({ projectId, defaultOpenShare }: Props) 
       <div className={appMode === 'template' ? 'flex flex-1 min-h-0 flex-col overflow-hidden' : 'hidden'}>
         <TemplateMode
           projectId={projectId}
-          platform={projectType}
+          platform={projectType ?? 'amazon'}
           designState={design}
           folderConfig={folderConfig}
           exportFnRef={templateExportFnRef}
