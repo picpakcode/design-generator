@@ -20,6 +20,37 @@ interface Release {
 
 const RELEASES: Release[] = [
   {
+    id: 'jul-8-2026',
+    date: 'Jul 8, 2026',
+    label: 'Collaboration, session locking & shared projects',
+    changes: [
+      { kind: 'new',      text: 'Session locking — only one editor at a time per project. Lock is held for 45 s and renewed every 20 s via heartbeat; expires automatically if the tab is closed.' },
+      { kind: 'new',      text: 'Amber banner appears for anyone opening a project that\'s currently being edited by someone else, showing the editor\'s email and a "Take over editing" button.' },
+      { kind: 'new',      text: 'Autosave is gated on holding the edit lock — opening a project in a second tab or as a collaborator never overwrites the active editor\'s session.' },
+      { kind: 'new',      text: '"Shared with me" section on the dashboard — projects accessed via a shared URL appear here automatically after the first visit, no manual pinning needed.' },
+      { kind: 'new',      text: 'Sign-up flow now works without email confirmation — accounts are active immediately after creation.' },
+      { kind: 'new',      text: 'Sign-in page now includes a "Create account" entry point — the link was previously missing from the welcome screen.' },
+      { kind: 'fixed',    text: '"Saving…" status no longer freezes when the edit lock is taken by another user mid-save — status resets to idle immediately on lock loss.' },
+      { kind: 'fixed',    text: 'Collaborators opening a shared project URL now see the canvas instead of a blank editor — RLS policies updated to allow any authenticated user to read and edit shared projects.' },
+    ],
+  },
+  {
+    id: 'jul-6-2026',
+    date: 'Jul 6, 2026',
+    label: 'Micro-interactions & share page polish',
+    changes: [
+      { kind: 'new',      text: 'Canvas block selection ring animates in with a subtle scale-pop — blocks spring from 99.5% to 100% on click.' },
+      { kind: 'new',      text: 'Sidebar panels crossfade when switching between slots in Template Mode.' },
+      { kind: 'new',      text: 'Asset thumbnail bounces when a photo or icon is assigned to a slot.' },
+      { kind: 'new',      text: 'Save status indicator now draws the checkmark in with an SVG stroke animation instead of a static icon.' },
+      { kind: 'new',      text: 'Zoom +/− buttons and the percentage display have a tactile press-down feel on the canvas HUD.' },
+      { kind: 'improved', text: 'Share link product selector is now a compact dropdown with the current product name truncated — replaces the scrolling wall of full-name pills.' },
+      { kind: 'improved', text: 'Dashboard project cards zoom and show a dark scrim on hover for a cleaner browse experience.' },
+      { kind: 'improved', text: 'Dashboard format and sort toggles animate with a sliding pill instead of an instant colour swap.' },
+      { kind: 'fixed',    text: 'Canto gallery (1500×1500 px) uploads failing with HTTP 413 — images are now converted to JPEG client-side before upload, keeping payloads under Vercel\'s 4.5 MB body limit.' },
+    ],
+  },
+  {
     id: 'jul-2026',
     date: 'Jul 2, 2026',
     label: 'Design system overhaul',
